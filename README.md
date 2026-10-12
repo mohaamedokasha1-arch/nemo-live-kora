@@ -121,4 +121,51 @@ npm run dev
   - `NEXT_PUBLIC_GATEWAY_URL=https://nemo-live-kora.vercel.app`
   - `FOOTBALL_DATA_API_KEY` (اختياري لتفعيل مسار المباريات في Football-Data.org)
   - `API_FOOTBALL_KEY` (اختياري لتفعيل الجلب المباشر من API-Football)
-  - `CRON_SECRET` (لحماية مسار `/api/cron/sync`)
+  - `CRON_SECRET` (لحماية مساري `/api/cron/sync` و `/api/cron/update-matches`)
+
+---
+
+## 6. مسار التحديث التلقائي للمباريات (Cron Endpoint)
+
+**الملف:** `app/api/cron/update-matches/route.ts` — **المسار:** `/api/cron/update-matches`
+
+| العنصر | التفاصيل |
+| --- | --- |
+| الطريقة | `GET` (يستدعيه Vercel Cron) و `POST` (للتشغيل اليدوي) |
+| الحماية | `Authorization: Bearer ${process.env.CRON_SECRET}` |
+| عند غياب السر | `401 Unauthorized` |
+| وظيفة التحديث | `runMatchesUpdatePipeline()` في `lib/sync/engine.ts` (Database Pipeline) |
+| الجدولة | `vercel.json` ← `crons[0].schedule = "0 * * * *"` (كل ساعة) |
+
+مثال استجابة ناجحة:
+
+```json
+{
+  "ok": true,
+  "success": true,
+  "messageAr": "تم تحديث المباريات بنجاح — 24 مباراة محدَّثة.",
+  "updatedMatches": 24,
+  "matchesAdded": 3,
+  "matchesChanged": 21,
+  "matchesProcessed": 38,
+  "totalMatches": 512,
+  "standingsUpdated": 0,
+  "newsUpdated": 6,
+  "mode": "live",
+  "durationMs": 8420
+}
+```
+
+### تشغيله يدويًا
+
+```bash
+curl -X GET "https://<your-project>.vercel.app/api/cron/update-matches" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+# أو مع تحديد نمط التحديث: live (الافتراضي) | daily | standings | manual
+curl -X POST "https://<your-project>.vercel.app/api/cron/update-matches?mode=daily" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+> **تنبيه مهم:** الجدول `0 * * * *` (كل ساعة) يعمل على خطط Vercel **Pro / Enterprise** فقط.
+> على خطة **Hobby** يرفض Vercel أي جدول أسرع من مرة واحدة يوميًا، فاستبدله مثلًا بـ `0 0 * * *`.
