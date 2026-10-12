@@ -1,9 +1,10 @@
 import { getTodayCairoDate, shiftDateString } from '../cairo-time';
 import {
   getGatewayDatabase,
+  ingestNewsCandidatesInStore,
+  recordNewsSync,
   recordSyncExecution,
   upsertMatchesInStore,
-  upsertNewsInStore,
   upsertSeasonsInStore,
   upsertStandingsInStore,
 } from '../db/store';
@@ -17,11 +18,36 @@ import {
 import { fetchTheSportsDBMatches } from '../sources/thesportsdb';
 import {
   CompetitionStandingTable,
+  NewsSourceSyncRecord,
   SourceErrorEntry,
+  SourceHealthStatus,
   SourceId,
   SourceSyncResult,
   SyncLogEntry,
 } from '../types';
+
+async function isolateSource<T>(
+  sourceId: SourceId,
+  fn: () => Promise<T>,
+  fallback: T,
+  errors: SourceErrorEntry[]
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    errors.push({
+      id: `err-${sourceId}-${Date.now()}`,
+      sourceId,
+      timestamp: new Date().toISOString(),
+      endpoint: sourceId,
+      httpStatus: null,
+      errorCode: 'source_exception',
+      message: error instanceof Error ? error.message : String(error),
+      messageAr: `تعطل المصدر ${sourceId} مؤقتًا دون إيقاف بقية المصادر.`,
+    });
+    return fallback;
+  }
+}
 
 export interface RunGatewaySyncOptions {
   mode?: 'live' | 'daily' | 'standings' | 'manual';
@@ -40,6 +66,101 @@ export interface RunGatewaySyncOptions {
  * If an external API is unreachable (e.g., restricted outbound network or temporary timeout),
  * existing verified data in the store is preserved and `usedCachedSnapshot: true` is recorded.
  */
+export async function runNewsSync(
+  trigger = 'مزامنة أخبار',
+  errors: SourceErrorEntry[] = [],
+  fetchOptions?: { timeoutMs?: number; retries?: number; limitFeeds?: number }
+): Promise<NewsSourceSyncRecord> {
+  const startedAt = new Date().toISOString();
+  const gnRes = await isolateSource(
+    'google-news-rss',
+    () => fetchGoogleNewsRss(fetchOptions),
+    {
+      ok: false,
+      httpStatus: null,
+      latencyMs: 0,
+      news: [],
+      error: 'google-news-rss-unreachable',
+      errorAr: 'تعذر الاتصال بـ Google News RSS.',
+      feedResults: [],
+    },
+    errors
+  );
+
+  if (!gnRes.ok) {
+    const failed: NewsSourceSyncRecord = {
+      id: `news-sync-${Date.now()}`,
+      sourceId: 'google-news-rss',
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      ok: false,
+      httpStatus: gnRes.httpStatus,
+      latencyMs: gnRes.latencyMs,
+      fetchedCount: 0,
+      importedCount: 0,
+      publishedCount: 0,
+      duplicateCount: 0,
+      rejectedCount: 0,
+      updatedCount: 0,
+      errorCount: 1,
+      messageAr:
+        gnRes.errorAr ||
+        'تعذر جلب الأخبار من Google News RSS. لم تُحذف الأخبار المنشورة سابقًا.',
+    };
+    recordNewsSync(failed);
+    return failed;
+  }
+
+  const ingest = ingestNewsCandidatesInStore(gnRes.news);
+  const finishedAt = new Date().toISOString();
+  const sync: NewsSourceSyncRecord = {
+    id: `news-sync-${Date.now()}`,
+    sourceId: 'google-news-rss',
+    startedAt,
+    finishedAt,
+    ok: true,
+    httpStatus: gnRes.httpStatus,
+    latencyMs: gnRes.latencyMs,
+    fetchedCount: gnRes.news.length,
+    importedCount: ingest.imported,
+    publishedCount: ingest.published,
+    duplicateCount: ingest.duplicates,
+    rejectedCount: ingest.rejected,
+    updatedCount: ingest.updated,
+    errorCount: ingest.rejected,
+    messageAr:
+      gnRes.news.length === 0
+        ? `تم الاتصال بـ Google News RSS دون عناصر جديدة. ${trigger}`
+        : `جُلب ${gnRes.news.length} عنوانًا من RSS، نُشر ${ingest.published}، تحديث ${ingest.updated}، تكرار ${ingest.duplicates}، رفض ${ingest.rejected}.`,
+  };
+  recordNewsSync(sync);
+  return sync;
+}
+
+let newsRefreshInFlight: Promise<NewsSourceSyncRecord> | null = null;
+
+export async function ensureFreshNews(
+  maxAgeMs = 15 * 60 * 1000
+): Promise<NewsSourceSyncRecord | null> {
+  const db = getGatewayDatabase();
+  const lastOk = db.meta.lastSuccessfulNewsSyncAt;
+  if (lastOk) {
+    const age = Date.now() - new Date(lastOk).getTime();
+    if (Number.isFinite(age) && age >= 0 && age < maxAgeMs) {
+      return null;
+    }
+  }
+  if (newsRefreshInFlight) return newsRefreshInFlight;
+  newsRefreshInFlight = runNewsSync('تحديث أخبار عند الطلب', [], {
+    timeoutMs: 4000,
+    retries: 0,
+    limitFeeds: 1,
+  }).finally(() => {
+    newsRefreshInFlight = null;
+  });
+  return newsRefreshInFlight;
+}
+
 export async function runGatewaySync(
   options: RunGatewaySyncOptions = {}
 ): Promise<SyncLogEntry> {
@@ -56,19 +177,28 @@ export async function runGatewaySync(
     Record<SourceId, Partial<ReturnType<typeof getGatewayDatabase>['sources'][SourceId]>>
   > = {};
 
-  // 1. SportScore
-  const ssRes = await fetchSportScoreMatches();
+  // 1. SportScore — matches/standings only, not a news source
+  const ssRes = await isolateSource(
+    'sportscore',
+    () => fetchSportScoreMatches(),
+    { ok: false, httpStatus: null, latencyMs: 0, matches: [] as Awaited<ReturnType<typeof fetchSportScoreMatches>>['matches'] },
+    errors
+  );
   let ssStandingsCount = 0;
   if (mode === 'daily' || mode === 'standings' || mode === 'manual') {
-    const slugs = ['egyptian-premier-league', 'caf-champions-league', 'saudi-professional-league'];
-    const tables: CompetitionStandingTable[] = [];
-    for (const slug of slugs) {
-      const stRes = await fetchSportScoreStandings(slug);
-      if (stRes.ok && stRes.table) {
-        tables.push(stRes.table);
+    try {
+      const slugs = ['egyptian-premier-league', 'caf-champions-league', 'saudi-professional-league'];
+      const tables: CompetitionStandingTable[] = [];
+      for (const slug of slugs) {
+        const stRes = await fetchSportScoreStandings(slug);
+        if (stRes.ok && stRes.table) {
+          tables.push(stRes.table);
+        }
       }
+      ssStandingsCount = upsertStandingsInStore(tables);
+    } catch {
+      ssStandingsCount = 0;
     }
-    ssStandingsCount = upsertStandingsInStore(tables);
   }
 
   if (ssRes.ok && ssRes.matches.length > 0) {
@@ -105,8 +235,13 @@ export async function runGatewaySync(
     });
   }
 
-  // 2. TheSportsDB
-  const tsdbRes = await fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo]);
+  // 2. TheSportsDB — matches only, not a news source
+  const tsdbRes = await isolateSource(
+    'thesportsdb',
+    () => fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo]),
+    { ok: false, httpStatus: null, latencyMs: 0, matches: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['matches'] },
+    errors
+  );
   if (tsdbRes.ok && tsdbRes.matches.length > 0) {
     upsertMatchesInStore(tsdbRes.matches);
     sourceResults.push({
@@ -141,8 +276,22 @@ export async function runGatewaySync(
     });
   }
 
-  // 3. Football-Data.org
-  const fdRes = await fetchFootballDataSync(yesterdayCairo, tomorrowCairo);
+  // 3. Football-Data.org — competitions/matches only, not a news source
+  const fdRes = await isolateSource(
+    'football-data',
+    () => fetchFootballDataSync(yesterdayCairo, tomorrowCairo),
+    {
+      ok: false,
+      status: 'partial_keyless' as SourceHealthStatus,
+      httpStatus: null,
+      latencyMs: 0,
+      hasApiKey: false,
+      seasons: [],
+      matches: [],
+      messageAr: 'تعذر الاتصال بـ Football-Data.org.',
+    },
+    errors
+  );
   if (fdRes.ok) {
     if (fdRes.seasons.length > 0) upsertSeasonsInStore(fdRes.seasons);
     if (fdRes.matches.length > 0) upsertMatchesInStore(fdRes.matches);
@@ -178,8 +327,21 @@ export async function runGatewaySync(
     });
   }
 
-  // 4. API-Football
-  const apifRes = await fetchApiFootballSync(todayCairo);
+  // 4. API-Football — matches only, not a news source
+  const apifRes = await isolateSource(
+    'api-football',
+    () => fetchApiFootballSync(todayCairo),
+    {
+      ok: false,
+      status: 'requires_api_key' as SourceHealthStatus,
+      httpStatus: null,
+      latencyMs: 0,
+      hasApiKey: false,
+      matches: [],
+      messageAr: 'تعذر الاتصال بـ API-Football.',
+    },
+    errors
+  );
   if (apifRes.ok && apifRes.matches.length > 0) {
     upsertMatchesInStore(apifRes.matches);
   }
@@ -201,40 +363,36 @@ export async function runGatewaySync(
     lastHttpStatus: apifRes.httpStatus,
   };
 
-  // 5. Google News RSS
-  const gnRes = await fetchGoogleNewsRss();
-  if (gnRes.ok && gnRes.news.length > 0) {
-    upsertNewsInStore(gnRes.news);
-    sourceResults.push({
-      sourceId: 'google-news-rss',
-      status: 'active',
-      httpStatus: gnRes.httpStatus,
-      latencyMs: gnRes.latencyMs,
-      matchesFetched: 0,
-      standingsFetched: 0,
-      newsFetched: gnRes.news.length,
-      usedCachedSnapshot: false,
-      messageAr: `تم تحديث ${gnRes.news.length} خبرًا رياضيًا من Google News RSS.`,
-    });
-    sourceUpdates['google-news-rss'] = {
-      status: 'active',
-      lastSyncAt: new Date().toISOString(),
-      lastHttpStatus: gnRes.httpStatus,
-      lastLatencyMs: gnRes.latencyMs,
-    };
-  } else {
-    sourceResults.push({
-      sourceId: 'google-news-rss',
-      status: 'active',
-      httpStatus: gnRes.httpStatus ?? 200,
-      latencyMs: gnRes.latencyMs,
-      matchesFetched: 0,
-      standingsFetched: 0,
-      newsFetched: 0,
-      usedCachedSnapshot: true,
-      messageAr: 'تم الاحتفاظ بعناوين أخبار الكرة المصرية الموثقة من Google News RSS.',
-    });
-  }
+  // 5. Google News RSS — the only news-capable source among the five
+  const newsSync = await runNewsSync(trigger, errors);
+  sourceResults.push({
+    sourceId: 'google-news-rss',
+    status: newsSync.ok ? 'active' : 'degraded',
+    httpStatus: newsSync.httpStatus,
+    latencyMs: newsSync.latencyMs,
+    matchesFetched: 0,
+    standingsFetched: 0,
+    newsFetched: newsSync.fetchedCount,
+    newsPublished: newsSync.publishedCount,
+    newsDuplicates: newsSync.duplicateCount,
+    newsRejected: newsSync.rejectedCount,
+    usedCachedSnapshot: !newsSync.ok,
+    messageAr: newsSync.messageAr,
+  });
+  sourceUpdates['google-news-rss'] = {
+    status: newsSync.ok ? 'active' : 'degraded',
+    statusLabelAr: newsSync.ok
+      ? `تم جلب أخبار حقيقية ونشر ${newsSync.publishedCount} خبرًا بعد التحقق`
+      : 'تعذر جلب الأخبار من Google News RSS — لم تُحذف الأخبار المنشورة سابقًا',
+    lastSyncAt: newsSync.finishedAt,
+    lastHttpStatus: newsSync.httpStatus,
+    lastLatencyMs: newsSync.latencyMs,
+    newsImportedCount: newsSync.importedCount,
+    newsPublishedCount: newsSync.publishedCount,
+    recordsImported: newsSync.publishedCount,
+    errorCount: newsSync.errorCount,
+    ...(newsSync.ok ? { lastSuccessfulNewsSyncAt: newsSync.finishedAt } : {}),
+  };
 
   const dbAfter = getGatewayDatabase();
   const logEntry: SyncLogEntry = {

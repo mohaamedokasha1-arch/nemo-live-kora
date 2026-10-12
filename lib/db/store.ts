@@ -4,12 +4,24 @@ import {
   CompetitionStandingTable,
   GatewayDatabase,
   MatchRecord,
+  NewsDedupRecord,
+  NewsImportErrorRecord,
   NewsItemRecord,
+  NewsSourceSyncRecord,
+  RawNewsCandidate,
   SeasonRecord,
   SourceErrorEntry,
   SourceId,
   SyncLogEntry,
 } from '../types';
+import { processNewsBatch } from '../news/ingest';
+import { migrateGatewayDatabase } from '../news/migrate';
+import {
+  getArchiveNews,
+  getLatestNews,
+  getNewsAdminStats,
+  getPublishedNews,
+} from '../news/query';
 import { buildInitialVerifiedDatabase, mergeMatchRecords } from './seed-data';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -31,8 +43,8 @@ export function getGatewayDatabase(): GatewayDatabase {
       const raw = fs.readFileSync(STORE_FILE, 'utf-8');
       const parsed = JSON.parse(raw) as GatewayDatabase;
       if (parsed && parsed.meta && Array.isArray(parsed.matches)) {
-        memoryStore = parsed;
-        return parsed;
+        memoryStore = migrateGatewayDatabase(parsed);
+        return memoryStore;
       }
     }
   } catch {
@@ -124,23 +136,126 @@ export function upsertSeasonsInStore(seasons: SeasonRecord[]): number {
 }
 
 /**
- * Idempotently upserts news items into the store while preserving existing items if RSS is empty.
+ * Idempotently upserts already-processed news items. Prefer ingestNewsCandidatesInStore for live imports.
+ * Empty input never deletes existing news.
  */
 export function upsertNewsInStore(newsItems: NewsItemRecord[]): number {
   if (!newsItems || newsItems.length === 0) return 0;
   const db = getGatewayDatabase();
-  const byTitle = new Map<string, NewsItemRecord>();
-  for (const n of db.news) {
-    byTitle.set(n.title.toLowerCase(), n);
-  }
-  for (const inc of newsItems) {
-    byTitle.set(inc.title.toLowerCase(), inc);
-  }
-  db.news = Array.from(byTitle.values())
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    .slice(0, 24);
+  const result = processNewsBatch(
+    db.news,
+    newsItems.map((item) => ({
+      sourceId: item.sourceId,
+      sourceItemId: item.sourceItemId,
+      title: item.title,
+      link: item.link,
+      originalUrl: item.originalUrl || item.link,
+      publishedAt: item.publishedAt,
+      publishedAtKnown: item.publishedAtKnown,
+      updatedAt: item.updatedAt,
+      excerpt: item.excerpt,
+      imageUrl: item.imageUrl,
+      publisherName: item.publisherName,
+      publisherUrl: item.publisherUrl,
+      language: item.language,
+      categoryAr: item.categoryAr,
+      fetchedAt: item.fetchedAt,
+    })),
+    {
+      matches: db.matches,
+      teams: db.teams,
+      competitions: db.competitions,
+    }
+  );
+  db.news = result.news;
   persistGatewayDatabase(db);
-  return newsItems.length;
+  return result.stats.imported;
+}
+
+export function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): {
+  imported: number;
+  published: number;
+  duplicates: number;
+  rejected: number;
+  updated: number;
+} {
+  if (!candidates || candidates.length === 0) {
+    return { imported: 0, published: 0, duplicates: 0, rejected: 0, updated: 0 };
+  }
+  const db = getGatewayDatabase();
+  const result = processNewsBatch(db.news, candidates, {
+    matches: db.matches,
+    teams: db.teams,
+    competitions: db.competitions,
+  });
+  db.news = result.news;
+  db.newsImportErrors = [...result.errors, ...db.newsImportErrors].slice(0, 80);
+  db.newsDedupRecords = [...result.dedupRecords, ...db.newsDedupRecords].slice(0, 80);
+  persistGatewayDatabase(db);
+  return {
+    imported: result.stats.imported,
+    published: result.stats.published,
+    duplicates: result.stats.duplicates,
+    rejected: result.stats.rejected,
+    updated: result.stats.updated,
+  };
+}
+
+export function recordNewsSync(sync: NewsSourceSyncRecord, errors: NewsImportErrorRecord[] = [], dedup: NewsDedupRecord[] = []): void {
+  const db = getGatewayDatabase();
+  db.newsSourceSyncs = [sync, ...db.newsSourceSyncs].slice(0, 40);
+  if (errors.length > 0) {
+    db.newsImportErrors = [...errors, ...db.newsImportErrors].slice(0, 80);
+  }
+  if (dedup.length > 0) {
+    db.newsDedupRecords = [...dedup, ...db.newsDedupRecords].slice(0, 80);
+  }
+  db.meta.lastNewsSyncAt = sync.finishedAt;
+  if (sync.ok) {
+    db.meta.lastSuccessfulNewsSyncAt = sync.finishedAt;
+  }
+  const source = db.sources[sync.sourceId];
+  if (source) {
+    source.lastSyncAt = sync.finishedAt;
+    source.lastHttpStatus = sync.httpStatus;
+    source.lastLatencyMs = sync.latencyMs;
+    source.newsImportedCount = db.news.filter((item) => item.sourceId === sync.sourceId).length;
+    source.newsPublishedCount = db.news.filter(
+      (item) => item.sourceId === sync.sourceId && item.publishStatus === 'published'
+    ).length;
+    source.recordsImported = source.newsPublishedCount;
+    source.errorCount = sync.ok ? source.errorCount : (source.errorCount || 0) + 1;
+    if (sync.ok) {
+      source.status = 'active';
+      source.statusLabelAr = `تم جلب أخبار حقيقية ونشر ${sync.publishedCount} خبرًا بعد التحقق`;
+      source.lastSuccessfulNewsSyncAt = sync.finishedAt;
+    } else {
+      source.status = 'degraded';
+      source.statusLabelAr =
+        'تعذر جلب الأخبار من المصدر — لم تُحذف الأخبار المنشورة سابقًا ولم يُعرض فشل HTTP باعتباره نجاحًا';
+    }
+  }
+  persistGatewayDatabase(db);
+}
+
+export function queryPublishedNews(limit = 12) {
+  const db = getGatewayDatabase();
+  return getLatestNews(db.news, limit);
+}
+
+export function queryArchiveNews() {
+  const db = getGatewayDatabase();
+  return getArchiveNews(db.news);
+}
+
+export function queryAllPublishedNews() {
+  const db = getGatewayDatabase();
+  return getPublishedNews(db.news);
+}
+
+export function queryNewsAdminStats() {
+  const db = getGatewayDatabase();
+  return getNewsAdminStats(db.news);
 }
 
 /**

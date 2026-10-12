@@ -62,9 +62,9 @@ export default function Header() {
         </Link>
 
         <nav className="kl-nav" aria-label="القائمة العلوية">
-          <a href="#news" className="kl-nav-item">
+          <Link href="/news" className="kl-nav-item">
             آخر الأخبار
-          </a>
+          </Link>
           <Link href="/sources" className="kl-nav-item">
             المصادر
           </Link>

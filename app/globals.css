@@ -606,6 +606,129 @@ a {
   color: var(--kl-text-muted);
 }
 
+.kl-news-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kl-news-updated,
+.kl-news-lead,
+.kl-news-empty-note,
+.kl-news-excerpt,
+.kl-article-excerpt-note {
+  color: var(--kl-text-muted);
+  font-size: 0.84rem;
+  margin-top: 6px;
+}
+
+.kl-news-all-link,
+.kl-news-archive-link a,
+.kl-news-card-links a {
+  font-weight: 800;
+  color: var(--kl-accent-primary);
+}
+
+.kl-news-card-links {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+}
+
+.kl-news-page,
+.kl-news-article {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0 24px;
+}
+
+.kl-breadcrumb {
+  font-size: 0.8rem;
+  color: var(--kl-text-muted);
+  margin-bottom: 8px;
+}
+
+.kl-article-title {
+  font-size: 1.35rem;
+  line-height: 1.6;
+}
+
+.kl-article-meta,
+.kl-article-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.kl-article-excerpt {
+  background: var(--kl-card-bg);
+  border: 1px solid var(--kl-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.kl-article-context,
+.kl-article-related,
+.kl-news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kl-article-context,
+.kl-article-related {
+  background: var(--kl-card-bg);
+  border: 1px solid var(--kl-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.kl-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.kl-admin-grid article {
+  background: var(--kl-card-bg);
+  border: 1px solid var(--kl-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kl-admin-login {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+  background: var(--kl-card-bg);
+  border: 1px solid var(--kl-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.kl-admin-login input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--kl-border);
+  background: var(--kl-bg);
+  color: var(--kl-text);
+}
+
+.kl-admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
 /* Footer */
 .kl-footer {
   background: var(--kl-card-bg);

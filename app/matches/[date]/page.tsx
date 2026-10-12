@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { formatArabicFullDate, getTodayCairoDate } from '@/lib/cairo-time';
+import { formatArabicFullDate, formatArabicTimestamp, getTodayCairoDate } from '@/lib/cairo-time';
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { getLatestNews } from '@/lib/news/query';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
 
@@ -52,7 +53,14 @@ export default async function DateSchedulePage({
         todayCairo={todayCairo}
         allMatchesOnDate={queryResult.matches}
       />
-      <NewsSection news={store.news} />
+      <NewsSection
+        news={getLatestNews(store.news, 6)}
+        lastUpdatedLabel={
+          store.meta.lastSuccessfulNewsSyncAt
+            ? formatArabicTimestamp(store.meta.lastSuccessfulNewsSyncAt)
+            : null
+        }
+      />
     </>
   );
 }

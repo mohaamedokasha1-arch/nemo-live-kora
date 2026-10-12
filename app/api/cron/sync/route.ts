@@ -1,45 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireCronAuth } from '@/lib/auth/cron-auth';
 import { runGatewaySync } from '@/lib/sync/engine';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
-function isAuthorizedCronRequest(request: NextRequest): boolean {
-  const cronSecret = (process.env.CRON_SECRET || '').trim();
-  const ingestToken = (process.env.NEMO_INGEST_TOKEN || '').trim();
-
-  // If neither secret is configured in local/preview environment, allow same-origin UI trigger
-  if (!cronSecret && !ingestToken) {
-    return true;
-  }
-
-  const authHeader = request.headers.get('authorization') || '';
-  const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
-  const customHeader = (request.headers.get('x-nemo-ingest-token') || '').trim();
-
-  if (cronSecret && bearerToken === cronSecret) return true;
-  if (ingestToken && (bearerToken === ingestToken || customHeader === ingestToken)) return true;
-
-  return false;
+function parseMode(raw: string | null | undefined): 'live' | 'daily' | 'standings' | 'manual' {
+  return raw === 'live' || raw === 'standings' || raw === 'manual' ? raw : 'daily';
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorizedCronRequest(request)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'غير مصرح — يرجى تمرير ترويسة Authorization: Bearer <CRON_SECRET> أو x-nemo-ingest-token صالحة.',
-      },
-      { status: 401 }
-    );
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
-  const { searchParams } = new URL(request.url);
-  const rawMode = searchParams.get('mode');
-  const mode =
-    rawMode === 'live' || rawMode === 'standings' || rawMode === 'manual'
-      ? rawMode
-      : 'daily';
-
+  const mode = parseMode(new URL(request.url).searchParams.get('mode'));
   const log = await runGatewaySync({
     mode,
     trigger: `Cron GET (${mode})`,
@@ -52,15 +27,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorizedCronRequest(request)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'غير مصرح — يرجى تمرير ترويسة Authorization: Bearer <CRON_SECRET> أو x-nemo-ingest-token صالحة.',
-      },
-      { status: 401 }
-    );
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   let mode: 'live' | 'daily' | 'standings' | 'manual' = 'manual';
   try {
