@@ -6,7 +6,7 @@ import {
   toCairoTimeArabic,
 } from '../cairo-time';
 import { mergeMatchRecords } from '../db/seed-data';
-import { getStableMatchId } from '../match-identity';
+import { buildMatchDedupKey, getStableMatchId } from '../match-identity';
 import { resolveNemoSportsLink, VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
 import { formatNewsTimestampLabel, toCairoDateStringOrNull } from './age-policy';
 import { buildNewsSlug, collapseWhitespace, stableNewsHash } from './normalize';
@@ -171,6 +171,7 @@ function migrateMatches(matches: MatchRecord[]): {
   oldToNewId: Map<string, string>;
 } {
   const byId = new Map<string, MatchRecord>();
+  const idByDedupKey = new Map<string, string>();
   const oldToNewId = new Map<string, string>();
 
   for (const original of matches) {
@@ -220,9 +221,12 @@ function migrateMatches(matches: MatchRecord[]): {
       }),
     };
 
-    oldToNewId.set(original.id, id);
-    const existing = byId.get(id);
-    byId.set(id, existing ? mergeMatchRecords(existing, match) : match);
+    const dedupKey = buildMatchDedupKey(match);
+    const targetId = byId.has(id) ? id : idByDedupKey.get(dedupKey) || id;
+    oldToNewId.set(original.id, targetId);
+    const existing = byId.get(targetId);
+    byId.set(targetId, existing ? { ...mergeMatchRecords(existing, { ...match, id: targetId }), id: targetId } : match);
+    idByDedupKey.set(dedupKey, targetId);
   }
 
   return {

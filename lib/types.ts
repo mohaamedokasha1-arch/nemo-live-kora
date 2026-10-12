@@ -352,6 +352,17 @@ export interface SourceSyncResult {
   newsRejected?: number;
   usedCachedSnapshot: boolean;
   messageAr: string;
+  /** تفاصيل كل نقطة نهاية داخل المصدر (عند توفرها) */
+  endpoints?: Array<{
+    endpoint: string;
+    labelAr: string;
+    ok: boolean;
+    httpStatus: number | null;
+    latencyMs: number;
+    fromCache: boolean;
+    eventsCount: number;
+    error?: string;
+  }>;
 }
 
 export interface SyncLogEntry {
@@ -387,6 +398,19 @@ export interface GatewayDatabase {
     lastLiveSyncAt: string;
     lastNewsSyncAt: string | null;
     lastSuccessfulNewsSyncAt: string | null;
+    /** آخر محاولة جلب للمباريات (ناجحة أو فاشلة) */
+    lastMatchesSyncAttemptAt?: string | null;
+    /** آخر جلب ناجح للمباريات من مصدر واحد على الأقل */
+    lastSuccessfulMatchesSyncAt?: string | null;
+    /** نتيجة آخر محاولة جلب للمباريات */
+    lastMatchesSyncResult?: {
+      ok: boolean;
+      trigger: string;
+      messageAr: string;
+      matchesFetched: number;
+      sourcesOk: SourceId[];
+      sourcesFailed: SourceId[];
+    } | null;
   };
   sources: Record<SourceId, SourceDefinition>;
   competitions: CompetitionRecord[];

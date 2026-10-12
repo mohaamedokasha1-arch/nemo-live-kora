@@ -16,6 +16,10 @@ import {
 } from '../types';
 import { processNewsBatch } from '../news/ingest';
 import { isValidDateParam } from '../cairo-time';
+import { buildMatchDedupKey } from '../match-identity';
+import { resolveNemoSportsLink } from '../nemo-resolver';
+
+export { buildMatchDedupKey };
 import { migrateGatewayDatabase } from '../news/migrate';
 import {
   getArchiveNews,
@@ -73,24 +77,53 @@ export function persistGatewayDatabase(db: GatewayDatabase): void {
   }
 }
 
+/** Recomputes the NEMO Sports link from the stored source identifiers. */
+export function refreshNemoLink(match: MatchRecord): MatchRecord {
+  return {
+    ...match,
+    nemoLink: resolveNemoSportsLink({
+      canonicalMatchId: match.id,
+      sportscoreSlug: match.externalIds.sportscoreSlug,
+      sportscoreTrackerId: match.externalIds.sportscoreTrackerId,
+      thesportsdbEventId: match.externalIds.thesportsdbEventId,
+      apiFootballFixtureId: match.externalIds.apiFootballFixtureId,
+      competitionCode: match.competitionCode,
+      homeTeamId: match.homeTeam.id,
+      awayTeamId: match.awayTeam.id,
+      cairoDate: match.cairoDate,
+    }),
+  };
+}
+
 /**
- * Idempotently upserts matches into the store without ever deleting existing matches on partial failure.
+ * Idempotently upserts matches into the store without ever deleting existing matches on partial
+ * failure. Matches are matched first by stable id, then by the cross-source dedup key so the same
+ * fixture is never duplicated when a second provider reports it.
  */
 export function upsertMatchesInStore(incomingMatches: MatchRecord[]): number {
   if (!incomingMatches || incomingMatches.length === 0) return 0;
   const db = getGatewayDatabase();
   const byId = new Map<string, MatchRecord>();
+  const idByDedupKey = new Map<string, string>();
   for (const m of db.matches) {
     byId.set(m.id, m);
+    const key = buildMatchDedupKey(m);
+    if (!idByDedupKey.has(key)) idByDedupKey.set(key, m.id);
   }
 
   let upserted = 0;
   for (const inc of incomingMatches) {
-    const existing = byId.get(inc.id);
+    const dedupKey = buildMatchDedupKey(inc);
+    const existingId = byId.has(inc.id) ? inc.id : idByDedupKey.get(dedupKey);
+    const existing = existingId ? byId.get(existingId) : undefined;
     if (!existing) {
       byId.set(inc.id, inc);
+      idByDedupKey.set(dedupKey, inc.id);
     } else {
-      byId.set(inc.id, mergeMatchRecords(existing, inc));
+      // Keep the record's existing id so links/news references stay stable; union ids/links.
+      const merged = refreshNemoLink({ ...mergeMatchRecords(existing, { ...inc, id: existing.id }), id: existing.id });
+      byId.set(existing.id, merged);
+      idByDedupKey.set(dedupKey, existing.id);
     }
     upserted++;
   }
@@ -103,6 +136,16 @@ export function upsertMatchesInStore(incomingMatches: MatchRecord[]): number {
   db.meta.lastLiveSyncAt = new Date().toISOString();
   persistGatewayDatabase(db);
   return upserted;
+}
+
+/** Records the outcome (success or failure) of one matches fetch attempt. */
+export function recordMatchesSyncAttempt(result: NonNullable<GatewayDatabase['meta']['lastMatchesSyncResult']>): void {
+  const db = getGatewayDatabase();
+  const now = new Date().toISOString();
+  db.meta.lastMatchesSyncAttemptAt = now;
+  db.meta.lastMatchesSyncResult = result;
+  if (result.ok) db.meta.lastSuccessfulMatchesSyncAt = now;
+  persistGatewayDatabase(db);
 }
 
 /**
@@ -287,6 +330,28 @@ export function recordSyncExecution(
   persistGatewayDatabase(db);
 }
 
+/** A "live" status older than this is not shown as live; the source has not confirmed it recently. */
+export const STALE_LIVE_MAX_AGE_MS = 20 * 60 * 1000;
+
+/**
+ * A record can only be presented as "جارية الآن" while the data behind it is fresh. Between
+ * refreshes (or after a source outage) a stale live record is downgraded to "unconfirmed"
+ * instead of pretending a live score is current. Nothing is deleted; the next successful
+ * fetch restores the real status.
+ */
+export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date()): MatchRecord {
+  if (match.status !== 'live') return match;
+  const updatedMs = Date.parse(match.lastUpdatedAt);
+  if (Number.isFinite(updatedMs) && now.getTime() - updatedMs <= STALE_LIVE_MAX_AGE_MS) return match;
+  return {
+    ...match,
+    status: 'unconfirmed',
+    statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+    statusNoteAr: 'آخر تحديث من المصدر قديم؛ لا نعرض المباراة كجارية حتى يصل تحديث جديد.',
+    liveMinute: null,
+  };
+}
+
 /**
  * Query helper: returns matches for a specific Cairo date (or all dates) with optional filters,
  * plus available filter options computed ONLY from real data (Section 5: "لا تعرض خيار تصفية لا توجد له بيانات فعلية").
@@ -302,7 +367,9 @@ export function queryGatewayMatches(params: {
   const targetDate = params.cairoDate;
 
   // Step 1: Filter by date first to compute real available competitions & countries on that date
-  const matchesWithValidDate = db.matches.filter((match) => isValidDateParam(match.cairoDate));
+  const matchesWithValidDate = db.matches
+    .filter((match) => isValidDateParam(match.cairoDate))
+    .map((match) => guardStaleLiveStatus(match));
   const matchesOnDate = targetDate
     ? matchesWithValidDate.filter((match) => match.cairoDate === targetDate)
     : matchesWithValidDate;
@@ -427,5 +494,8 @@ export function queryGatewayMatches(params: {
     availableCountries,
     availableDates,
     lastSyncAt: db.meta.lastLiveSyncAt,
+    lastMatchesSyncAttemptAt: db.meta.lastMatchesSyncAttemptAt ?? null,
+    lastSuccessfulMatchesSyncAt: db.meta.lastSuccessfulMatchesSyncAt ?? null,
+    lastMatchesSyncResult: db.meta.lastMatchesSyncResult ?? null,
   };
 }

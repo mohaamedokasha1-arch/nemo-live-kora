@@ -8,7 +8,9 @@ import {
   isValidDateParam,
 } from '@/lib/cairo-time';
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { describeMatchesFreshness } from '@/lib/freshness';
 import { getLatestNews } from '@/lib/news/query';
+import { ensureFreshMatches } from '@/lib/sync/engine';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
 import {
@@ -59,6 +61,7 @@ export default async function DateSchedulePage({
   const todayCairo = getTodayCairoDate();
   if (date === todayCairo) redirect('/');
 
+  await ensureFreshMatches();
   const store = getGatewayDatabase();
   const queryResult = queryGatewayMatches({ cairoDate: date });
   const jsonLd = createMatchScheduleStructuredData(date, queryResult.matches);
@@ -75,6 +78,7 @@ export default async function DateSchedulePage({
         selectedDate={date}
         todayCairo={todayCairo}
         allMatchesOnDate={queryResult.matches}
+        freshnessNote={describeMatchesFreshness(store.meta)}
       />
       <NewsSection
         news={getLatestNews(store.news, 6)}

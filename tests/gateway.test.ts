@@ -120,7 +120,7 @@ test('4. NEMO Sports Match Resolver: links verified matches directly and falls b
   assert.equal(zamalekAhlyLink.linkType, 'direct_match');
   assert.equal(
     zamalekAhlyLink.url,
-    'https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc'
+    'https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc#live-stream'
   );
 
   // The real fixture id keeps the same verified destination if a source corrects the date.

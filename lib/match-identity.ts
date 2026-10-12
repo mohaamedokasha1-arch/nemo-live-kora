@@ -51,3 +51,30 @@ export function getStableMatchId(input: {
     input.awayTeamId,
   ].join('-');
 }
+
+function isCatalogTeamId(teamId: string): boolean {
+  return !/^team-(ss|tsdb|fd|apif)-/.test(teamId);
+}
+
+function normalizeTeamKey(team: MatchRecord['homeTeam']): string {
+  if (isCatalogTeamId(team.id)) return team.id;
+  return `name:${team.nameEn
+    .toLowerCase()
+    .replace(/\b(fc|sc|cf|ac|club)\b/g, '')
+    .replace(/[^a-z0-9]+/g, '')}`;
+}
+
+/**
+ * Cross-source identity key: the same fixture reported by two providers (e.g. SportScore and
+ * TheSportsDB) carries different provider ids, so an id-only upsert would store it twice. Same
+ * competition + same Cairo date + same ordered teams (catalog id, or normalized English name
+ * when the team is not in the catalog) is treated as one match and merged.
+ */
+export function buildMatchDedupKey(match: MatchRecord): string {
+  return [
+    match.competitionCode,
+    match.cairoDate,
+    normalizeTeamKey(match.homeTeam),
+    normalizeTeamKey(match.awayTeam),
+  ].join('|');
+}

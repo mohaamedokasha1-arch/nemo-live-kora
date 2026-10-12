@@ -180,35 +180,72 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
   };
 }
 
+export interface TheSportsDBEndpointResult {
+  endpoint: string;
+  labelAr: string;
+  ok: boolean;
+  httpStatus: number | null;
+  latencyMs: number;
+  fromCache: boolean;
+  eventsCount: number;
+  error?: string;
+}
+
 /**
- * Fetches Egyptian Premier League rounds, Egypt League Cup, CAF Confederation Cup,
- * and daily soccer events from TheSportsDB v1 JSON API.
+ * Competitions followed automatically on TheSportsDB (free v1 key `3`).
+ * `eventsnextleague.php` (next 15 fixtures) and `eventspastleague.php` (last 15 results)
+ * follow the calendar on their own, unlike a hard-coded round number that silently goes
+ * stale once the round is played. Both endpoints are documented for the free tier.
+ */
+export const THESPORTSDB_FOLLOWED_LEAGUES: Array<{ id: string; labelAr: string }> = [
+  { id: '4829', labelAr: 'الدوري المصري الممتاز' },
+  { id: '4830', labelAr: 'كأس مصر' },
+  { id: '5185', labelAr: 'كأس الرابطة المصرية' },
+  { id: '5057', labelAr: 'كأس الكونفدرالية الأفريقية' },
+];
+
+/**
+ * Builds the endpoint list for one sync run: next/past fixtures for each followed league
+ * plus the per-day listing for yesterday/today/tomorrow (Cairo). Exported for tests.
+ */
+export function buildTheSportsDBEndpoints(dates: string[]): Array<{ url: string; labelAr: string }> {
+  const base = `${THESPORTSDB_BASE_URL}/${THESPORTSDB_API_KEY}`;
+  const leagueUrls = THESPORTSDB_FOLLOWED_LEAGUES.flatMap((league) => [
+    { url: `${base}/eventsnextleague.php?id=${league.id}`, labelAr: `${league.labelAr} — المباريات القادمة` },
+    { url: `${base}/eventspastleague.php?id=${league.id}`, labelAr: `${league.labelAr} — آخر النتائج` },
+  ]);
+  const dayUrls = dates.slice(0, 3).map((d) => ({
+    url: `${base}/eventsday.php?d=${encodeURIComponent(d)}&s=Soccer`,
+    labelAr: `مباريات يوم ${d}`,
+  }));
+  return [...leagueUrls, ...dayUrls];
+}
+
+/**
+ * Fetches the followed Egyptian/African competitions (next fixtures + latest results) and the
+ * daily soccer listing from TheSportsDB v1 JSON API. Every endpoint is reported individually
+ * so the sync log shows exactly which calls succeeded, were rate-limited, or failed.
  */
 export async function fetchTheSportsDBMatches(dates: string[]): Promise<{
   ok: boolean;
   httpStatus: number | null;
   latencyMs: number;
   matches: MatchRecord[];
+  endpoints: TheSportsDBEndpointResult[];
   error?: string;
 }> {
-  const base = `${THESPORTSDB_BASE_URL}/${THESPORTSDB_API_KEY}`;
-  const urls = [
-    `${base}/eventsround.php?id=4829&r=6&s=2026-2027`, // Egyptian Premier League Round 6 (Oct 11-12, 2026)
-    `${base}/eventsround.php?id=4829&r=7&s=2026-2027`, // Egyptian Premier League Round 7 (Oct 19-20, 2026)
-    `${base}/eventsseason.php?id=5185&s=2026-2027`, // Egypt League Cup (Oct 7-8, 2026)
-    `${base}/eventsround.php?id=5057&r=2&s=2026-2027`, // CAF Confederation Cup Round 2 (Oct 16-17, 2026)
-    `${base}/eventsround.php?id=4668&r=8&s=2026-2027`, // Saudi Pro League Round 8 (Oct 9-10, 2026)
-    ...dates.slice(0, 3).map((d) => `${base}/eventsday.php?d=${encodeURIComponent(d)}&s=Soccer`),
-  ];
+  const endpoints = buildTheSportsDBEndpoints(dates);
 
   const collected: MatchRecord[] = [];
+  const seenEventIds = new Set<string>();
+  const results: TheSportsDBEndpointResult[] = [];
   let anyOk = false;
   let lastStatus: number | null = null;
   let totalLatency = 0;
   let lastError: string | undefined;
 
-  for (const url of urls) {
-    const res = await fetchWithProtection<TheSportsDBEventsEnvelope>(url, {
+  for (const endpoint of endpoints) {
+    const res = await fetchWithProtection<TheSportsDBEventsEnvelope>(endpoint.url, {
       timeoutMs: 7000,
       retries: 1,
       cacheTtlMs: 3 * 60_000,
@@ -216,17 +253,31 @@ export async function fetchTheSportsDBMatches(dates: string[]): Promise<{
     totalLatency += res.latencyMs;
     if (res.httpStatus) lastStatus = res.httpStatus;
 
+    let eventsCount = 0;
     if (res.ok && res.data) {
       anyOk = true;
       const list = res.data.events || res.data.results || [];
       for (const ev of list) {
-        if (ev && ev.idEvent && ev.strHomeTeam && ev.strAwayTeam) {
+        if (ev && ev.idEvent && ev.strHomeTeam && ev.strAwayTeam && !seenEventIds.has(ev.idEvent)) {
+          seenEventIds.add(ev.idEvent);
           collected.push(mapTheSportsDBEventToRecord(ev));
+          eventsCount += 1;
         }
       }
     } else if (res.error) {
       lastError = res.error;
     }
+
+    results.push({
+      endpoint: endpoint.url.replace(`${THESPORTSDB_BASE_URL}/${THESPORTSDB_API_KEY}`, ''),
+      labelAr: endpoint.labelAr,
+      ok: res.ok,
+      httpStatus: res.httpStatus,
+      latencyMs: res.latencyMs,
+      fromCache: res.fromCache,
+      eventsCount,
+      error: res.ok ? undefined : res.error || `HTTP ${res.httpStatus ?? 'n/a'}`,
+    });
   }
 
   return {
@@ -234,6 +285,7 @@ export async function fetchTheSportsDBMatches(dates: string[]): Promise<{
     httpStatus: lastStatus,
     latencyMs: totalLatency,
     matches: collected,
+    endpoints: results,
     error: anyOk ? undefined : lastError || 'Failed to reach TheSportsDB endpoints',
   };
 }
