@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runMatchesUpdatePipeline } from '@/lib/sync/engine';
 
 /**
- * Vercel Cron endpoint: /api/cron/update-matches
+ * مسار تحديث مستقل: /api/cron/update-matches
  *
+ * - يقبل GET وPOST يدويًا أو عبر مجدول خارجي دون الاعتماد على Vercel Crons.
  * - محمي بـ `Authorization: Bearer ${process.env.CRON_SECRET}` فقط.
  * - أي طلب بدون السر الصحيح يحصل على `401 Unauthorized`.
  * - يستدعي Database Pipeline الحقيقي (`runMatchesUpdatePipeline`) لتحديث المباريات.
@@ -46,7 +47,7 @@ function unauthorizedResponse(messageAr: string) {
 }
 
 /** يتحقق من ترويسة `Authorization: Bearer <CRON_SECRET>`. */
-function isAuthorizedCronRequest(request: NextRequest): boolean {
+function isAuthorizedUpdateRequest(request: NextRequest): boolean {
   const cronSecret = (process.env.CRON_SECRET || '').trim();
   if (!cronSecret) return false;
 
@@ -72,13 +73,13 @@ async function handleUpdateMatches(request: NextRequest) {
         success: false,
         error: 'CRON_SECRET is not configured on the server',
         messageAr:
-          'المتغير البيئي CRON_SECRET غير مضبوط على الخادم. أضفه في Vercel › Project › Settings › Environment Variables ثم أعد النشر.',
+          'المتغير البيئي CRON_SECRET غير مضبوط على الخادم. أضفه إلى متغيرات بيئة الاستضافة ثم أعد تشغيل التطبيق أو نشره.',
       },
       { status: 500 }
     );
   }
 
-  if (!isAuthorizedCronRequest(request)) {
+  if (!isAuthorizedUpdateRequest(request)) {
     console.warn(
       `[cron:update-matches] ✖ طلب غير مصرح به تم رفضه — ${receivedAt} — IP: ${
         request.headers.get('x-forwarded-for') || 'unknown'
@@ -110,7 +111,7 @@ async function handleUpdateMatches(request: NextRequest) {
   try {
     const result = await runMatchesUpdatePipeline({
       mode,
-      trigger: `Cron /api/cron/update-matches (${mode})`,
+      trigger: `API /api/cron/update-matches (${mode})`,
     });
 
     console.log(
@@ -163,12 +164,12 @@ async function handleUpdateMatches(request: NextRequest) {
   }
 }
 
-/** Vercel Cron يستدعي المسار بطلب GET */
+/** GET متاح للتشغيل اليدوي أو الاستدعاء من مجدول خارجي. */
 export async function GET(request: NextRequest) {
   return handleUpdateMatches(request);
 }
 
-/** POST متاح للتشغيل اليدوي (مثل GitHub Actions أو خدمة cron خارجية) */
+/** POST متاح للتشغيل اليدوي أو الاستدعاء من مجدول خارجي، مع دعم جسم JSON. */
 export async function POST(request: NextRequest) {
   return handleUpdateMatches(request);
 }

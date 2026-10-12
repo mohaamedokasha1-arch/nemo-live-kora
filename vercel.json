@@ -1,9 +1,0 @@
-{
-  "framework": "nextjs",
-  "crons": [
-    {
-      "path": "/api/cron/update-matches",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
