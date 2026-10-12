@@ -9,6 +9,7 @@ const projectRoot = process.cwd();
 const apiUrl = 'https://gateway.example/api/cron/update-matches';
 const testSecret = 'update-matches-test-secret';
 const environmentKeys = [
+  'NEMO_GATEWAY_STORE_PERSIST',
   'CRON_SECRET',
   'FOOTBALL_DATA_API_KEY',
   'API_FOOTBALL_KEY',
@@ -52,6 +53,9 @@ before(async () => {
 beforeEach(() => {
   for (const key of environmentKeys) delete process.env[key];
   process.env.CRON_SECRET = testSecret;
+  // These tests assert the real write to the disposable workspace copy, so persistence is on here
+  // (npm test turns it off for every other file).
+  process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
   store.persistGatewayDatabase(structuredClone(initialDatabase));
 
   // Exercise the real sync pipeline without contacting third-party services.

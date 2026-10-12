@@ -98,7 +98,8 @@ test('3. Score & Status Integrity: NEVER converts null/missing score to 0-0 and 
   assert.equal(normalizeMatchStatus('LIVE', 'In Play', undefined, now).status, 'unconfirmed');
 });
 
-test('4. NEMO Sports Match Resolver: links verified matches directly and falls back safely when date does not match', () => {
+test('4. NEMO Sports Match Resolver: every broadcast CTA points to the general /watch section', () => {
+  const WATCH = 'https://nemo-sports.vercel.app/watch';
   assert.equal(
     extractSportscoreMatchSlug('/football/match/zamalek-sc-vs-al-ahly-fc/l5ergph49xdlr8k/'),
     'zamalek-sc-vs-al-ahly-fc'
@@ -108,7 +109,7 @@ test('4. NEMO Sports Match Resolver: links verified matches directly and falls b
     'l5ergph49xdlr8k'
   );
 
-  // Verified 2026-10-11 Zamalek vs Al Ahly match -> direct match link
+  // Verified Zamalek vs Al Ahly fixture: the general broadcast section, not a per-match page.
   const zamalekAhlyLink = resolveNemoSportsLink({
     thesportsdbEventId: '2561121',
     apiFootballFixtureId: '1612250',
@@ -117,13 +118,10 @@ test('4. NEMO Sports Match Resolver: links verified matches directly and falls b
     awayTeamId: 'team-al-ahly',
     cairoDate: '2026-10-11',
   });
-  assert.equal(zamalekAhlyLink.linkType, 'direct_match');
-  assert.equal(
-    zamalekAhlyLink.url,
-    'https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc#live-stream'
-  );
+  assert.equal(zamalekAhlyLink.linkType, 'broadcast_section');
+  assert.equal(zamalekAhlyLink.url, WATCH);
 
-  // The real fixture id keeps the same verified destination if a source corrects the date.
+  // A rescheduled fixture resolves to the same destination.
   const rescheduledSameFixture = resolveNemoSportsLink({
     thesportsdbEventId: '2561121',
     competitionCode: 'EGY',
@@ -131,19 +129,9 @@ test('4. NEMO Sports Match Resolver: links verified matches directly and falls b
     awayTeamId: 'team-al-ahly',
     cairoDate: '2026-10-12',
   });
-  assert.equal(rescheduledSameFixture.url, zamalekAhlyLink.url);
+  assert.equal(rescheduledSameFixture.url, WATCH);
 
-  const wrongTeamsWithReusedId = resolveNemoSportsLink({
-    thesportsdbEventId: '2561121',
-    competitionCode: 'EGY',
-    homeTeamId: 'team-zamalek',
-    awayTeamId: 'team-pyramids',
-    cairoDate: '2026-10-11',
-  });
-  assert.equal(wrongTeamsWithReusedId.url, null);
-
-  // Upcoming 2026-10-12 Pyramids vs Ceramica Cleopatra has no verified match page;
-  // never substitute a generic competition or date URL.
+  // Upcoming fixture with no SportScore slug: still the general section (no unavailable state).
   const pyramidsCeramicaLink = resolveNemoSportsLink({
     thesportsdbEventId: '2561124',
     apiFootballFixtureId: '1612253',
@@ -152,19 +140,20 @@ test('4. NEMO Sports Match Resolver: links verified matches directly and falls b
     awayTeamId: 'team-ceramica',
     cairoDate: '2026-10-12',
   });
-  assert.equal(pyramidsCeramicaLink.linkType, 'unavailable');
-  assert.equal(pyramidsCeramicaLink.url, null);
-  assert.equal(pyramidsCeramicaLink.verified, false);
+  assert.equal(pyramidsCeramicaLink.linkType, 'broadcast_section');
+  assert.equal(pyramidsCeramicaLink.url, WATCH);
+  assert.equal(pyramidsCeramicaLink.verified, true);
 
-  // Unmapped global competition -> no invented date schedule or competition fallback
-  const scheduleFallbackLink = resolveNemoSportsLink({
+  // Unmapped global competition: the same general section, never a competition or date page.
+  const unmappedLink = resolveNemoSportsLink({
     competitionCode: 'CHILE_B',
     homeTeamId: 'team-recoleta',
     awayTeamId: 'team-curico',
     cairoDate: '2026-10-13',
   });
-  assert.equal(scheduleFallbackLink.linkType, 'unavailable');
-  assert.equal(scheduleFallbackLink.url, null);
+  assert.equal(unmappedLink.url, WATCH);
+  assert.equal(unmappedLink.competitionUrl, null);
+  assert.equal(unmappedLink.scheduleUrl, null);
 });
 
 test('5. Five Approved Sources Adapters & Deduplication: normalizes and merges without losing scores', () => {
@@ -228,7 +217,7 @@ test('5. Five Approved Sources Adapters & Deduplication: normalizes and merges w
   assert.equal(merged.status, 'finished');
   assert.equal(merged.score.home, 0);
   assert.equal(merged.score.away, 2);
-  assert.equal(merged.nemoLink.linkType, 'direct_match');
+  assert.equal(merged.nemoLink.linkType, 'broadcast_section');
   assert.ok(merged.contributingSources.includes('sportscore'));
   assert.ok(merged.contributingSources.includes('thesportsdb'));
 
@@ -279,16 +268,12 @@ test('6. Egyptian Priority & Filter Integrity: Egyptian Premier League appears f
   );
   assert.equal(zamalekAhly.length, 1);
   assert.equal(zamalekAhly[0].id, 'match-api-football-1612250');
-  assert.equal(zamalekAhly[0].nemoLink.linkType, 'direct_match');
+  assert.equal(zamalekAhly[0].nemoLink.linkType, 'broadcast_section');
 
   for (const match of migrated.matches) {
-    if (match.nemoLink.linkType === 'direct_match') {
-      assert.equal(match.nemoLink.verified, true);
-      assert.match(match.nemoLink.url || '', /^https:\/\/nemo-sports\.vercel\.app\/matches\//);
-    } else {
-      assert.equal(match.nemoLink.url, null);
-      assert.equal(match.nemoLink.competitionUrl, null);
-      assert.equal(match.nemoLink.scheduleUrl, null);
-    }
+    assert.equal(match.nemoLink.linkType, 'broadcast_section');
+    assert.equal(match.nemoLink.url, 'https://nemo-sports.vercel.app/watch');
+    assert.equal(match.nemoLink.competitionUrl, null);
+    assert.equal(match.nemoLink.scheduleUrl, null);
   }
 });

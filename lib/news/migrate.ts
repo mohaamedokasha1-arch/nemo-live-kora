@@ -7,7 +7,11 @@ import {
 } from '../cairo-time';
 import { mergeMatchRecords } from '../db/seed-data';
 import { buildMatchDedupKey, getStableMatchId } from '../match-identity';
-import { resolveNemoSportsLink, VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
+import {
+  NEMO_BROADCAST_SECTION_URL,
+  resolveNemoSportsLink,
+  VERIFIED_NEMO_MAPPING_TABLE,
+} from '../nemo-resolver';
 import { formatNewsTimestampLabel, toCairoDateStringOrNull } from './age-policy';
 import { buildNewsSlug, collapseWhitespace, stableNewsHash } from './normalize';
 import { validateNewsCandidate } from './validate';
@@ -283,17 +287,14 @@ export function migrateGatewayDatabase(db: GatewayDatabase): GatewayDatabase {
         const relatedMatchIds = item.relatedMatchIds.map(
           (matchId) => migratedMatches.oldToNewId.get(matchId) || matchId
         );
-        const exactMatchLink = migratedMatches.matches.some(
-          (match) =>
-            match.nemoLink.linkType === 'direct_match' &&
-            match.nemoLink.verified &&
-            match.nemoLink.url === item.nemoRelatedUrl
-        );
+        // Only the general NEMO Sports broadcast section may remain as a news link; any stored
+        // per-match link from earlier versions is dropped.
+        const allowedLink = item.nemoRelatedUrl === NEMO_BROADCAST_SECTION_URL;
         return {
           ...item,
           relatedMatchIds,
-          nemoRelatedUrl: exactMatchLink ? item.nemoRelatedUrl : null,
-          nemoRelatedLabelAr: exactMatchLink ? item.nemoRelatedLabelAr : null,
+          nemoRelatedUrl: allowedLink ? item.nemoRelatedUrl : null,
+          nemoRelatedLabelAr: allowedLink ? item.nemoRelatedLabelAr : null,
         };
       })
     : [];

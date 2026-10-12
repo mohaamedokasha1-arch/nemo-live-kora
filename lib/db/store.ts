@@ -28,11 +28,20 @@ import {
   getPublishedNews,
 } from '../news/query';
 import { buildInitialVerifiedDatabase, mergeMatchRecords } from './seed-data';
+import type { TheSportsDBRoundWindow } from '../sources/thesportsdb';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STORE_FILE = path.join(DATA_DIR, 'gateway-store.json');
 
 let memoryStore: GatewayDatabase | null = null;
+
+/**
+ * Disk persistence is off when NEMO_GATEWAY_STORE_PERSIST=off. `npm test` sets it so a test run
+ * never rewrites the committed data/gateway-store.json. Production and `npm run sync` persist.
+ */
+export function isStorePersistenceEnabled(): boolean {
+  return (process.env.NEMO_GATEWAY_STORE_PERSIST || '').trim().toLowerCase() !== 'off';
+}
 
 /**
  * Loads the unified GatewayDatabase from disk (data/gateway-store.json) or initializes it
@@ -67,6 +76,7 @@ export function getGatewayDatabase(): GatewayDatabase {
  */
 export function persistGatewayDatabase(db: GatewayDatabase): void {
   memoryStore = db;
+  if (!isStorePersistenceEnabled()) return;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -100,8 +110,29 @@ export function refreshNemoLink(match: MatchRecord): MatchRecord {
  * failure. Matches are matched first by stable id, then by the cross-source dedup key so the same
  * fixture is never duplicated when a second provider reports it.
  */
+export interface MatchUpsertStats {
+  /** Records received from the sources (after source-level filtering). */
+  processed: number;
+  /** Records that did not exist in the store before. */
+  inserted: number;
+  /** Existing records whose stored content actually changed. */
+  updated: number;
+  /** Existing records that matched a fetched record with no content change. */
+  unchanged: number;
+}
+
+function matchContentFingerprint(match: MatchRecord): string {
+  return JSON.stringify({ ...match, lastUpdatedAt: null });
+}
+
 export function upsertMatchesInStore(incomingMatches: MatchRecord[]): number {
-  if (!incomingMatches || incomingMatches.length === 0) return 0;
+  return upsertMatchesInStoreWithStats(incomingMatches).processed;
+}
+
+/** Same as upsertMatchesInStore but reports how many records were inserted or changed. */
+export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): MatchUpsertStats {
+  const stats: MatchUpsertStats = { processed: 0, inserted: 0, updated: 0, unchanged: 0 };
+  if (!incomingMatches || incomingMatches.length === 0) return stats;
   const db = getGatewayDatabase();
   const byId = new Map<string, MatchRecord>();
   const idByDedupKey = new Map<string, string>();
@@ -111,21 +142,26 @@ export function upsertMatchesInStore(incomingMatches: MatchRecord[]): number {
     if (!idByDedupKey.has(key)) idByDedupKey.set(key, m.id);
   }
 
-  let upserted = 0;
   for (const inc of incomingMatches) {
     const dedupKey = buildMatchDedupKey(inc);
     const existingId = byId.has(inc.id) ? inc.id : idByDedupKey.get(dedupKey);
     const existing = existingId ? byId.get(existingId) : undefined;
+    stats.processed++;
     if (!existing) {
       byId.set(inc.id, inc);
       idByDedupKey.set(dedupKey, inc.id);
+      stats.inserted++;
     } else {
       // Keep the record's existing id so links/news references stay stable; union ids/links.
       const merged = refreshNemoLink({ ...mergeMatchRecords(existing, { ...inc, id: existing.id }), id: existing.id });
+      if (matchContentFingerprint(merged) === matchContentFingerprint(existing)) {
+        stats.unchanged++;
+      } else {
+        stats.updated++;
+      }
       byId.set(existing.id, merged);
       idByDedupKey.set(dedupKey, existing.id);
     }
-    upserted++;
   }
 
   db.matches = Array.from(byId.values()).sort((a, b) => {
@@ -135,7 +171,32 @@ export function upsertMatchesInStore(incomingMatches: MatchRecord[]): number {
 
   db.meta.lastLiveSyncAt = new Date().toISOString();
   persistGatewayDatabase(db);
-  return upserted;
+  return stats;
+}
+
+/** Season label (e.g. "2026-2027") for a Cairo date; the Egyptian season starts in July. */
+export function egyptianSeasonLabelFor(cairoDate: string): string {
+  const [year, month] = cairoDate.split('-').map(Number);
+  return month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+}
+
+/**
+ * Round window to request for the Egyptian league this run: the highest round already stored
+ * for the current season, plus the one before and the one after. Only matches of the same
+ * season count, so last season's round numbers never shift the window.
+ */
+export function getEgyptianRoundWindow(todayCairo: string): TheSportsDBRoundWindow {
+  const season = egyptianSeasonLabelFor(todayCairo);
+  const db = getGatewayDatabase();
+  let highest = 0;
+  for (const match of db.matches) {
+    if (match.competitionCode !== 'EGY' || match.seasonLabel !== season || !match.roundLabelAr) continue;
+    const n = Number(match.roundLabelAr.match(/(\d+)/)?.[1]);
+    if (Number.isFinite(n) && n > highest) highest = n;
+  }
+  const base = Math.max(1, highest);
+  const rounds = Array.from(new Set([base - 1, base, base + 1])).filter((r) => r >= 1);
+  return { season, rounds };
 }
 
 /** Records the outcome (success or failure) of one matches fetch attempt. */
@@ -330,26 +391,77 @@ export function recordSyncExecution(
   persistGatewayDatabase(db);
 }
 
-/** A "live" status older than this is not shown as live; the source has not confirmed it recently. */
+/** A "live" status whose data has not been refreshed recently is not shown as live. */
 export const STALE_LIVE_MAX_AGE_MS = 20 * 60 * 1000;
 
 /**
- * A record can only be presented as "جارية الآن" while the data behind it is fresh. Between
- * refreshes (or after a source outage) a stale live record is downgraded to "unconfirmed"
- * instead of pretending a live score is current. Nothing is deleted; the next successful
+ * Longest a match can plausibly stay "live" after kick-off: two halves, half-time, stoppage
+ * time and extra time. Past this, a provider's "live" flag is treated as stale.
+ */
+export const LIVE_MAX_AFTER_KICKOFF_MS = 180 * 60 * 1000;
+
+/** A match still shown as "not started" this long after kick-off is no longer believed. */
+export const NOT_STARTED_GRACE_MS = 15 * 60 * 1000;
+
+/**
+ * Downgrades statuses the data no longer supports. Nothing is deleted, and the next successful
  * fetch restores the real status.
+ *
+ * - live: the record must be recently refreshed AND its kick-off must be known and within the
+ *   plausible match window. The kick-off check is what catches a provider that keeps saying
+ *   "live" hours after the match ended: each sync resets `lastUpdatedAt`, so freshness alone
+ *   can never detect that.
+ * - not_started: once the kick-off plus the grace period has passed, the match is no longer
+ *   presented as "لم تبدأ بعد".
+ * - Any match whose kick-off time was not confirmed by the source is shown as unconfirmed
+ *   when its status is live or not_started.
  */
 export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date()): MatchRecord {
-  if (match.status !== 'live') return match;
-  const updatedMs = Date.parse(match.lastUpdatedAt);
-  if (Number.isFinite(updatedMs) && now.getTime() - updatedMs <= STALE_LIVE_MAX_AGE_MS) return match;
-  return {
-    ...match,
-    status: 'unconfirmed',
-    statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
-    statusNoteAr: 'آخر تحديث من المصدر قديم؛ لا نعرض المباراة كجارية حتى يصل تحديث جديد.',
-    liveMinute: null,
-  };
+  const nowMs = now.getTime();
+  const kickoffMs = Date.parse(match.utcKickoff);
+  const kickoffKnown = match.kickoffConfirmed !== false && Number.isFinite(kickoffMs);
+
+  if (match.status === 'live') {
+    const updatedMs = Date.parse(match.lastUpdatedAt);
+    const fresh = Number.isFinite(updatedMs) && nowMs - updatedMs <= STALE_LIVE_MAX_AGE_MS;
+    const sinceKickoff = nowMs - kickoffMs;
+    const plausible =
+      kickoffKnown &&
+      sinceKickoff >= -15 * 60 * 1000 &&
+      sinceKickoff <= LIVE_MAX_AFTER_KICKOFF_MS;
+    if (fresh && plausible) return match;
+    return {
+      ...match,
+      status: 'unconfirmed',
+      statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+      statusNoteAr: plausible
+        ? 'آخر تحديث من المصدر قديم؛ لا نعرض المباراة كجارية حتى يصل تحديث جديد.'
+        : 'المصدر يصفها بالمباشرة خارج مدة المباراة المعتادة أو بلا موعد مؤكد؛ لا نعرضها كمباراة جارية.',
+      liveMinute: null,
+    };
+  }
+
+  if (match.status === 'not_started') {
+    if (!kickoffKnown) {
+      return {
+        ...match,
+        status: 'unconfirmed',
+        statusLabelAr: 'الموعد غير مؤكد من المصدر',
+        statusNoteAr: 'لم يرسل المصدر موعد انطلاق مؤكدًا لهذه المباراة.',
+      };
+    }
+    if (nowMs - kickoffMs > NOT_STARTED_GRACE_MS) {
+      return {
+        ...match,
+        status: 'unconfirmed',
+        statusLabelAr: 'بانتظار تأكيد الحالة من المصدر',
+        statusNoteAr:
+          'موعد انطلاق المباراة مضى ولم يصل تحديث من المصدر؛ لا نعرضها كمباراة لم تبدأ بعد.',
+      };
+    }
+  }
+
+  return match;
 }
 
 /**

@@ -1,0 +1,9 @@
+{
+  "_capture": {
+    "source": "https://www.thesportsdb.com/api/v1/json/123/ (free key path, fetched with the fetch tool)",
+    "capturedAt": "2026-10-12",
+    "note": "Values copied from the live response. Only fields read by the adapter are kept; all kept values are unchanged. Capture was made through the fetch tool, not the production server.",
+    "request": "lookupleague.php?id=4830"
+  },
+  "_note": "Recorded lookup result: TheSportsDB league 4830 name is 'Korean KBO League' (baseball). Full response not saved; name and sport taken from the 2026-10-12 fetch."
+}

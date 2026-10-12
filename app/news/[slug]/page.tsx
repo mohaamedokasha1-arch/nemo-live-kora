@@ -151,15 +151,10 @@ export default async function NewsArticlePage({
           <ul>
             {relatedMatches.slice(0, 3).map((match) => (
               <li key={match.id}>
-                {match.nemoLink.url ? (
-                  <a href={match.nemoLink.url} target="_blank" rel="noopener noreferrer">
-                    {match.homeTeam.nameAr} ضد {match.awayTeam.nameAr} — {match.cairoDate}
-                  </a>
-                ) : (
-                  <span>
-                    {match.homeTeam.nameAr} ضد {match.awayTeam.nameAr} — {match.cairoDate}
-                  </span>
-                )}
+                {/* Plain text: there is no per-match NEMO Sports page to link to. */}
+                <span>
+                  {match.homeTeam.nameAr} ضد {match.awayTeam.nameAr} — {match.cairoDate}
+                </span>
               </li>
             ))}
           </ul>

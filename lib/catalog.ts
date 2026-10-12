@@ -40,7 +40,8 @@ export const CANONICAL_COMPETITIONS: CompetitionRecord[] = [
     nemoCompetitionSlug: 'egyptian-league',
     currentSeason: '2026-2027',
     sourceIds: {
-      thesportsdbId: '4830',
+      // TheSportsDB league 4830 is "Korean KBO League" (baseball), not an Egyptian Cup.
+      // No verified TheSportsDB soccer id for the Egypt Cup exists yet, so none is mapped here.
       apiFootballId: 714,
     },
   },

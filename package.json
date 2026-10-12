@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint .",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "NEMO_GATEWAY_STORE_PERSIST=off node --import tsx --test tests/*.test.ts",
     "sync": "node --import tsx scripts/run-sync.ts"
   },
   "dependencies": {
