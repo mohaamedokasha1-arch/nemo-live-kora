@@ -2,6 +2,7 @@ import { getTodayCairoDate, shiftDateString } from '../cairo-time';
 import {
   getGatewayDatabase,
   ingestNewsCandidatesInStore,
+  recordMatchesSyncAttempt,
   recordNewsSync,
   recordSyncExecution,
   upsertMatchesInStore,
@@ -53,6 +54,10 @@ export interface RunGatewaySyncOptions {
   mode?: 'live' | 'daily' | 'standings' | 'manual';
   trigger?: string;
   targetDate?: string;
+  /** عند true تُتخطى مزامنة الأخبار (التحديث عند الطلب للمباريات فقط). */
+  skipNews?: boolean;
+  /** عند true تُتخطى المصادر التي لا تضيف مباريات بدون مفتاح (Football-Data/API-Football) لتقليل زمن الاستجابة. */
+  quick?: boolean;
 }
 
 /**
@@ -161,6 +166,38 @@ export async function ensureFreshNews(
   return newsRefreshInFlight;
 }
 
+let matchesRefreshInFlight: Promise<SyncLogEntry> | null = null;
+
+/** Default on-demand freshness window for match data (yesterday/today/tomorrow pages and the API). */
+export const MATCHES_FRESHNESS_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * On-demand refresh of match data.
+ *
+ * On Vercel the daily cron (Hobby plan: one schedule per day) and the JSON file store are not
+ * enough to keep today's scores current — a fresh serverless instance starts from the committed
+ * snapshot. So the schedule pages and `/api/matches` call this before reading: if the last
+ * attempt (successful or not) is older than `maxAgeMs`, SportScore + TheSportsDB are fetched
+ * with short timeouts, concurrent callers share one in-flight run, and the outcome is recorded
+ * in `meta.lastMatchesSyncResult`. Failures keep the existing data untouched.
+ */
+export async function ensureFreshMatches(
+  maxAgeMs = MATCHES_FRESHNESS_MAX_AGE_MS,
+  trigger = 'تحديث مباريات عند الطلب'
+): Promise<SyncLogEntry | null> {
+  const db = getGatewayDatabase();
+  const lastAttempt = db.meta.lastMatchesSyncAttemptAt;
+  if (lastAttempt) {
+    const age = Date.now() - new Date(lastAttempt).getTime();
+    if (Number.isFinite(age) && age >= 0 && age < maxAgeMs) return null;
+  }
+  if (matchesRefreshInFlight) return matchesRefreshInFlight;
+  matchesRefreshInFlight = runGatewaySync({ mode: 'live', trigger, skipNews: true, quick: true }).finally(() => {
+    matchesRefreshInFlight = null;
+  });
+  return matchesRefreshInFlight;
+}
+
 export async function runGatewaySync(
   options: RunGatewaySyncOptions = {}
 ): Promise<SyncLogEntry> {
@@ -224,36 +261,53 @@ export async function runGatewaySync(
   } else {
     sourceResults.push({
       sourceId: 'sportscore',
-      status: 'active',
-      httpStatus: ssRes.httpStatus ?? 200,
+      status: 'degraded',
+      httpStatus: ssRes.httpStatus,
       latencyMs: ssRes.latencyMs,
       matchesFetched: 0,
-      standingsFetched: 0,
+      standingsFetched: ssStandingsCount,
       newsFetched: 0,
       usedCachedSnapshot: true,
-      messageAr: 'تم الاحتفاظ بالنسخة الموثقة من SportScore دون حذف البيانات السابقة.',
+      messageAr: `تعذر جلب المباريات من SportScore (${ssRes.error || `HTTP ${ssRes.httpStatus ?? 'بدون استجابة'}`}). تم الاحتفاظ بالبيانات السابقة دون حذف.`,
     });
+    sourceUpdates.sportscore = {
+      status: 'degraded',
+      statusLabelAr: 'تعذر الاتصال في آخر محاولة — البيانات السابقة محفوظة',
+      lastSyncAt: new Date().toISOString(),
+      lastHttpStatus: ssRes.httpStatus,
+      lastLatencyMs: ssRes.latencyMs,
+      errorCount: (getGatewayDatabase().sources.sportscore?.errorCount || 0) + 1,
+    };
   }
 
   // 2. TheSportsDB — matches only, not a news source
   const tsdbRes = await isolateSource(
     'thesportsdb',
     () => fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo]),
-    { ok: false, httpStatus: null, latencyMs: 0, matches: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['matches'] },
+    {
+      ok: false,
+      httpStatus: null,
+      latencyMs: 0,
+      matches: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['matches'],
+      endpoints: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['endpoints'],
+    },
     errors
   );
-  if (tsdbRes.ok && tsdbRes.matches.length > 0) {
-    upsertMatchesInStore(tsdbRes.matches);
+  if (tsdbRes.ok) {
+    if (tsdbRes.matches.length > 0) upsertMatchesInStore(tsdbRes.matches);
+    const egyptianCount = tsdbRes.matches.filter((m) => m.competitionCode === 'EGY').length;
+    const failedEndpoints = tsdbRes.endpoints.filter((e) => !e.ok).length;
     sourceResults.push({
       sourceId: 'thesportsdb',
-      status: 'active',
+      status: failedEndpoints > 0 ? 'degraded' : 'active',
       httpStatus: tsdbRes.httpStatus,
       latencyMs: tsdbRes.latencyMs,
       matchesFetched: tsdbRes.matches.length,
       standingsFetched: 0,
       newsFetched: 0,
       usedCachedSnapshot: false,
-      messageAr: `تم تحديث ${tsdbRes.matches.length} مباراة من TheSportsDB (الدوري المصري وكأس الرابطة والكونفدرالية).`,
+      messageAr: `تم جلب ${tsdbRes.matches.length} مباراة من TheSportsDB (منها ${egyptianCount} للدوري المصري الممتاز)${failedEndpoints > 0 ? ` — فشل ${failedEndpoints} من ${tsdbRes.endpoints.length} نقطة نهاية` : ''}.`,
+      endpoints: tsdbRes.endpoints,
     });
     sourceUpdates.thesportsdb = {
       status: 'active',
@@ -265,19 +319,31 @@ export async function runGatewaySync(
   } else {
     sourceResults.push({
       sourceId: 'thesportsdb',
-      status: 'active',
-      httpStatus: tsdbRes.httpStatus ?? 200,
+      status: 'degraded',
+      httpStatus: tsdbRes.httpStatus,
       latencyMs: tsdbRes.latencyMs,
       matchesFetched: 0,
       standingsFetched: 0,
       newsFetched: 0,
       usedCachedSnapshot: true,
-      messageAr: 'تم الاحتفاظ ببيانات الدوري المصري وكأس الرابطة الموثقة من TheSportsDB.',
+      messageAr: `تعذر جلب بيانات الدوري المصري من TheSportsDB (${tsdbRes.error || `HTTP ${tsdbRes.httpStatus ?? 'بدون استجابة'}`}). تم الاحتفاظ بالبيانات السابقة دون حذف.`,
+      endpoints: tsdbRes.endpoints,
     });
+    sourceUpdates.thesportsdb = {
+      status: 'degraded',
+      statusLabelAr: 'تعذر الاتصال في آخر محاولة — البيانات السابقة محفوظة',
+      lastSyncAt: new Date().toISOString(),
+      lastHttpStatus: tsdbRes.httpStatus,
+      lastLatencyMs: tsdbRes.latencyMs,
+      errorCount: (getGatewayDatabase().sources.thesportsdb?.errorCount || 0) + 1,
+    };
   }
 
+  const skipFootballData = Boolean(options.quick) && !(process.env.FOOTBALL_DATA_API_KEY || '').trim();
+  const skipApiFootball = Boolean(options.quick) && !(process.env.API_FOOTBALL_KEY || '').trim();
+
   // 3. Football-Data.org — competitions/matches only, not a news source
-  const fdRes = await isolateSource(
+  const fdRes = skipFootballData ? null : await isolateSource(
     'football-data',
     () => fetchFootballDataSync(yesterdayCairo, tomorrowCairo),
     {
@@ -292,7 +358,9 @@ export async function runGatewaySync(
     },
     errors
   );
-  if (fdRes.ok) {
+  if (!fdRes) {
+    // skipped in quick mode (no key => no matches from this source)
+  } else if (fdRes.ok) {
     if (fdRes.seasons.length > 0) upsertSeasonsInStore(fdRes.seasons);
     if (fdRes.matches.length > 0) upsertMatchesInStore(fdRes.matches);
     sourceResults.push({
@@ -316,19 +384,19 @@ export async function runGatewaySync(
   } else {
     sourceResults.push({
       sourceId: 'football-data',
-      status: fdRes.hasApiKey ? 'active' : 'partial_keyless',
-      httpStatus: fdRes.httpStatus ?? 200,
+      status: 'degraded',
+      httpStatus: fdRes.httpStatus,
       latencyMs: fdRes.latencyMs,
       matchesFetched: 0,
       standingsFetched: 0,
       newsFetched: 0,
       usedCachedSnapshot: true,
-      messageAr: 'تم الاحتفاظ بفهرس البطولات والمواسم الموثق من Football-Data.org (190 بطولة).',
+      messageAr: `تعذر الاتصال بـ Football-Data.org في هذه المحاولة؛ تم الاحتفاظ بفهرس البطولات والمواسم السابق. ${fdRes.messageAr || ''}`.trim(),
     });
   }
 
   // 4. API-Football — matches only, not a news source
-  const apifRes = await isolateSource(
+  const apifRes = skipApiFootball ? null : await isolateSource(
     'api-football',
     () => fetchApiFootballSync(todayCairo),
     {
@@ -342,28 +410,63 @@ export async function runGatewaySync(
     },
     errors
   );
-  if (apifRes.ok && apifRes.matches.length > 0) {
-    upsertMatchesInStore(apifRes.matches);
+  if (apifRes) {
+    if (apifRes.ok && apifRes.matches.length > 0) {
+      upsertMatchesInStore(apifRes.matches);
+    }
+    sourceResults.push({
+      sourceId: 'api-football',
+      status: apifRes.status,
+      httpStatus: apifRes.httpStatus,
+      latencyMs: apifRes.latencyMs,
+      matchesFetched: apifRes.matches.length,
+      standingsFetched: 0,
+      newsFetched: 0,
+      usedCachedSnapshot: !apifRes.ok,
+      messageAr: apifRes.messageAr,
+    });
+    sourceUpdates['api-football'] = {
+      status: apifRes.status,
+      isKeyConfigured: apifRes.hasApiKey,
+      lastSyncAt: new Date().toISOString(),
+      lastHttpStatus: apifRes.httpStatus,
+    };
   }
-  sourceResults.push({
-    sourceId: 'api-football',
-    status: apifRes.status,
-    httpStatus: apifRes.httpStatus,
-    latencyMs: apifRes.latencyMs,
-    matchesFetched: apifRes.matches.length,
-    standingsFetched: 0,
-    newsFetched: 0,
-    usedCachedSnapshot: !apifRes.ok,
-    messageAr: apifRes.messageAr,
+
+  // Record the outcome of this matches fetch (success or failure) before news.
+  const matchSources = sourceResults.filter((r) => r.sourceId !== 'google-news-rss');
+  const sourcesOk = matchSources.filter((r) => r.matchesFetched > 0 || (!r.usedCachedSnapshot && r.status !== 'degraded')).map((r) => r.sourceId);
+  const sourcesFailed = matchSources.filter((r) => r.usedCachedSnapshot || r.status === 'degraded').map((r) => r.sourceId);
+  const matchesFetchedTotal = matchSources.reduce((t, r) => t + (r.matchesFetched || 0), 0);
+  const matchesOk = matchSources.some((r) => r.matchesFetched > 0);
+  recordMatchesSyncAttempt({
+    ok: matchesOk,
+    trigger,
+    messageAr: matchesOk
+      ? `جُلبت ${matchesFetchedTotal} مباراة من ${sourcesOk.length} مصدر${sourcesFailed.length > 0 ? ` (فشل: ${sourcesFailed.join('، ')})` : ''}.`
+      : `لم يُرجع أي مصدر مباريات في هذه المحاولة (${sourcesFailed.join('، ') || 'بدون مصادر'}). البيانات السابقة محفوظة ولم تُحذف.`,
+    matchesFetched: matchesFetchedTotal,
+    sourcesOk,
+    sourcesFailed,
   });
-  sourceUpdates['api-football'] = {
-    status: apifRes.status,
-    isKeyConfigured: apifRes.hasApiKey,
-    lastSyncAt: new Date().toISOString(),
-    lastHttpStatus: apifRes.httpStatus,
-  };
 
   // 5. Google News RSS — the only news-capable source among the five
+  if (options.skipNews) {
+    const dbSkip = getGatewayDatabase();
+    const logEntry: SyncLogEntry = {
+      id: `sync-${Date.now()}`,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      mode,
+      trigger,
+      sourceResults,
+      totalMatchesInStore: dbSkip.matches.length,
+      totalStandingsInStore: Object.keys(dbSkip.standings).length,
+      totalNewsInStore: dbSkip.news.length,
+    };
+    recordSyncExecution(logEntry, errors, sourceUpdates);
+    return logEntry;
+  }
   const newsSync = await runNewsSync(trigger, errors);
   sourceResults.push({
     sourceId: 'google-news-rss',

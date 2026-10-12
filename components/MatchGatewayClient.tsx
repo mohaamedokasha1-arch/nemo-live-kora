@@ -11,12 +11,15 @@ export interface GatewayClientProps {
   selectedDate: string;
   todayCairo: string;
   allMatchesOnDate: MatchRecord[];
+  /** وصف آخر محاولة جلب للمباريات (ناجحة أو فاشلة) — يُحسب على الخادم */
+  freshnessNote?: string | null;
 }
 
 export default function MatchGatewayClient({
   selectedDate,
   todayCairo,
   allMatchesOnDate,
+  freshnessNote,
 }: GatewayClientProps) {
   const router = useRouter();
   const yesterdayDate = shiftDateString(todayCairo, -1);
@@ -58,6 +61,12 @@ export default function MatchGatewayClient({
             مباريات الغد
           </Link>
         </div>
+
+        {freshnessNote ? (
+          <p className="kl-news-updated kl-sync-note" role="status">
+            {freshnessNote}
+          </p>
+        ) : null}
 
         <div className="kl-date-picker-row">
           <label htmlFor="match-date-picker">اختر تاريخًا لعرض المباريات</label>

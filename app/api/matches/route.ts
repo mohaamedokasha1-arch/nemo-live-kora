@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTodayCairoDate, isValidDateParam } from '@/lib/cairo-time';
 import { queryGatewayMatches } from '@/lib/db/store';
+import { ensureFreshMatches } from '@/lib/sync/engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
       ? rawDate
       : getTodayCairoDate();
 
+  await ensureFreshMatches();
   const result = queryGatewayMatches({
     cairoDate,
     competitionCode,

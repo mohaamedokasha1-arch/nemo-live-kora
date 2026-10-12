@@ -213,8 +213,8 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
         <div className="kl-meta-item kl-meta-action">
           <span>
             {targetUrl
-              ? 'تفاصيل المباراة على NEMO Sports'
-              : 'لا توجد صفحة مطابقة موثقة على NEMO Sports'}
+              ? 'مشاهدة البث على NEMO Sports'
+              : 'لا يتوفر رابط بث مطابق على NEMO Sports'}
           </span>
           {targetUrl ? (
             <svg
@@ -254,7 +254,7 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       rel="noopener noreferrer"
       className={cardClass}
       title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
-      aria-label={`تفاصيل ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} على NEMO Sports`}
+      aria-label={`مشاهدة بث ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} على NEMO Sports`}
     >
       {cardContent}
     </a>

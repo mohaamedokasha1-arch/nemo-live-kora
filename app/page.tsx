@@ -3,7 +3,9 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { formatArabicTimestamp, getTodayCairoDate, isValidDateParam } from '@/lib/cairo-time';
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { describeMatchesFreshness } from '@/lib/freshness';
 import { getLatestNews } from '@/lib/news/query';
+import { ensureFreshMatches } from '@/lib/sync/engine';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
 import {
@@ -14,7 +16,8 @@ import {
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'جدول مباريات اليوم بتوقيت القاهرة',
+  // The root segment does not inherit the layout's title template; brand it explicitly.
+  title: { absolute: 'جدول مباريات اليوم بتوقيت القاهرة | نيمو كورة لايف' },
   description:
     'جدول مباريات كرة القدم اليوم مع المواعيد والنتائج وحالات المباريات بحسب بيانات المصادر الرياضية، بتوقيت القاهرة.',
   alternates: { canonical: '/' },
@@ -35,6 +38,8 @@ export default async function HomePage({
     redirect(`/matches/${date}`);
   }
 
+  // Refresh match data on demand (short timeouts, shared in-flight run); failures keep old data.
+  await ensureFreshMatches();
   // Keep the essential match schedule independent from the optional news source's latency.
   const store = getGatewayDatabase();
   const queryResult = queryGatewayMatches({ cairoDate: todayCairo });
@@ -53,6 +58,7 @@ export default async function HomePage({
         selectedDate={todayCairo}
         todayCairo={todayCairo}
         allMatchesOnDate={queryResult.matches}
+        freshnessNote={describeMatchesFreshness(store.meta)}
       />
       <NewsSection
         news={latestNews}
