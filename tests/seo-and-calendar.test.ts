@@ -77,7 +77,9 @@ test('sports-event JSON-LD omits generic fallback URLs and emits verified direct
   const directEvent = elements.find(
     ({ item }) => item.name === `${directMatch.homeTeam.nameAr} ضد ${directMatch.awayTeam.nameAr}`
   );
-  assert.equal(directEvent?.item.url, directMatch.nemoLink.url);
+  // Structured data points at the canonical match page; the user-facing button adds #live-stream.
+  assert.equal(directEvent?.item.url, directMatch.nemoLink.url?.split('#')[0]);
+  assert.ok(directMatch.nemoLink.url?.endsWith('#live-stream'));
 
   const unverifiedDate = '2026-10-12';
   const unverifiedMatches = queryGatewayMatches({ cairoDate: unverifiedDate }).matches;
