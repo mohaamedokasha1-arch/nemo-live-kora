@@ -63,6 +63,12 @@ export interface SourceDefinition {
   recordsImported: number;
   errorCount: number;
   notesAr: string;
+  providesMatches: boolean;
+  providesStandings: boolean;
+  providesNews: boolean;
+  lastSuccessfulNewsSyncAt: string | null;
+  newsImportedCount: number;
+  newsPublishedCount: number;
 }
 
 export interface CompetitionRecord {
@@ -220,18 +226,100 @@ export interface CompetitionStandingTable {
   rows: StandingRowRecord[];
 }
 
-export interface NewsItemRecord {
-  id: string;
+export type NewsPublishStatus =
+  | 'pending'
+  | 'published'
+  | 'duplicate'
+  | 'rejected'
+  | 'stale'
+  | 'source_error';
+
+export interface RawNewsCandidate {
+  sourceId: SourceId;
+  sourceItemId: string | null;
   title: string;
   link: string;
-  publishedAt: string;
-  cairoDate: string;
-  cairoTimeLabel: string;
+  originalUrl: string | null;
+  publishedAt: string | null;
+  publishedAtKnown: boolean;
+  updatedAt: string | null;
+  excerpt: string | null;
+  imageUrl: string | null;
   publisherName: string;
   publisherUrl: string | null;
   language: 'ar' | 'en';
   categoryAr: string;
-  sourceId: 'google-news-rss';
+  fetchedAt: string;
+}
+
+export interface NewsItemRecord {
+  id: string;
+  sourceItemId: string | null;
+  sourceId: SourceId;
+  title: string;
+  slug: string;
+  link: string;
+  originalUrl: string | null;
+  publishedAt: string | null;
+  publishedAtKnown: boolean;
+  updatedAt: string | null;
+  fetchedAt: string;
+  lastSyncedAt: string;
+  cairoDate: string | null;
+  cairoTimeLabel: string;
+  excerpt: string | null;
+  imageUrl: string | null;
+  publisherName: string;
+  publisherUrl: string | null;
+  language: 'ar' | 'en';
+  categoryAr: string;
+  publishStatus: NewsPublishStatus;
+  rejectionReason: string | null;
+  rejectionReasonAr: string | null;
+  duplicateOfId: string | null;
+  relatedMatchIds: string[];
+  relatedTeamIds: string[];
+  relatedCompetitionCodes: string[];
+  nemoRelatedUrl: string | null;
+  nemoRelatedLabelAr: string | null;
+}
+
+export interface NewsSourceSyncRecord {
+  id: string;
+  sourceId: SourceId;
+  startedAt: string;
+  finishedAt: string;
+  ok: boolean;
+  httpStatus: number | null;
+  latencyMs: number;
+  fetchedCount: number;
+  importedCount: number;
+  publishedCount: number;
+  duplicateCount: number;
+  rejectedCount: number;
+  updatedCount: number;
+  errorCount: number;
+  messageAr: string;
+}
+
+export interface NewsImportErrorRecord {
+  id: string;
+  sourceId: SourceId;
+  timestamp: string;
+  errorCode: string;
+  message: string;
+  messageAr: string;
+  title?: string;
+  url?: string;
+}
+
+export interface NewsDedupRecord {
+  id: string;
+  newsId: string;
+  duplicateOfId: string;
+  matchedBy: string[];
+  timestamp: string;
+  title: string;
 }
 
 export interface NemoMappingEntry {
@@ -257,6 +345,9 @@ export interface SourceSyncResult {
   matchesFetched: number;
   standingsFetched: number;
   newsFetched: number;
+  newsPublished?: number;
+  newsDuplicates?: number;
+  newsRejected?: number;
   usedCachedSnapshot: boolean;
   messageAr: string;
 }
@@ -292,6 +383,8 @@ export interface GatewayDatabase {
     timezone: string;
     lastFullSyncAt: string;
     lastLiveSyncAt: string;
+    lastNewsSyncAt: string | null;
+    lastSuccessfulNewsSyncAt: string | null;
   };
   sources: Record<SourceId, SourceDefinition>;
   competitions: CompetitionRecord[];
@@ -300,6 +393,9 @@ export interface GatewayDatabase {
   matches: MatchRecord[];
   standings: Record<string, CompetitionStandingTable>;
   news: NewsItemRecord[];
+  newsSourceSyncs: NewsSourceSyncRecord[];
+  newsImportErrors: NewsImportErrorRecord[];
+  newsDedupRecords: NewsDedupRecord[];
   nemoMappingTable: NemoMappingEntry[];
   syncLogs: SyncLogEntry[];
   sourceErrors: SourceErrorEntry[];

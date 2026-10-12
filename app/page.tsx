@@ -1,6 +1,8 @@
 import React from 'react';
-import { getTodayCairoDate } from '@/lib/cairo-time';
+import { formatArabicTimestamp, getTodayCairoDate } from '@/lib/cairo-time';
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { getLatestNews } from '@/lib/news/query';
+import { ensureFreshNews } from '@/lib/sync/engine';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
 
@@ -17,8 +19,10 @@ export default async function HomePage({
       ? searchParams.date
       : todayCairo;
 
+  await ensureFreshNews();
   const store = getGatewayDatabase();
   const queryResult = queryGatewayMatches({ cairoDate: requestedDate });
+  const latestNews = getLatestNews(store.news, 8);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -63,7 +67,14 @@ export default async function HomePage({
         todayCairo={todayCairo}
         allMatchesOnDate={queryResult.matches}
       />
-      <NewsSection news={store.news} />
+      <NewsSection
+        news={latestNews}
+        lastUpdatedLabel={
+          store.meta.lastSuccessfulNewsSyncAt
+            ? formatArabicTimestamp(store.meta.lastSuccessfulNewsSyncAt)
+            : null
+        }
+      />
     </>
   );
 }

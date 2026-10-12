@@ -192,6 +192,8 @@ test('5. Five Approved Sources Adapters & Deduplication: normalizes and merges w
     parsedNews[0].title,
     'موعد مباراة بيراميدز وسيراميكا في الدوري المصري'
   );
+  assert.equal(parsedNews[0].publishedAtKnown, true);
+  assert.equal(parsedNews[0].publishedAt, '2026-10-11T22:15:00.000Z');
 });
 
 test('6. Egyptian Priority & Filter Integrity: Egyptian Premier League appears first on 2026-10-12 and filters only expose real data', () => {

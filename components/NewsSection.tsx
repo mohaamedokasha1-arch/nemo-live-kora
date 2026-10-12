@@ -1,34 +1,63 @@
 import React from 'react';
+import Link from 'next/link';
 import { NewsItemRecord } from '@/lib/types';
 
-export default function NewsSection({ news }: { news: NewsItemRecord[] }) {
-  if (!news || news.length === 0) return null;
-
+export default function NewsSection({
+  news,
+  lastUpdatedLabel,
+}: {
+  news: NewsItemRecord[];
+  lastUpdatedLabel?: string | null;
+}) {
   return (
     <section id="news" className="kl-news-section" aria-label="آخر الأخبار">
-      <div className="kl-section-head">
-        <h2 className="kl-section-title">آخر الأخبار الرياضية</h2>
+      <div className="kl-section-head kl-news-head">
+        <div>
+          <h2 className="kl-section-title">آخر الأخبار الرياضية</h2>
+          {lastUpdatedLabel ? (
+            <p className="kl-news-updated">آخر تحديث: {lastUpdatedLabel}</p>
+          ) : null}
+        </div>
+        <Link href="/news" className="kl-news-all-link">
+          كل الأخبار
+        </Link>
       </div>
 
-      <div className="kl-news-grid">
-        {news.slice(0, 6).map((item) => (
-          <a
-            key={item.id}
-            href={item.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="kl-news-card"
-          >
-            <div className="kl-news-thumb">
-              <span className="kl-news-tag">{item.publisherName}</span>
-              <span className="kl-news-date">{item.cairoTimeLabel}</span>
-            </div>
-            <h3 className="kl-news-title" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
-              {item.title}
-            </h3>
-          </a>
-        ))}
-      </div>
+      {!news || news.length === 0 ? (
+        <div className="kl-empty-box">
+          <p className="kl-empty-title">لا توجد أخبار جديدة مؤكدة للعرض حاليًا</p>
+          <p className="kl-news-empty-note">
+            لا نعرض عناوين تجريبية أو نتائج مباريات باعتبارها أخبارًا. ستظهر الأخبار هنا بعد مزامنة ناجحة من المصدر المعتمد.
+          </p>
+        </div>
+      ) : (
+        <div className="kl-news-grid">
+          {news.map((item) => (
+            <article key={item.id} className="kl-news-card">
+              <div className="kl-news-thumb">
+                <span className="kl-news-tag">{item.publisherName}</span>
+                <span className="kl-news-date">{item.cairoTimeLabel}</span>
+              </div>
+              <h3 className="kl-news-title" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
+                <Link href={`/news/${item.slug}`}>{item.title}</Link>
+              </h3>
+              {item.excerpt ? (
+                <p className="kl-news-excerpt" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
+                  {item.excerpt}
+                </p>
+              ) : null}
+              <div className="kl-news-card-links">
+                <Link href={`/news/${item.slug}`}>تفاصيل الخبر</Link>
+                {item.nemoRelatedUrl ? (
+                  <a href={item.nemoRelatedUrl} target="_blank" rel="noopener noreferrer">
+                    NEMO Sports
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

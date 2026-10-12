@@ -25,6 +25,7 @@ export default function Footer() {
           >
             منصة NEMO Sports
           </a>
+          <Link href="/news">الأخبار</Link>
           <Link href="/sources">حالة المصادر</Link>
         </div>
       </div>

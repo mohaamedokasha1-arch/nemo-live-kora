@@ -122,8 +122,15 @@ async function assertSuccessfulUpdate(response: NextResponse, mode: string) {
   assert.ok(persisted.matches.some((entry) => entry.id === match.id));
 }
 
-test('Vercel cron configuration is removed while the update route remains', () => {
-  assert.equal(fs.existsSync(path.join(projectRoot, 'vercel.json')), false);
+test('Daily Vercel cron is configured for the protected update route', () => {
+  const configPath = path.join(projectRoot, 'vercel.json');
+  assert.equal(fs.existsSync(configPath), true);
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
+    crons: Array<{ path: string; schedule: string }>;
+  };
+  assert.equal(config.crons.length, 1);
+  assert.equal(config.crons[0].path, '/api/cron/update-matches');
+  assert.equal(config.crons[0].schedule, '0 5 * * *');
   assert.equal(
     fs.existsSync(path.join(projectRoot, 'app/api/cron/update-matches/route.ts')),
     true
