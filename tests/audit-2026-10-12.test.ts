@@ -36,6 +36,7 @@ import { mergeMatchRecords } from '../lib/db/seed-data';
 import { parseGoogleNewsRssXml, resolveGoogleNewsArticleUrl } from '../lib/sources/google-news-rss';
 import { validateNewsCandidate } from '../lib/news/validate';
 import { MatchRecord, RawNewsCandidate } from '../lib/types';
+import { getVerifiedNemoMatchPageUrl, VERIFIED_NEMO_MAPPING_TABLE } from '../lib/nemo-resolver';
 
 // Never write the committed store from this file, whichever way it is run (test 8 mutates memory).
 process.env.NEMO_GATEWAY_STORE_PERSIST = 'off';
@@ -408,9 +409,9 @@ test('10c. News: a relay that answers with a publisher Location resolves; a head
 });
 
 // ---------------------------------------------------------------------------------------------
-// 11. Source scan: no broadcast link in code points to a per-match NEMO Sports page.
+// 11. Source scan: generic and guessed match destinations must not be built into public code.
 // ---------------------------------------------------------------------------------------------
-test('11. /watch links: no per-match NEMO Sports destination or #live-stream anchor is built in code', () => {
+test('11. NEMO match links use an explicit allowlist, never a generic /watch or guessed page', () => {
   const dirs = ['lib', 'components', 'app'];
   const files: string[] = [];
   const walk = (dir: string) => {
@@ -424,25 +425,47 @@ test('11. /watch links: no per-match NEMO Sports destination or #live-stream anc
   const offenders: string[] = [];
   for (const file of files) {
     const text = fs.readFileSync(file, 'utf-8');
-    if (/#live-stream/.test(text)) offenders.push(`${file}: #live-stream`);
-    if (/nemo-sports\.vercel\.app\/matches|NEMO_SPORTS_BASE_URL\}\/matches/.test(text)) {
-      offenders.push(`${file}: per-match NEMO URL`);
+    if (/https:\/\/nemo-sports\.vercel\.app\/watch/.test(text)) {
+      offenders.push(`${file}: generic /watch URL`);
     }
-    if (/direct_match|competition_fallback|schedule_fallback/.test(text)) offenders.push(`${file}: old link type`);
+    if (/matchId=|selected-match-broadcast/.test(text)) {
+      offenders.push(`${file}: unsupported match query/anchor`);
+    }
+    if (/NEMO_SPORTS_BASE_URL[^\n]*\/matches/.test(text)) {
+      offenders.push(`${file}: runtime-configured match destination`);
+    }
+    if (/broadcast_section|competition_fallback|schedule_fallback/.test(text)) {
+      offenders.push(`${file}: obsolete link type`);
+    }
   }
   assert.deepEqual(offenders, []);
 });
 
-test('11b. /watch links: the resolver output for every fixture match is the /watch section', () => {
-  const samples = [...(ROUND6.events || []), ...(DAY_1012.events || [])].map((e) =>
-    mapTheSportsDBEventToRecord(e)
+test('11b. TheSportsDB fixtures resolve only to their exact verified match page or no link', () => {
+  const samples = [...(ROUND6.events || []), ...(DAY_1012.events || [])].map((event) =>
+    mapTheSportsDBEventToRecord(event)
   );
   assert.ok(samples.length >= 6);
+  const verifiedPages = VERIFIED_NEMO_MAPPING_TABLE
+    .map((entry) => ({ entry, url: getVerifiedNemoMatchPageUrl(entry) }))
+    .filter((item): item is { entry: (typeof VERIFIED_NEMO_MAPPING_TABLE)[number]; url: string } => Boolean(item.url));
+
   for (const record of samples) {
-    assert.equal(record.nemoLink.url, 'https://nemo-sports.vercel.app/watch');
-    const url = new URL(record.nemoLink.url as string);
-    assert.equal(url.pathname, '/watch');
-    assert.equal(url.hash, '');
+    if (!record.nemoLink.url) {
+      assert.equal(record.nemoLink.linkType, 'unavailable');
+      assert.equal(record.nemoLink.verified, false);
+      continue;
+    }
+
+    const mapping = verifiedPages.find(({ entry, url }) => {
+      const providerIdMatches =
+        entry.thesportsdbEventId === record.externalIds.thesportsdbEventId ||
+        entry.apiFootballFixtureId === record.externalIds.apiFootballFixtureId;
+      return providerIdMatches && entry.cairoDate === record.cairoDate && url === record.nemoLink.url;
+    });
+    assert.ok(mapping, `unallow-listed NEMO destination: ${record.nemoLink.url}`);
+    assert.equal(record.nemoLink.linkType, 'direct_match');
+    assert.equal(record.nemoLink.verified, true);
   }
   assert.equal(toCairoDateString('2026-10-12T17:00:00.000Z'), '2026-10-12');
 });

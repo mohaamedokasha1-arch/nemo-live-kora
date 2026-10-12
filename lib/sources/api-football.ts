@@ -207,6 +207,7 @@ export async function fetchApiFootballSync(cairoDate: string): Promise<{
       seasonLabel: String(item.league.season),
       roundLabelAr: item.league.round || null,
       utcKickoff: new Date(item.fixture.date).toISOString(),
+      kickoffConfirmed: true,
       cairoDate: mCairoDate,
       cairoTime: mCairoTime,
       homeTeam: {

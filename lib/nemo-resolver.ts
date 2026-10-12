@@ -1,24 +1,14 @@
-import { NEMO_SPORTS_BASE_URL } from './catalog';
 import { NemoLinkResolution, NemoMappingEntry } from './types';
 
-/**
- * Path of NEMO Sports' general broadcast section (`app/watch/page.tsx` on the main site: the
- * "NEMO Watch Guide" that lists operator-registered streams).
- *
- * Per-match broadcast links are not used. The main site's `/matches/[slug]` page renders a
- * live-stream section for every match, but that section only shows a stream when one is
- * registered for the match, and nothing in this gateway can verify that per match. Every
- * broadcast CTA therefore points at this single general destination.
- */
-export const NEMO_BROADCAST_PATH = '/watch';
+/** The origin used during verification; do not let runtime configuration retarget allow-listed paths. */
+export const VERIFIED_NEMO_SPORTS_ORIGIN = 'https://nemo-sports.vercel.app';
 
-/** Absolute URL of the NEMO Sports broadcast section; the only broadcast destination. */
-export const NEMO_BROADCAST_SECTION_URL = `${NEMO_SPORTS_BASE_URL.replace(/\/+$/, '')}${NEMO_BROADCAST_PATH}`;
+/** Only emit a direct NEMO Sports match page when its source identity is allow-listed. */
+export const NEMO_MATCH_BROADCAST_SECTION_ID = 'live-stream';
 
 /**
  * Extracts the match slug from a SportScore match URL.
- * The slug is descriptive, not a unique fixture id; it is used for outbound links only
- * when the fixture is also present in the explicit verification table below.
+ * A descriptive slug alone is not a unique fixture id and is never enough to create a link.
  */
 export function extractSportscoreMatchSlug(urlPath?: string | null): string | null {
   if (!urlPath) return null;
@@ -36,9 +26,8 @@ export function extractSportscoreTrackerId(urlPath?: string | null): string | nu
 }
 
 /**
- * Explicit match-by-match allowlist of NEMO Sports destinations checked against the
- * published main site. A competition slug or a SportScore slug alone is not enough to
- * declare that a matching match page exists.
+ * Exact-match allowlist checked against the currently published NEMO Sports site.
+ * A row with no verified match slug is deliberately not linkable.
  */
 export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
   {
@@ -53,9 +42,9 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     cairoDate: '2026-10-11',
     verifiedNemoMatchSlug: 'zamalek-sc-vs-al-ahly-fc',
     verifiedNemoCompetitionSlug: 'egyptian-league',
-    verifiedAt: '2026-10-12T00:35:00Z',
+    verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'تم اختبار الوجهة المنشورة: صفحة الزمالك ضد الأهلي تعرض المباراة الصحيحة بتاريخ 11 أكتوبر 2026 والنتيجة 0-2.',
+      'طابقت الصفحة المنشورة الزمالك ضد الأهلي بتاريخ 11 أكتوبر 2026 والنتيجة 0-2؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث.',
   },
   {
     canonicalMatchId: 'match-api-football-1612249',
@@ -69,9 +58,9 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     cairoDate: '2026-10-11',
     verifiedNemoMatchSlug: 'olympic-el-qanal-vs-al-masry',
     verifiedNemoCompetitionSlug: 'egyptian-league',
-    verifiedAt: '2026-10-12T00:35:00Z',
+    verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'تم اختبار الوجهة المنشورة: صفحة القناة ضد المصري تعرض المباراة الصحيحة بتاريخ 11 أكتوبر 2026 والنتيجة 1-1.',
+      'طابقت الصفحة المنشورة القناة ضد المصري بتاريخ 11 أكتوبر 2026 والنتيجة 1-1؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث.',
   },
   {
     canonicalMatchId: 'match-api-football-1612251',
@@ -85,9 +74,9 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     cairoDate: '2026-10-12',
     verifiedNemoMatchSlug: null,
     verifiedNemoCompetitionSlug: null,
-    verifiedAt: '2026-10-12T00:35:00Z',
+    verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'هذه المباراة واردة من TheSportsDB فقط ولا تحمل معرّف SportScore الذي يستخدمه NEMO Sports لصفحة المباراة؛ يُضاف رابط البث تلقائيًا عندما يرصدها SportScore، ولا يُستخدم رابط بطولة أو جدول عام كبديل.',
+      'لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل.',
   },
   {
     canonicalMatchId: 'match-api-football-1612252',
@@ -101,9 +90,9 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     cairoDate: '2026-10-12',
     verifiedNemoMatchSlug: null,
     verifiedNemoCompetitionSlug: null,
-    verifiedAt: '2026-10-12T00:35:00Z',
+    verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'هذه المباراة واردة من TheSportsDB فقط ولا تحمل معرّف SportScore الذي يستخدمه NEMO Sports لصفحة المباراة؛ يُضاف رابط البث تلقائيًا عندما يرصدها SportScore، ولا يُستخدم رابط بطولة أو جدول عام كبديل.',
+      'لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل.',
   },
   {
     canonicalMatchId: 'match-api-football-1612253',
@@ -117,16 +106,16 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     cairoDate: '2026-10-12',
     verifiedNemoMatchSlug: null,
     verifiedNemoCompetitionSlug: null,
-    verifiedAt: '2026-10-12T00:35:00Z',
+    verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'هذه المباراة واردة من TheSportsDB فقط ولا تحمل معرّف SportScore الذي يستخدمه NEMO Sports لصفحة المباراة؛ يُضاف رابط البث تلقائيًا عندما يرصدها SportScore، ولا يُستخدم رابط بطولة أو جدول عام كبديل.',
+      'لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل.',
   },
 ];
 
 export interface ResolveNemoLinkInput {
   canonicalMatchId?: string;
   sportscoreSlug?: string | null;
-  /** @deprecated Kept for call-site compatibility; has no effect on the destination. */
+  /** @deprecated Retained for input compatibility; it does not establish a match identity. */
   sportscoreMatchDateVerified?: boolean;
   sportscoreTrackerId?: string | null;
   thesportsdbEventId?: string | null;
@@ -136,28 +125,6 @@ export interface ResolveNemoLinkInput {
   awayTeamId: string;
   cairoDate: string;
   customMappingTable?: NemoMappingEntry[];
-}
-
-/**
- * Resolves the broadcast CTA for a match. Every match gets the same general destination,
- * `NEMO_BROADCAST_SECTION_URL`, so no visitor is sent to a per-match page that might be
- * missing or might show the wrong fixture. The input is accepted for call-site compatibility
- * and is not used to build the URL. Identity (dedupe, stable ids) still uses the source ids
- * through `findVerifiedMatchMapping` and `lib/match-identity.ts`.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for call-site compatibility
-export function resolveNemoSportsLink(_input: ResolveNemoLinkInput): NemoLinkResolution {
-  return {
-    url: NEMO_BROADCAST_SECTION_URL,
-    linkType: 'broadcast_section',
-    labelAr: 'قسم البث على NEMO Sports',
-    subLabelAr:
-      'يفتح قسم البث العام على NEMO Sports. القسم لا يعرض بثًا لكل مباراة؛ قد لا تكون هذه المباراة متاحة هناك.',
-    verified: true,
-    matchedBy: [],
-    competitionUrl: null,
-    scheduleUrl: null,
-  };
 }
 
 function matchesTrustedSourceId(
@@ -175,8 +142,8 @@ function matchesTrustedSourceId(
 }
 
 /**
- * Used by stable match identity generation. The returned mapping is only accepted when
- * the source fixture identifier and the competition/ordered teams agree.
+ * Used by stable match identity generation. The mapping is accepted only when the provider
+ * fixture id, competition, and ordered teams agree; the descriptive slug is not identity.
  */
 export function findVerifiedMatchMapping(input: {
   sportscoreTrackerId?: string | null;
@@ -195,4 +162,70 @@ export function findVerifiedMatchMapping(input: {
     if (!contextMatches) return false;
     return matchesTrustedSourceId(input, entry);
   });
+}
+
+/**
+ * Returns a page URL only for an explicitly verified match slug.
+ * The public watch guide is general-purpose and does not select an event-specific section from
+ * query or hash fragments. The match page's `#live-stream` section is the verified destination
+ * for the two allow-listed fixtures.
+ */
+export function getVerifiedNemoMatchPageUrl(entry: NemoMappingEntry): string | null {
+  const trustedEntry = VERIFIED_NEMO_MAPPING_TABLE.find(
+    (candidate) =>
+      candidate.canonicalMatchId === entry.canonicalMatchId &&
+      candidate.verifiedNemoMatchSlug === entry.verifiedNemoMatchSlug &&
+      candidate.cairoDate === entry.cairoDate &&
+      candidate.competitionCode === entry.competitionCode &&
+      candidate.homeTeamId === entry.homeTeamId &&
+      candidate.awayTeamId === entry.awayTeamId &&
+      candidate.sportscoreTrackerId === entry.sportscoreTrackerId &&
+      candidate.thesportsdbEventId === entry.thesportsdbEventId &&
+      candidate.apiFootballFixtureId === entry.apiFootballFixtureId
+  );
+  const slug = trustedEntry?.verifiedNemoMatchSlug;
+  if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(slug)) return null;
+  return `${VERIFIED_NEMO_SPORTS_ORIGIN}/matches/${slug}#${NEMO_MATCH_BROADCAST_SECTION_ID}`;
+}
+
+function getExactMatchMapping(input: ResolveNemoLinkInput): NemoMappingEntry | undefined {
+  const entry = findVerifiedMatchMapping(input);
+  if (!entry || entry.cairoDate !== input.cairoDate) return undefined;
+  return getVerifiedNemoMatchPageUrl(entry) ? entry : undefined;
+}
+
+/**
+ * Resolve only an exact, source-id-backed, date-checked match page. A verified page is not a
+ * promise that a stream is active: NEMO Sports renders the real broadcast state at the target.
+ * If no exact page is verified, return no URL so the card can display a clear unavailable state.
+ */
+export function resolveNemoSportsLink(input: ResolveNemoLinkInput): NemoLinkResolution {
+  const entry = getExactMatchMapping(input);
+  const url = entry ? getVerifiedNemoMatchPageUrl(entry) : null;
+
+  if (entry && url) {
+    return {
+      url,
+      linkType: 'direct_match',
+      labelAr: 'قسم البث للمباراة المطابقة على NEMO Sports',
+      subLabelAr:
+        'يفتح صفحة هذه المباراة تحديدًا؛ حالة البث الفعلية تظهر في NEMO Sports ولا نفترض توفر بث نشط.',
+      verified: true,
+      matchedBy: ['provider_match_id', 'competition_id', 'team_ids', 'match_date', 'mapping_table'],
+      competitionUrl: null,
+      scheduleUrl: null,
+    };
+  }
+
+  return {
+    url: null,
+    linkType: 'unavailable',
+    labelAr: 'لا يوجد رابط بث مطابق موثّق',
+    subLabelAr:
+      'لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.',
+    verified: false,
+    matchedBy: [],
+    competitionUrl: null,
+    scheduleUrl: null,
+  };
 }

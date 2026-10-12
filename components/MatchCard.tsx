@@ -2,13 +2,12 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { formatScoreDisplay } from '@/lib/cairo-time';
+import { formatScoreDisplay, toCairoTimeArabic } from '@/lib/cairo-time';
 import { getMatchSourceLabelAr } from '@/lib/catalog';
 import { MatchRecord } from '@/lib/types';
-import { NEMO_BROADCAST_SECTION_URL } from '@/lib/nemo-resolver';
 
-/** Label for the broadcast CTA. It names the general section, not a stream for this match. */
-export const BROADCAST_CTA_LABEL_AR = 'قسم البث العام على NEMO Sports';
+export const UNVERIFIED_MATCH_LINK_LABEL_AR = 'لا يوجد رابط بث مطابق موثّق';
+export const VERIFIED_MATCH_LINK_LABEL_AR = 'قسم البث للمباراة المطابقة على NEMO Sports';
 
 /**
  * Professional Club Crest pedestal component with high-res PNG support
@@ -77,26 +76,19 @@ function TeamCrest({
   );
 }
 
-/**
- * Formats UTC ISO time into a clean Koora Live clock ("5:00 PM" / "8:00 PM") in Africa/Cairo
- */
-function formatCleanTime(utcIso: string): string {
-  const d = new Date(utcIso);
-  if (Number.isNaN(d.getTime())) return '--:--';
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Africa/Cairo',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d);
-}
-
 export default function MatchCard({ match }: { match: MatchRecord }) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
   const sourceLabel = getMatchSourceLabelAr(match.primarySource);
-  const kickoffConfirmed = match.kickoffConfirmed !== false;
-  const targetUrl = NEMO_BROADCAST_SECTION_URL;
-  const cardClass = `kl-match-card ${match.status === 'live' ? 'kl-match-card-live' : ''}`.trim();
+  const kickoffConfirmed =
+    match.kickoffConfirmed === true && Number.isFinite(Date.parse(match.utcKickoff));
+  const targetUrl = match.nemoLink.verified ? match.nemoLink.url : null;
+  const cardClass = [
+    'kl-match-card',
+    match.status === 'live' ? 'kl-match-card-live' : '',
+    targetUrl ? '' : 'kl-match-card-unlinked',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const statusText =
     match.status === 'not_started'
@@ -140,7 +132,7 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
         <div className="kl-center-info">
           {kickoffConfirmed ? (
             <time className="kl-match-time" dir="ltr" dateTime={match.utcKickoff}>
-              {formatCleanTime(match.utcKickoff)}
+              {toCairoTimeArabic(match.utcKickoff)}
             </time>
           ) : (
             <span className="kl-match-time">الموعد غير مؤكد</span>
@@ -214,36 +206,60 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
           <span>{match.competitionNameAr}</span>
         </div>
 
-        <div className="kl-meta-item kl-meta-action">
-          <span>{BROADCAST_CTA_LABEL_AR}</span>
-          <svg
-            viewBox="0 0 16 16"
-            width="13"
-            height="13"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 8H4M4 8L8 4M4 8L8 12" />
-          </svg>
+        <div className="kl-meta-item kl-meta-action" title={match.nemoLink.subLabelAr}>
+          <span>
+            {targetUrl && match.status === 'finished'
+              ? 'انتهت المباراة — لا يوجد بث موثّق حاليًا'
+              : targetUrl
+              ? VERIFIED_MATCH_LINK_LABEL_AR
+              : UNVERIFIED_MATCH_LINK_LABEL_AR}
+          </span>
+          {targetUrl ? (
+            <svg
+              viewBox="0 0 16 16"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 8H4M4 8L8 4M4 8L8 12" />
+            </svg>
+          ) : null}
         </div>
       </div>
     </>
   );
 
+  if (targetUrl) {
+    const label =
+      match.status === 'finished'
+        ? 'انتهت المباراة — لا يوجد بث موثّق حاليًا'
+        : VERIFIED_MATCH_LINK_LABEL_AR;
+    return (
+      <a
+        href={targetUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cardClass}
+        title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.nemoLink.subLabelAr}`}
+        aria-label={`${label} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+      >
+        {cardContent}
+      </a>
+    );
+  }
+
   return (
-    <a
-      href={targetUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <article
       className={cardClass}
-      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${BROADCAST_CTA_LABEL_AR}`}
-      aria-label={`${BROADCAST_CTA_LABEL_AR} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.nemoLink.subLabelAr}`}
+      aria-label={`${UNVERIFIED_MATCH_LINK_LABEL_AR} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
     >
       {cardContent}
-    </a>
+    </article>
   );
 }

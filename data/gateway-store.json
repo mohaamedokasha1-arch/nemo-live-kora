@@ -1,6 +1,6 @@
 {
   "meta": {
-    "schemaVersion": "1.0.0",
+    "schemaVersion": "1.3.0",
     "gatewayName": "بوابة مباريات NEMO Sports",
     "mainSiteUrl": "https://nemo-sports.vercel.app",
     "timezone": "Africa/Cairo",
@@ -1079,7 +1079,7 @@
   ],
   "matches": [
     {
-      "id": "match-egy-2026-10-11-el-qanah-al-masry",
+      "id": "match-api-football-1612249",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1147,25 +1147,26 @@
         "apiFootballFixtureId": "1612249"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry",
+        "url": "https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry#live-stream",
         "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المباشرة (الأحداث والتشكيلات والإحصائيات)",
+        "labelAr": "قسم البث للمباراة المطابقة على NEMO Sports",
+        "subLabelAr": "يفتح صفحة هذه المباراة تحديدًا؛ حالة البث الفعلية تظهر في NEMO Sports ولا نفترض توفر بث نشط.",
         "verified": true,
         "matchedBy": [
-          "original_match_id",
-          "mapping_table",
+          "provider_match_id",
           "competition_id",
           "team_ids",
-          "match_date"
+          "match_date",
+          "mapping_table"
         ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.183Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.183Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-11-zamalek-al-ahly",
+      "id": "match-api-football-1612250",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1239,25 +1240,26 @@
         "apiFootballFixtureId": "1612250"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc",
+        "url": "https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc#live-stream",
         "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المباشرة (الأحداث والتشكيلات والإحصائيات)",
+        "labelAr": "قسم البث للمباراة المطابقة على NEMO Sports",
+        "subLabelAr": "يفتح صفحة هذه المباراة تحديدًا؛ حالة البث الفعلية تظهر في NEMO Sports ولا نفترض توفر بث نشط.",
         "verified": true,
         "matchedBy": [
-          "original_match_id",
-          "mapping_table",
+          "provider_match_id",
           "competition_id",
           "team_ids",
-          "match_date"
+          "match_date",
+          "mapping_table"
         ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.182Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.182Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-12-mokawloon-zed",
+      "id": "match-api-football-1612251",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1288,9 +1290,9 @@
         "isEgyptian": true,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC"
       },
-      "status": "not_started",
-      "statusLabelAr": "لم تبدأ",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -1306,25 +1308,20 @@
         "apiFootballFixtureId": "1612251"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة التفصيلية لهذا التاريخ لم تُدرج بعد — تصفح جدول وترتيب البطولة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "mapping_table",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.188Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.188Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-12-modern-sport-enppi",
+      "id": "match-api-football-1612252",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1355,9 +1352,9 @@
         "isEgyptian": true,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi"
       },
-      "status": "not_started",
-      "statusLabelAr": "لم تبدأ",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -1373,25 +1370,20 @@
         "apiFootballFixtureId": "1612252"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة التفصيلية لهذا التاريخ لم تُدرج بعد — تصفح جدول وترتيب البطولة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "mapping_table",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.188Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.188Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-12-pyramids-ceramica",
+      "id": "match-api-football-1612253",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1422,9 +1414,9 @@
         "isEgyptian": true,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ceramica%20Cleopatra%20FC"
       },
-      "status": "not_started",
-      "statusLabelAr": "لم تبدأ",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -1440,25 +1432,20 @@
         "apiFootballFixtureId": "1612253"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة التفصيلية لهذا التاريخ لم تُدرج بعد — تصفح جدول وترتيب البطولة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "mapping_table",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-19-smouha-ceramica",
+      "id": "match-api-football-1612259",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1507,23 +1494,20 @@
         "apiFootballFixtureId": "1612259"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-19"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-19-enppi-pyramids",
+      "id": "match-api-football-1612260",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1572,23 +1556,20 @@
         "apiFootballFixtureId": "1612260"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-19"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-20-zed-modern-sport",
+      "id": "match-api-football-1612261",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1637,23 +1618,20 @@
         "apiFootballFixtureId": "1612261"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-20"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy-2026-10-20-ittihad-alex-zamalek",
+      "id": "match-api-football-1612263",
       "competitionId": "comp-egy-pl",
       "competitionCode": "EGY",
       "competitionNameAr": "الدوري المصري الممتاز",
@@ -1702,23 +1680,20 @@
         "apiFootballFixtureId": "1612263"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-20"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy_lc-2026-10-07-pyramids-el-qanah",
+      "id": "match-api-football-1640289",
       "competitionId": "comp-egy-lc",
       "competitionCode": "EGY_LC",
       "competitionNameAr": "كأس الرابطة المصرية",
@@ -1767,23 +1742,20 @@
         "apiFootballFixtureId": "1640289"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-07"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.190Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.190Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy_lc-2026-10-07-ittihad-alex-el-gouna",
+      "id": "match-api-football-1640291",
       "competitionId": "comp-egy-lc",
       "competitionCode": "EGY_LC",
       "competitionNameAr": "كأس الرابطة المصرية",
@@ -1832,23 +1804,20 @@
         "apiFootballFixtureId": "1640291"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-07"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.190Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.190Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy_lc-2026-10-07-talaea-abou-qir",
+      "id": "match-api-football-1640292",
       "competitionId": "comp-egy-lc",
       "competitionCode": "EGY_LC",
       "competitionNameAr": "كأس الرابطة المصرية",
@@ -1897,23 +1866,20 @@
         "apiFootballFixtureId": "1640292"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-07"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy_lc-2026-10-08-mokawloon-tersana",
+      "id": "match-api-football-1640290",
       "competitionId": "comp-egy-lc",
       "competitionCode": "EGY_LC",
       "competitionNameAr": "كأس الرابطة المصرية",
@@ -1962,23 +1928,20 @@
         "apiFootballFixtureId": "1640290"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-08"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-egy_lc-2026-10-08-pharco-enppi",
+      "id": "match-api-football-1640293",
       "competitionId": "comp-egy-lc",
       "competitionCode": "EGY_LC",
       "competitionNameAr": "كأس الرابطة المصرية",
@@ -2027,23 +1990,20 @@
         "apiFootballFixtureId": "1640293"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-08"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-cafc-2026-10-16-zed-tsdb-140638",
+      "id": "match-api-football-1636497",
       "competitionId": "comp-caf-cc",
       "competitionCode": "CAFC",
       "competitionNameAr": "كأس الكونفدرالية الأفريقية",
@@ -2092,23 +2052,20 @@
         "apiFootballFixtureId": "1636497"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-16"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-cafc-2026-10-17-tsdb-154998-al-ahly",
+      "id": "match-api-football-1636498",
       "competitionId": "comp-caf-cc",
       "competitionCode": "CAFC",
       "competitionNameAr": "كأس الكونفدرالية الأفريقية",
@@ -2157,23 +2114,20 @@
         "apiFootballFixtureId": "1636498"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-17"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-spl-2026-10-10-tsdb-136017-tsdb-139080",
+      "id": "match-api-football-1603036",
       "competitionId": "comp-spl",
       "competitionCode": "SPL",
       "competitionNameAr": "دوري روشن السعودي",
@@ -2222,23 +2176,20 @@
         "apiFootballFixtureId": "1603036"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-10"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-spl-2026-10-10-tsdb-136013-tsdb-136018",
+      "id": "match-api-football-1603040",
       "competitionId": "comp-spl",
       "competitionCode": "SPL",
       "competitionNameAr": "دوري روشن السعودي",
@@ -2287,23 +2238,20 @@
         "apiFootballFixtureId": "1603040"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-10"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-pd-2026-10-17-tsdb-133734-tsdb-133729",
+      "id": "match-api-football-1570416",
       "competitionId": "comp-laliga",
       "competitionCode": "PD",
       "competitionNameAr": "الدوري الإسباني (لا ليغا)",
@@ -2352,23 +2300,20 @@
         "apiFootballFixtureId": "1570416"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/la-liga",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/la-liga",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-17"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-pd-2026-10-17-tsdb-133722-tsdb-133739",
+      "id": "match-api-football-1570413",
       "competitionId": "comp-laliga",
       "competitionCode": "PD",
       "competitionNameAr": "الدوري الإسباني (لا ليغا)",
@@ -2417,23 +2362,20 @@
         "apiFootballFixtureId": "1570413"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/la-liga",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/la-liga",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-17"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-spanish-segu-2026-10-11-ss-granada-cf-ss-cd-castellon",
+      "id": "match-sportscore-k82rekhg090zrep",
       "competitionId": "comp-spanish-segunda-division",
       "competitionCode": "SPANISH-SEGU",
       "competitionNameAr": "الدوري الإسباني الدرجة الثانية",
@@ -2484,24 +2426,20 @@
         "sportscoreTrackerId": "k82rekhg090zrep"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/granada-cf-vs-cd-castellon",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-bsa-2026-10-11-ss-fluminense-rj-ss-vasco-da-gama",
+      "id": "match-sportscore-vjxm8ghgej5nr6o",
       "competitionId": "comp-bsa",
       "competitionCode": "BSA",
       "competitionNameAr": "الدوري البرازيلي الممتاز",
@@ -2552,24 +2490,20 @@
         "sportscoreTrackerId": "vjxm8ghgej5nr6o"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/fluminense-rj-vs-vasco-da-gama",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.186Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.186Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-bsa-2026-10-11-ss-palmeiras-ss-juventude",
+      "id": "match-sportscore-318q66h09voqo9j",
       "competitionId": "comp-bsa",
       "competitionCode": "BSA",
       "competitionNameAr": "الدوري البرازيلي الممتاز",
@@ -2620,24 +2554,20 @@
         "sportscoreTrackerId": "318q66h09voqo9j"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/palmeiras-vs-juventude",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-bsa-2026-10-11-ss-botafogo-rj-ss-red-bull-bragantino",
+      "id": "match-sportscore-pxwrxlhgyj5kryk",
       "competitionId": "comp-bsa",
       "competitionCode": "BSA",
       "competitionNameAr": "الدوري البرازيلي الممتاز",
@@ -2688,24 +2618,20 @@
         "sportscoreTrackerId": "pxwrxlhgyj5kryk"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/botafogo-rj-vs-red-bull-bragantino",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-bsa-2026-10-12-ss-gremio-ss-corinthians-paulista",
+      "id": "match-sportscore-l5ergph4kndlr8k",
       "competitionId": "comp-bsa",
       "competitionCode": "BSA",
       "competitionNameAr": "الدوري البرازيلي الممتاز",
@@ -2756,24 +2682,20 @@
         "sportscoreTrackerId": "l5ergph4kndlr8k"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/gremio-vs-corinthians-paulista",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.184Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.184Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-bsa-2026-10-12-ss-sao-paulo-ss-vitoria-ba",
+      "id": "match-sportscore-k82rekhg0vyzrep",
       "competitionId": "comp-bsa",
       "competitionCode": "BSA",
       "competitionNameAr": "الدوري البرازيلي الممتاز",
@@ -2824,24 +2746,20 @@
         "sportscoreTrackerId": "k82rekhg0vyzrep"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/sao-paulo-vs-vitoria-ba",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.184Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.184Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-bsa-2026-10-12-ss-flamengo-ss-santos",
+      "id": "match-sportscore-dn1m1gh318v6moe",
       "competitionId": "comp-bsa",
       "competitionCode": "BSA",
       "competitionNameAr": "الدوري البرازيلي الممتاز",
@@ -2872,9 +2790,9 @@
         "isEgyptian": false,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Santos"
       },
-      "status": "live",
-      "statusLabelAr": "جارية",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "المصدر يصفها بالمباشرة رغم تجاوز مدة المباراة المعتادة؛ لا نعرضها كمباراة جارية.",
       "liveMinute": 39,
       "score": {
         "home": 1,
@@ -2892,24 +2810,20 @@
         "sportscoreTrackerId": "dn1m1gh318v6moe"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/flamengo-vs-santos",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.184Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.184Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-united-state-2026-10-12-ss-colorado-rapids-ss-austin-fc",
+      "id": "match-sportscore-l7oqdeh8glx6r51",
       "competitionId": "comp-united-states-mls",
       "competitionCode": "UNITED-STATE",
       "competitionNameAr": "الدوري الأمريكي للمحترفين",
@@ -2940,9 +2854,9 @@
         "isEgyptian": false,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Austin%20FC"
       },
-      "status": "not_started",
-      "statusLabelAr": "لم تبدأ",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -2960,24 +2874,20 @@
         "sportscoreTrackerId": "l7oqdeh8glx6r51"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/colorado-rapids-vs-austin-fc",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.185Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.185Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-united-state-2026-10-12-ss-seattle-sounders-ss-real-salt-lake",
+      "id": "match-sportscore-4wyrn4h6g35zq86",
       "competitionId": "comp-united-states-mls",
       "competitionCode": "UNITED-STATE",
       "competitionNameAr": "الدوري الأمريكي للمحترفين",
@@ -3008,9 +2918,9 @@
         "isEgyptian": false,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Real%20Salt%20Lake"
       },
-      "status": "not_started",
-      "statusLabelAr": "لم تبدأ",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3028,24 +2938,20 @@
         "sportscoreTrackerId": "4wyrn4h6g35zq86"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/seattle-sounders-vs-real-salt-lake",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.186Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.186Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-mexico-liga--2026-10-12-ss-puebla-ss-club-leon",
+      "id": "match-sportscore-9vjxm8h59e8nr6o",
       "competitionId": "comp-mexico-liga-mx",
       "competitionCode": "MEXICO-LIGA-",
       "competitionNameAr": "الدوري المكسيكي الممتاز",
@@ -3076,9 +2982,9 @@
         "isEgyptian": false,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Club%20Leon"
       },
-      "status": "not_started",
-      "statusLabelAr": "لم تبدأ",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3096,24 +3002,20 @@
         "sportscoreTrackerId": "9vjxm8h59e8nr6o"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/puebla-vs-club-leon",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.186Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.186Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-argentina-to-2026-10-11-ss-ca-huracan-ss-river-plate",
+      "id": "match-sportscore-zp5rzgh658wvq82",
       "competitionId": "comp-argentina-torneo-apertura",
       "competitionCode": "ARGENTINA-TO",
       "competitionNameAr": "الدوري الأرجنتيني الممتاز",
@@ -3164,24 +3066,20 @@
         "sportscoreTrackerId": "zp5rzgh658wvq82"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/ca-huracan-vs-river-plate",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-usl-2026-10-13-tsdb-138889-tsdb-138885",
+      "id": "match-api-football-1493743",
       "competitionId": "comp-usl",
       "competitionCode": "USL",
       "competitionNameAr": "بطولة الدوري الأمريكي USL",
@@ -3230,23 +3128,20 @@
         "apiFootballFixtureId": "1493743"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/usl-championship",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/usl-championship",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-13"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-usl-2026-10-13-tsdb-135418-tsdb-146582",
+      "id": "match-api-football-1493742",
       "competitionId": "comp-usl",
       "competitionCode": "USL",
       "competitionNameAr": "بطولة الدوري الأمريكي USL",
@@ -3295,23 +3190,20 @@
         "apiFootballFixtureId": "1493742"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/competitions/usl-championship",
-        "linkType": "competition_fallback",
-        "labelAr": "صفحة البطولة على NEMO Sports",
-        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
-        "competitionUrl": "https://nemo-sports.vercel.app/competitions/usl-championship",
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-13"
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
+        "competitionUrl": null,
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-colombia-pri-2026-10-12-ss-independiente-santa-fe-ss-alianza-atletico",
+      "id": "match-sportscore-zp5rzgh65w1vq82",
       "competitionId": "comp-colombia-primera-a",
       "competitionCode": "COLOMBIA-PRI",
       "competitionNameAr": "الدوري الكولومبي الممتاز",
@@ -3342,9 +3234,9 @@
         "isEgyptian": false,
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Alianza%20Atletico"
       },
-      "status": "live",
-      "statusLabelAr": "جارية",
-      "statusNoteAr": null,
+      "status": "unconfirmed",
+      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
+      "statusNoteAr": "المصدر يصفها بالمباشرة رغم تجاوز مدة المباراة المعتادة؛ لا نعرضها كمباراة جارية.",
       "liveMinute": 23,
       "score": {
         "home": 0,
@@ -3362,24 +3254,20 @@
         "sportscoreTrackerId": "zp5rzgh65w1vq82"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/independiente-santa-fe-vs-alianza-atletico",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.185Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.185Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-chile-primer-2026-10-12-ss-universidad-de-chile-ss-deportes-limache",
+      "id": "match-sportscore-x7lm7phw1deym2w",
       "competitionId": "comp-chile-primera-division",
       "competitionCode": "CHILE-PRIMER",
       "competitionNameAr": "الدوري التشيلي الممتاز",
@@ -3430,24 +3318,20 @@
         "sportscoreTrackerId": "x7lm7phw1deym2w"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches/universidad-de-chile-vs-deportes-limache",
-        "linkType": "direct_match",
-        "labelAr": "تفاصيل المباراة على NEMO Sports",
-        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
-        "verified": true,
-        "matchedBy": [
-          "original_match_id",
-          "competition_id",
-          "team_ids",
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.185Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.185Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-chilean-prim-2026-10-13-tsdb-142231-tsdb-138137",
+      "id": "match-api-football-1515350",
       "competitionId": "comp-chilean-primera-b",
       "competitionCode": "CHILEAN-PRIM",
       "competitionNameAr": "الدوري التشيلي الدرجة الثانية",
@@ -3496,21 +3380,20 @@
         "apiFootballFixtureId": "1515350"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches?date=2026-10-13",
-        "linkType": "schedule_fallback",
-        "labelAr": "جدول المباريات على NEMO Sports",
-        "subLabelAr": "افتح جدول مباريات هذا التاريخ على موقع NEMO Sports الرئيسي",
-        "verified": true,
-        "matchedBy": [
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-13"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.190Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.190Z",
+      "kickoffConfirmed": true
     },
     {
-      "id": "match-brazilian-se-2026-10-14-tsdb-134292-tsdb-134739",
+      "id": "match-api-football-1528340",
       "competitionId": "comp-brazilian-serie-b",
       "competitionCode": "BRAZILIAN-SE",
       "competitionNameAr": "الدوري البرازيلي الدرجة الثانية",
@@ -3559,18 +3442,17 @@
         "apiFootballFixtureId": "1528340"
       },
       "nemoLink": {
-        "url": "https://nemo-sports.vercel.app/matches?date=2026-10-14",
-        "linkType": "schedule_fallback",
-        "labelAr": "جدول المباريات على NEMO Sports",
-        "subLabelAr": "افتح جدول مباريات هذا التاريخ على موقع NEMO Sports الرئيسي",
-        "verified": true,
-        "matchedBy": [
-          "match_date"
-        ],
+        "url": null,
+        "linkType": "unavailable",
+        "labelAr": "لا يوجد رابط بث مطابق موثّق",
+        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "verified": false,
+        "matchedBy": [],
         "competitionUrl": null,
-        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-14"
+        "scheduleUrl": null
       },
-      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z",
+      "kickoffConfirmed": true
     }
   ],
   "standings": {
@@ -4102,8 +3984,9 @@
   ],
   "nemoMappingTable": [
     {
-      "canonicalMatchId": "match-egy-2026-10-11-zamalek-alahly",
+      "canonicalMatchId": "match-api-football-1612250",
       "sportscoreSlug": "zamalek-sc-vs-al-ahly-fc",
+      "sportscoreTrackerId": "l5ergph49xdlr8k",
       "thesportsdbEventId": "2561121",
       "apiFootballFixtureId": "1612250",
       "competitionCode": "EGY",
@@ -4112,12 +3995,13 @@
       "cairoDate": "2026-10-11",
       "verifiedNemoMatchSlug": "zamalek-sc-vs-al-ahly-fc",
       "verifiedNemoCompetitionSlug": "egyptian-league",
-      "verifiedAt": "2026-10-12T00:35:00Z",
-      "verificationNoteAr": "تم التحقق من فتح صفحة المباراة المباشرة (الزمالك 0-2 الأهلي — 11 أكتوبر 2026) على NEMO Sports"
+      "verifiedAt": "2026-10-12T22:21:00Z",
+      "verificationNoteAr": "طابقت الصفحة المنشورة الزمالك ضد الأهلي بتاريخ 11 أكتوبر 2026 والنتيجة 0-2؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث."
     },
     {
-      "canonicalMatchId": "match-egy-2026-10-11-elqanah-almasry",
+      "canonicalMatchId": "match-api-football-1612249",
       "sportscoreSlug": "olympic-el-qanal-vs-al-masry",
+      "sportscoreTrackerId": "4wyrn4h6kpwlq86",
       "thesportsdbEventId": "2561120",
       "apiFootballFixtureId": "1612249",
       "competitionCode": "EGY",
@@ -4126,12 +4010,13 @@
       "cairoDate": "2026-10-11",
       "verifiedNemoMatchSlug": "olympic-el-qanal-vs-al-masry",
       "verifiedNemoCompetitionSlug": "egyptian-league",
-      "verifiedAt": "2026-10-12T00:35:00Z",
-      "verificationNoteAr": "تم التحقق من فتح صفحة المباراة المباشرة (القناة 1-1 المصري — 11 أكتوبر 2026) على NEMO Sports"
+      "verifiedAt": "2026-10-12T22:21:00Z",
+      "verificationNoteAr": "طابقت الصفحة المنشورة القناة ضد المصري بتاريخ 11 أكتوبر 2026 والنتيجة 1-1؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث."
     },
     {
-      "canonicalMatchId": "match-egy-2026-10-12-mokawloon-zed",
+      "canonicalMatchId": "match-api-football-1612251",
       "sportscoreSlug": null,
+      "sportscoreTrackerId": null,
       "thesportsdbEventId": "2561122",
       "apiFootballFixtureId": "1612251",
       "competitionCode": "EGY",
@@ -4139,13 +4024,14 @@
       "awayTeamId": "team-zed",
       "cairoDate": "2026-10-12",
       "verifiedNemoMatchSlug": null,
-      "verifiedNemoCompetitionSlug": "egyptian-league",
-      "verifiedAt": "2026-10-12T00:35:00Z",
-      "verificationNoteAr": "المسار المباشر على SportScore يعود لمباراة موسم سابق (2026-04-06)؛ تم التوجيه بأمان إلى صفحة الدوري المصري الممتاز على NEMO Sports"
+      "verifiedNemoCompetitionSlug": null,
+      "verifiedAt": "2026-10-12T22:21:00Z",
+      "verificationNoteAr": "لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل."
     },
     {
-      "canonicalMatchId": "match-egy-2026-10-12-modernsport-enppi",
+      "canonicalMatchId": "match-api-football-1612252",
       "sportscoreSlug": null,
+      "sportscoreTrackerId": null,
       "thesportsdbEventId": "2561123",
       "apiFootballFixtureId": "1612252",
       "competitionCode": "EGY",
@@ -4153,13 +4039,14 @@
       "awayTeamId": "team-enppi",
       "cairoDate": "2026-10-12",
       "verifiedNemoMatchSlug": null,
-      "verifiedNemoCompetitionSlug": "egyptian-league",
-      "verifiedAt": "2026-10-12T00:35:00Z",
-      "verificationNoteAr": "المسار المباشر على SportScore يعود لمباراة سابقة (2025-09-18)؛ تم التوجيه بأمان إلى صفحة الدوري المصري الممتاز على NEMO Sports"
+      "verifiedNemoCompetitionSlug": null,
+      "verifiedAt": "2026-10-12T22:21:00Z",
+      "verificationNoteAr": "لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل."
     },
     {
-      "canonicalMatchId": "match-egy-2026-10-12-pyramids-ceramica",
+      "canonicalMatchId": "match-api-football-1612253",
       "sportscoreSlug": null,
+      "sportscoreTrackerId": null,
       "thesportsdbEventId": "2561124",
       "apiFootballFixtureId": "1612253",
       "competitionCode": "EGY",
@@ -4167,9 +4054,9 @@
       "awayTeamId": "team-ceramica",
       "cairoDate": "2026-10-12",
       "verifiedNemoMatchSlug": null,
-      "verifiedNemoCompetitionSlug": "egyptian-league",
-      "verifiedAt": "2026-10-12T00:35:00Z",
-      "verificationNoteAr": "المسار المباشر على SportScore يعود لمباراة سابقة (2026-05-05)؛ تم التوجيه بأمان إلى صفحة الدوري المصري الممتاز على NEMO Sports"
+      "verifiedNemoCompetitionSlug": null,
+      "verifiedAt": "2026-10-12T22:21:00Z",
+      "verificationNoteAr": "لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل."
     }
   ],
   "syncLogs": [

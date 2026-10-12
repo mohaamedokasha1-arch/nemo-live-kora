@@ -1,4 +1,4 @@
-const DEFAULT_GATEWAY_ORIGIN = 'https://nemo-live-kora-matchat.vercel.app';
+const DEFAULT_GATEWAY_ORIGIN = 'https://nemo-live-kora.vercel.app';
 
 function asOrigin(value: string | undefined): string | null {
   const trimmed = value?.trim();

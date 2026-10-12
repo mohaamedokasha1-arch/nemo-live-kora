@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { NEMO_BROADCAST_SECTION_URL } from '@/lib/nemo-resolver';
+import { getVerifiedNemoMatchPageUrl } from '@/lib/nemo-resolver';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
 import { getNewsAdminStats } from '@/lib/news/query';
@@ -149,28 +149,34 @@ export default function SourcesPage() {
                 </tr>
               </thead>
               <tbody>
-                {db.nemoMappingTable.map((entry) => (
-                  <tr key={entry.canonicalMatchId}>
-                    <td dir="ltr" style={{ fontSize: '0.76rem' }}>
-                      <code>{entry.canonicalMatchId}</code>
-                    </td>
-                    <td>{entry.cairoDate}</td>
-                    <td dir="ltr">{entry.thesportsdbEventId || '—'}</td>
-                    <td dir="ltr">{entry.apiFootballFixtureId || '—'}</td>
-                    <td dir="ltr">
-                      {/* Every broadcast CTA points to the general /watch section. */}
-                      <a
-                        href={NEMO_BROADCAST_SECTION_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="standings-team-link"
-                      >
-                        قسم البث العام /watch ↗
-                      </a>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{entry.verificationNoteAr}</td>
-                  </tr>
-                ))}
+                {db.nemoMappingTable.map((entry) => {
+                  const matchPageUrl = getVerifiedNemoMatchPageUrl(entry);
+                  return (
+                    <tr key={entry.canonicalMatchId}>
+                      <td dir="ltr" style={{ fontSize: '0.76rem' }}>
+                        <code>{entry.canonicalMatchId}</code>
+                      </td>
+                      <td>{entry.cairoDate}</td>
+                      <td dir="ltr">{entry.thesportsdbEventId || '—'}</td>
+                      <td dir="ltr">{entry.apiFootballFixtureId || '—'}</td>
+                      <td dir="ltr">
+                        {matchPageUrl ? (
+                          <a
+                            href={matchPageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="standings-team-link"
+                          >
+                            قسم البث للمباراة المطابقة ↗
+                          </a>
+                        ) : (
+                          <span>لا يوجد رابط مطابق موثّق</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{entry.verificationNoteAr}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

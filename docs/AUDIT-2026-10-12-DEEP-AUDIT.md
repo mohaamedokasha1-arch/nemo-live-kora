@@ -1,102 +1,84 @@
-# Deep audit — 2026-10-12 (branch `arena/00632731-nemo-live-kora`)
+# مراجعة بوابة NEMO Live Kora — 2026-10-12
 
-Scope: production verification, PR #6 review, broadcast CTA destination, Egyptian league
-ingestion, news, SEO, and analytics readiness. Main site `mohaamedokasha1-arch/sport` was read
-only and is not modified.
+## الحالة والنطاق
 
-## 1. Environment limits (read this first)
+- هذه مراجعة لملاحظات الموقع المنشور وللتعديلات المحلية الجاري تنفيذها في `arena/771237ec-nemo-live-kora`.
+- التغييرات الحالية **ليست منشورة**؛ لا يوجد دمج أو نشر أو تعديل لإعدادات NEMO Sports.
+- لا نعد بفهرسة صفحات أو ترتيب بحث أو دخل إعلاني. الفهرسة والدخل يعتمدان على أنظمة خارجية وظروف لا يتحكم بها هذا المستودع.
+- لا تشمل المراجعة تغيير مشغّل البث أو اللاعب أو قواعد بيانات NEMO Sports أو مصادره أو إعداداته التشغيلية.
 
-- The sandbox cannot reach `nemo-sports.vercel.app`, `nemo-live-kora-matchat.vercel.app`,
-  `news.google.com`, SportScore, or TheSportsDB over bash HTTP. A local `next start` run
-  recorded `fetch failed` for both match sources (`meta.lastMatchesSyncResult`).
-- TheSportsDB was read through the fetch tool. Those captures are in `tests/fixtures/thesportsdb/`.
-- Every HTTP check of production is **pending an external run**. Nothing here proves live
-  production behaviour.
+## ما لوحظ على النسخة المنشورة قبل التغييرات
 
-## 2. Broken issues — evidence and status
-
-| # | Issue | Evidence | Status |
-|---|---|---|---|
-| B1 | Broadcast CTA pointed at `/matches/{slug}#live-stream`, not `/watch` | `lib/nemo-resolver.ts` (PR #6); main-site `app/matches/[slug]/page.tsx` renders `#live-stream` for every match, so the anchor is a section, not a stream | Fixed: every CTA → `https://nemo-sports.vercel.app/watch` |
-| B2 | Unlinked cards said "لا يتوفر رابط بث" | `components/MatchCard.tsx` (PR #6) | Fixed: every card links to `/watch` with the label "قسم البث العام على NEMO Sports" |
-| B3 | League 4830 is "Korean KBO League" (baseball) but mapped to Egypt Cup | `lookupleague.php?id=4830` → "Korean KBO League"; `eventsnextleague.php?id=4830` → `events: null`; catalog `thesportsdbId: '4830'` on EGY_CUP | Fixed: removed from follow list, excluded by id, removed from catalog mapping |
-| B4 | Fabricated kick-off: `${dateEvent}T${strTime \|\| '16:00:00'}Z` | `lib/sources/thesportsdb.ts` (PR #6) | Fixed: no guessed time; record flagged `kickoffConfirmed: false`, shown as "الموعد غير مؤكد" |
-| B5 | One malformed SportScore `time` discarded the whole batch | `mapSportScoreMatchToRecord` threw on `new Date('not-a-date').toISOString()`; `isolateSource` dropped the batch | Fixed: per-record validation and skip count |
-| B6 | Stale provider "live" stayed live for up to 6 h after kick-off | `normalizeMatchStatus` window 6 h; `guardStaleLiveStatus` checked only `lastUpdatedAt`, which every sync resets | Fixed: plausible window 180 min after kick-off; live also requires known kick-off |
-| B7 | `not_started` stayed "لم تبدأ بعد" after kick-off | Snapshot: Mokawloon vs ZED (kick-off 14:00Z, 2026-10-12) stored `not_started`; TheSportsDB round 6: FT 1-1 | Fixed: 15-minute grace, then "بانتظار تأكيد الحالة"; FT merges over stale record |
-| B8 | Free-tier coverage: next/past return 1 event, `eventsday` caps at 3, so day/past miss round-6 results | Captured `eventspastleague` (1 event), `eventsday` (3 events); round 6 has 6 events | Fixed for the Egyptian league: `eventsround.php` per round (window = stored season's highest round −1..+1). Coverage gap remains for other leagues (see §5) |
-| B9 | TheSportsDB chain ran sequentially with no time bound on the request path | `fetchTheSportsDBMatches` loop, 7 s timeout, 1 retry | Fixed in quick mode: 4 s timeout, no retry, 8 s total budget; skipped endpoints are recorded |
-| B10 | Test runs rewrote committed `data/gateway-store.json` | `npm test` persisted the store | Fixed: `npm test` sets `NEMO_GATEWAY_STORE_PERSIST=off`; the cron test opts back in on its temp copy |
-| B11 | News: all six stored items `rejected` | Snapshot items have `originalUrl` = `news.google.com/rss/search?q=…` (seed data stored the feed URL as the item link); last RSS sync `ok:false`, `httpStatus:null` | Cause identified: seed data plus failed fetch, not the validator (which correctly rejects search URLs). Live relay resolution remains unverified (§4) |
-| B12 | Per-match links in `/sources` diagnostics and news related lists | `app/sources/page.tsx`, `app/news/[slug]/page.tsx`, `lib/news/match-linker.ts` | Fixed: `/watch` only, or plain text |
-| B13 | JSON-LD `SportsEvent.url` pointed at per-match pages | `lib/seo/match-structured-data.ts` | Fixed: no per-match `url` |
-
-## 3. PR #6 — fixed vs remaining
-
-Fixed on this branch: B1–B10, B12, B13 (above).
-
-Remaining:
-- Egypt Cup (4830 successor) has **no verified TheSportsDB soccer id**. `search_all_leagues.php?c=Egypt` lists only 4829 and 5185. The Egypt Cup is not ingested from TheSportsDB. SportScore covers only the sources it already had; this was not expanded.
-- `data/gateway-store.json` still contains the old `direct_match` / `competition_fallback` objects. Migration recomputes `nemoLink` on load, so behaviour is correct, but the file on disk is stale.
-- Production behaviour after deploy is unverified (hosts unreachable).
-- `THESPORTSDB_API_KEY` defaults to `3`. TheSportsDB documents `123` as the free key. Set the variable explicitly.
-- Only `/api/cron/update-matches` is in `vercel.json`. `/api/cron/sync` and `/api/cron/sync-news` exist but are not scheduled.
-
-## 4. News
-
-- **Cause of the six `rejected` items:** the snapshot stores the RSS search-feed URL as each item's link, and the items have empty excerpts. The validator correctly rejects these as `invalid_url`. Seed data (`lib/db/seed-data.ts`) created these records, not a live article fetch.
-- **Resolver behaviour (reproduced with a synthetic RSS item, `tests/fixtures/google-news/`):** a relay that answers 200 HTML with no `Location` header stays unresolved and is rejected. A relay that answers 302 to a publisher URL resolves.
-- **Not verified:** whether Google News relay links resolve in production. News ingestion was not run live.
-- **Decision:** no fabricated items. Public pages show only `published` items. The existing empty state ("لا توجد أخبار جديدة مؤكدة للعرض حاليًا") is kept. Google search and relay URLs are never displayed.
-- **Not changed:** the six seeded rejected rows remain in the snapshot. They are not public.
-
-## 5. League coverage
-
-| Competition | TheSportsDB id | Status |
+| المجال | النتيجة التي أمكن إثباتها | الحدّ / ما لم يُحسم |
 |---|---|---|
-| Egyptian Premier League | 4829 | Verified name. Fetched per round (`eventsround`). |
-| Egypt League Cup | 5185 | Verified name. Next/past/day only (1–3 events per call). |
-| CAF Confederation Cup | 5057 | Verified name. Next/past/day only. |
-| Egypt Cup | none verified | Gap. 4830 is KBO baseball. |
+| مضيف البوابة | `https://nemo-live-kora.vercel.app/` هو رابط الموقع المنشور الذي قُدّم للتدقيق. المضيف القديم `nemo-live-kora-matchat.vercel.app` أعاد `404 DEPLOYMENT_NOT_FOUND` عند طلب `robots.txt`. | لم يُثبت في هذا الفحص سجلّ DNS أو إعدادات النطاق في Vercel. |
+| رابط `/watch` | صفحة NEMO Sports `/watch` دليل عام، و`?matchId=#selected-match-broadcast` لا ينتقي مباراة ولا يطابق وجهة خاصة بها. الصفحة تشير إلى عدم وجود مباريات مرتبطة ببث موثّق. | لا يجوز تفسير صفحة الدليل العام كرابط مباراة أو كإثبات بث مباشر. |
+| صفحتا المباراة | مسارا الزمالك–الأهلي والقناة–المصري يطابقان المباراة المحددة ويحتويان قسم `#live-stream`. كلتاهما تعرضان حاليًا عدم وجود بث موثّق. | تحقق المسار والهوية لا يثبت توافر بث الآن أو لاحقًا. |
+| الأخبار | استجابة `/api/sources` التي روجعت سجّلت صفر أخبار منشورة وستة عناصر مرفوضة من RSS. الوصول إلى لوحة الأخبار محمي؛ ومسارات cron تتطلب تفويضًا. | لا يثبت ذلك مزامنة جديدة أو محتوى أحدث؛ بيانات المزامنة تتغير بمرور الوقت. لا تُنشأ أخبار يدويًا لتعويض النقص. |
+| HTTP والتحويلات | أداة قراءة الصفحات لا تعرض ترويسات HTTP والتحويلات الخام بصورة موثوقة. | لم تكتمل مصفوفة HTTP لكل المسارات، ولا تحقق متصفح فعلي من الجوال، ولا فحص console/network شامل للنسخة المنشورة. |
+| الأداء والإعلانات والتحليلات | لم تُضف خدمة مدفوعة أو معرفات تتبع/إعلانات مصطنعة. | نتائج Lighthouse/Core Web Vitals الفعلية، إعدادات الحسابات، وطلبات المتصفح للشبكات الخارجية تحتاج فحصًا يدويًا على النطاق المنشور. |
 
-## 6. `/watch` link tests
+### مسارات وبيانات تستحق إعادة تحقق بعد النشر
 
-Covered in `tests/broadcast-link-and-sync.test.ts` and `tests/audit-2026-10-12.test.ts`:
-- Clean URL: `https://nemo-sports.vercel.app/watch`, no fragment, no query, no per-match slug.
-- SportScore, TheSportsDB, unmapped, and placeholder-slug matches all resolve to the same CTA.
-- Server-rendered `MatchCard` contains the `/watch` href and the general-section label. Unconfirmed-kick-off cards show "الموعد غير مؤكد" and no 16:00 time.
-- Source scan: no `#live-stream`, no `nemo-sports…/matches`, no `direct_match` in `lib/`, `components/`, or `app/`.
-- Local `next start`: home page HTML contains 22 `/watch` links, zero `live-stream`, and zero per-match NEMO links.
+افحص يدويًا `/`, `/matches/{date}` لتاريخ يحوي مباريات فقط، `/news`, `/news/{slug}` عند وجود خبر قابل للفهرسة، `/sources`, `/robots.txt`, `/sitemap.xml`, وواجهات `/api/matches` و`/api/sources`. كذلك افحص نتائج `/api/cron/*` دون تفويض للتأكد من بقاء الحماية. لم تُستنتج حالة HTTP أو تحويلات من محتوى HTML وحده.
 
-Main-site dependency: `/watch` on the main site is a general Watch Guide listing operator-registered streams, with an empty state when none exist. This branch needs no main-site change, but the CTA label says "general section" for that reason.
+## نتائج فحص المستودع والإصلاحات في هذا الفرع
 
-## 7. SEO readiness (facts from code and local build)
+### روابط المباريات
 
-- `robots.txt` allows `/`, disallows `/api/` and `/admin`, and points to `/sitemap.xml`.
-- `sitemap.xml` lists the home page and `/matches/{date}` pages.
-- Canonical: `/` for today, `/matches/{date}` for other dates. Home canonical is `https://nemo-live-kora-matchat.vercel.app`.
-- JSON-LD: `ItemList` of `SportsEvent` entries. No per-match `url` (no verified per-match page). `eventStatus` only for not_started, postponed, and cancelled.
-- No indexing is promised. Google indexing depends on crawling and quality signals outside this code.
-- Search Console actions (for the owner, after deploy): add the property, submit `/sitemap.xml`, and use URL Inspection on `/` and one `/matches/{date}` page. These steps are not executed here.
+- أزيل سلوك الرابط العام إلى `/watch`.
+- لا تُصدر `lib/nemo-resolver.ts` رابطًا إلا لمعرّف مصدر موثوق مع البطولة والفريقين بالترتيب وتاريخ القاهرة المطابق في جدول سماح صريح.
+- المسموح حاليًا صفحتا الزمالك–الأهلي والقناة–المصري المطابقتان فقط؛ بقية السجلات بلا رابط خارجي، وتعرض بطاقة المباراة حالة عدم التحقق بوضوح.
+- صفحة `/sources` تعرض وجهة مباشرة فقط للصفوف التي لها slug مباراة موثّق؛ بقية الصفوف نص غير قابل للنقر.
+- روابط الأخبار العامة القديمة إلى `/watch` تزال أثناء ترحيل السجل؛ لا يُستبدل بها رابط غير متحقق.
 
-## 8. Ads and analytics
+### الوقت والحالة
 
-- **Code present:** none found. No analytics, tag manager, ad script, or consent code in `app/`, `components/`, or `lib/`.
-- **Ads returned:** none verified.
-- **Approval status:** unknown. No ad network account is referenced in the repo.
-- **Consent:** no consent mechanism exists. Adding analytics or ads would require one first.
-- **Revenue:** no data. Do not estimate.
+- أصبحت دقة موعد الانطلاق صريحة: بيانات المصدر الموثوقة فقط تؤكد `kickoffConfirmed`.
+- السجلات القديمة تُستعاد موثوقيتها من المصدر المعروف فقط: وقت TheSportsDB يجب أن يطابق الحدث المصوّر، ومصادر SportScore وFootball-Data وAPI-Football لا تُقبل إلا مع طابع وقت صالح. ما لا تثبته provenance يبقى غير مؤكد.
+- نُقلت نسخة `data/gateway-store.json` إلى schema `1.3.0`: 37 سجلًا مع علامة تأكيد وقت صريحة، ورابطان مباشران مسموحان و35 سجلًا بلا رابط. تأكيدات TheSportsDB القديمة قورنت ببيانات الأحداث الموثقة، لا بمجرد تطابق التاريخ.
+- لا تعرض البطاقة وقتًا مولّدًا من تاريخ بلا ساعة مؤكدة؛ السجلات القديمة المجهولة لا تُعرض «لم تبدأ» أو «جارية» اعتمادًا على توقيت افتراضي.
+- حارس الحالات يتطلب تأكيد وقت الانطلاق قبل الإبقاء على حالتي `live` و`not_started`.
 
-## 9. Revenue priorities (after the owner reviews this branch)
+### Canonical وملفات البيئة
 
-1. Keep the `/watch` destination stable; traffic depends on it.
-2. Add privacy-respecting analytics with consent before measuring anything.
-3. Evaluate ads only after consent and a policy review. No pop-ups, redirects, or match-like ad placements.
+- تم تصحيح fallback في `lib/site-url.ts` و`.env.example` وREADME إلى `https://nemo-live-kora.vercel.app` بدل المضيف القديم الذي أعاد Vercel 404.
+- عند النشر، يجب مراجعة متغير `GATEWAY_SITE_URL` في Vercel يدويًا؛ تغيير الكود لا يغير متغيرات الاستضافة تلقائيًا.
 
-## 10. Environment variable names (values not recorded)
+### الإعلانات والتحليلات والأمان
 
-NEXT_PUBLIC_NEMO_SPORTS_URL, GATEWAY_SITE_URL, DEFAULT_TIMEZONE, SPORTSCORE_BASE_URL, FOOTBALL_DATA_BASE_URL, FOOTBALL_DATA_API_KEY, THESPORTSDB_BASE_URL, THESPORTSDB_API_KEY, API_FOOTBALL_BASE_URL, API_FOOTBALL_KEY, GOOGLE_NEWS_RSS_BASE_URL, CRON_SECRET, NEMO_INGEST_TOKEN, NEMO_GATEWAY_STORE_PERSIST (set to `off` to disable disk writes; `npm test` sets it).
+- بحث نصي بالمستودع عن معرفات Google Analytics/Tag Manager وAdSense الشائعة لم يعثر على معرف أو دمج موثوق. هذا فحص للكود فقط، وليس فحصًا لطلبات المتصفح أو إعدادات الحسابات المنشورة.
+- لا تُضاف معرفات إعلانية أو تحليلات تخمينية. أي تركيب يتطلب قيمة حساب صحيحة وموافقة صاحب الموقع.
+- لا تكشف الأسرار، ولا تستدعِ نقاط cron العامة دون تفويض، ولا تغيّر مفاتيح أو إعدادات تشغيلية.
 
-## 11. Verification
+## التحقق المحلي
 
-See the final report. Commands: `npx tsc --noEmit`, `npm run lint`, `npm test` (65 tests), `npm run build`, local `next start` smoke.
+هذه النتائج تخص نسخة البناء المحلية فقط، ولا تُثبت ما نُشر على Vercel:
+
+- `npx tsc --noEmit`: ناجح.
+- `npm run lint`: ناجح بلا أخطاء أو تحذيرات.
+- `npm test`: ناجح — 66 اختبارًا من 66.
+- `npm run build`: ناجح؛ ظهرت صفحات الجداول والأخبار وواجهات API و`robots.txt` و`sitemap.xml` في جدول المسارات.
+- فحص HTTP عبر `next start` محليًا: `/` و`/matches/2026-10-12` و`/sources` و`/news` و`/news/archive` وواجهات API و`robots.txt` و`sitemap.xml` أعادت `200`. `/matches/2026-10-13` أعاد `307` إلى `/` لأنه تاريخ القاهرة الحالي أثناء الفحص؛ التاريخ غير الصالح `/matches/2026-02-31` ورابط خبر غير موجود أعادا `404`، و`/not-a-route` أعاد `404`.
+- canonical محلي: رابط البحث `/matches/2026-10-12?competition=EGY&q=al-ahly` أعاد canonical بلا query إلى `/matches/2026-10-12`. صفحات الأخبار الفارغة كانت `noindex`، وصفحات `sources` كانت `noindex, follow`.
+- `robots.txt` أعاد `200` وأشار إلى sitemap على المضيف الصحيح. أمكن تحليل XML لـ`sitemap.xml` بنجاح: 7 روابط، بلا تكرارات، كلها على `nemo-live-kora.vercel.app`، وصفحات التواريخ ذات مباريات فعلية فقط؛ لم تظهر صفحات أخبار لعدم وجود خبر قابل للفهرسة.
+- `GET /api/matches?date=2026-10-11` أعاد 7 مباريات: رابطان مباشران مطابقان للسجلين المسموحين، وخمس بطاقات بلا رابط؛ لم يظهر أي سجل غير مؤكد على أنه `live` أو `not_started`. فحص HTML للصفحة نفسها طابق الرابطين وأظهر البطاقات الأخرى كعناصر غير قابلة للنقر.
+- `/api/sources` محليًا أظهر 37 سجل مباراة وصفر أخبار منشورة وستة عناصر مرفوضة وقت الفحص. `/api/news` أعاد `200` دون مقالات منشورة.
+- `/api/cron/update-matches` أعاد `500` آمنًا لأن `CRON_SECRET` غير مضبوط في بيئة الفحص؛ نص الاستجابة أشار إلى غياب الإعداد ولم يكشف سرًا. لا يُعد ذلك اختبارًا لبيئة الإنتاج.
+- لا يوفّر هذا الفحص محاكاة متصفح فعلية أو DevTools أو قياس Lighthouse/Core Web Vitals؛ JS وقت التشغيل وطلبات الشبكة على هاتف حقيقي تظل غير محققة.
+
+## قائمة التحقق اليدوية بعد موافقة النشر
+
+1. في Vercel، تحقق أن `GATEWAY_SITE_URL` يساوي `https://nemo-live-kora.vercel.app` وأن نطاق الإنتاج يشير إلى النشر الصحيح.
+2. افتح `robots.txt` و`sitemap.xml` المنشورين، وتأكد من المضيف الأساسي وعدم وجود تواريخ فارغة أو مكررة. لا تُنشئ صفحات تواريخ خالية لزيادة عدد الروابط.
+3. افحص كل canonical من HTML الناتج، وتأكد أن البحث والتصفية لا يصنعان نسخ URL مفهرسة متضاربة.
+4. افتح كل بطاقة على الهاتف والحاسوب: يجب أن تصل الروابط القليلة إلى المباراة المطابقة فقط، وتبقى البطاقات غير المطابقة بلا href، ويجب ألا توحي أي بطاقة بتوفر بث غير مؤكد.
+5. استخدم Chrome DevTools وLighthouse على النطاق المنشور لفحص أخطاء JavaScript وطلبات الشبكة والصور وCore Web Vitals وأداء الجوال. اختبر أيضًا صفحات الخطأ والاستجابة الخام لـ XML.
+6. افحص Search Console يدويًا: اختر خاصية النطاق الصحيحة، تحقق من ملكيتها، أرسل رابط sitemap المنشور، استخدم URL Inspection لصفحات مفيدة موجودة، وراجع تقارير الفهرسة وcanonical والاستبعادات دوريًا. لا تستخدم طلب الفهرسة كضمان ولا تطلب فهرسة صفحات فارغة.
+7. لا تضف AdSense أو Analytics حتى يزوّد المالك معرفات الحساب الصحيحة ويوافق على تركيبها؛ بعد ذلك اختبر موافقة الخصوصية والطلبات الفعلية قبل الاعتماد عليها.
+
+## مراجع العمل
+
+- `docs/AUDIT-2026-10-12-BROADCAST-LINK.md` — تصحيح التحقيق الخاص بالروابط.
+- `tests/audit-2026-10-12.test.ts` — اختبارات إعادة إنتاج لمشكلات المصادر والأخبار والروابط.
+- `README.md` — وصف سلوك الفرع وتعليمات الإعداد.

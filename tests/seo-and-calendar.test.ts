@@ -73,13 +73,19 @@ test('sports-event JSON-LD carries no per-match URL and matches the visible card
     item: Record<string, unknown>;
   }>;
   assert.ok(elements.length > 0);
-  // No per-match page exists for the gateway to point at, so no SportsEvent gets a url.
+  // The gateway has no canonical event detail route, so SportsEvent items intentionally omit url.
   for (const { item } of elements) {
     assert.equal('url' in item, false);
   }
-  // Every visible card's CTA is the general broadcast section, so nothing else is claimed.
+  // Structured data doesn't claim an outbound URL; cards link only to exact verified pages.
   for (const match of matches) {
-    assert.equal(match.nemoLink.url, 'https://nemo-sports.vercel.app/watch');
+    if (match.nemoLink.verified) {
+      assert.equal(match.nemoLink.linkType, 'direct_match');
+      assert.match(match.nemoLink.url || '', /^https:\/\/nemo-sports\.vercel\.app\/matches\/.+#live-stream$/);
+    } else {
+      assert.equal(match.nemoLink.url, null);
+      assert.equal(match.nemoLink.linkType, 'unavailable');
+    }
   }
   assert.match(serializeJsonLd({ text: '</script>&' }), /\\u003c\/script\\u003e\\u0026/);
 });
