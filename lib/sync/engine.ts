@@ -1,11 +1,13 @@
 import { getTodayCairoDate, shiftDateString } from '../cairo-time';
 import {
+  getEgyptianRoundWindow,
   getGatewayDatabase,
   ingestNewsCandidatesInStore,
+  MatchUpsertStats,
   recordMatchesSyncAttempt,
   recordNewsSync,
   recordSyncExecution,
-  upsertMatchesInStore,
+  upsertMatchesInStoreWithStats,
   upsertSeasonsInStore,
   upsertStandingsInStore,
 } from '../db/store';
@@ -58,7 +60,17 @@ export interface RunGatewaySyncOptions {
   skipNews?: boolean;
   /** عند true تُتخطى المصادر التي لا تضيف مباريات بدون مفتاح (Football-Data/API-Football) لتقليل زمن الاستجابة. */
   quick?: boolean;
+  /**
+   * Wall-clock budget for the TheSportsDB request chain in quick mode. Endpoints that would
+   * start after the budget are recorded as skipped instead of being requested.
+   */
+  budgetMs?: number;
 }
+
+const EMPTY_WRITE: MatchUpsertStats = { processed: 0, inserted: 0, updated: 0, unchanged: 0 };
+
+/** Default TheSportsDB time budget for the on-demand (quick) path. */
+export const THESPORTSDB_QUICK_BUDGET_MS = 8000;
 
 /**
  * Executes a non-destructive background sync across the 5 approved sources:
@@ -213,14 +225,31 @@ export async function runGatewaySync(
   const sourceUpdates: Partial<
     Record<SourceId, Partial<ReturnType<typeof getGatewayDatabase>['sources'][SourceId]>>
   > = {};
+  const writeTotals: MatchUpsertStats & { recordsSkipped: number } = { ...EMPTY_WRITE, recordsSkipped: 0 };
+  const addWrite = (w: MatchUpsertStats) => {
+    writeTotals.processed += w.processed;
+    writeTotals.inserted += w.inserted;
+    writeTotals.updated += w.updated;
+    writeTotals.unchanged += w.unchanged;
+  };
 
   // 1. SportScore — matches/standings only, not a news source
   const ssRes = await isolateSource(
     'sportscore',
-    () => fetchSportScoreMatches(),
-    { ok: false, httpStatus: null, latencyMs: 0, matches: [] as Awaited<ReturnType<typeof fetchSportScoreMatches>>['matches'] },
+    () =>
+      fetchSportScoreMatches(
+        options.quick ? { timeoutMs: 4000, retries: 0 } : {}
+      ),
+    {
+      ok: false,
+      httpStatus: null,
+      latencyMs: 0,
+      matches: [] as Awaited<ReturnType<typeof fetchSportScoreMatches>>['matches'],
+      skippedRecords: 0,
+    },
     errors
   );
+  writeTotals.recordsSkipped += ssRes.skippedRecords || 0;
   let ssStandingsCount = 0;
   if (mode === 'daily' || mode === 'standings' || mode === 'manual') {
     try {
@@ -239,7 +268,7 @@ export async function runGatewaySync(
   }
 
   if (ssRes.ok && ssRes.matches.length > 0) {
-    upsertMatchesInStore(ssRes.matches);
+    addWrite(upsertMatchesInStoreWithStats(ssRes.matches));
     sourceResults.push({
       sourceId: 'sportscore',
       status: 'active',
@@ -249,7 +278,7 @@ export async function runGatewaySync(
       standingsFetched: ssStandingsCount,
       newsFetched: 0,
       usedCachedSnapshot: false,
-      messageAr: `تم تحديث ${ssRes.matches.length} مباراة و${ssStandingsCount} جدول ترتيب من SportScore.`,
+      messageAr: `تم تحديث ${ssRes.matches.length} مباراة و${ssStandingsCount} جدول ترتيب من SportScore${ssRes.skippedRecords ? ` (تخطي ${ssRes.skippedRecords} سجلًا غير صالح)` : ''}.`,
     });
     sourceUpdates.sportscore = {
       status: 'active',
@@ -283,18 +312,31 @@ export async function runGatewaySync(
   // 2. TheSportsDB — matches only, not a news source
   const tsdbRes = await isolateSource(
     'thesportsdb',
-    () => fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo]),
+    () =>
+      fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo], {
+        rounds: getEgyptianRoundWindow(todayCairo),
+        ...(options.quick
+          ? {
+              timeoutMs: 4000,
+              retries: 0,
+              budgetMs: options.budgetMs ?? THESPORTSDB_QUICK_BUDGET_MS,
+            }
+          : {}),
+      }),
     {
       ok: false,
       httpStatus: null,
       latencyMs: 0,
       matches: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['matches'],
       endpoints: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['endpoints'],
+      skippedRecords: 0,
+      skippedEndpoints: 0,
     },
     errors
   );
+  writeTotals.recordsSkipped += tsdbRes.skippedRecords || 0;
   if (tsdbRes.ok) {
-    if (tsdbRes.matches.length > 0) upsertMatchesInStore(tsdbRes.matches);
+    if (tsdbRes.matches.length > 0) addWrite(upsertMatchesInStoreWithStats(tsdbRes.matches));
     const egyptianCount = tsdbRes.matches.filter((m) => m.competitionCode === 'EGY').length;
     const failedEndpoints = tsdbRes.endpoints.filter((e) => !e.ok).length;
     sourceResults.push({
@@ -306,7 +348,7 @@ export async function runGatewaySync(
       standingsFetched: 0,
       newsFetched: 0,
       usedCachedSnapshot: false,
-      messageAr: `تم جلب ${tsdbRes.matches.length} مباراة من TheSportsDB (منها ${egyptianCount} للدوري المصري الممتاز)${failedEndpoints > 0 ? ` — فشل ${failedEndpoints} من ${tsdbRes.endpoints.length} نقطة نهاية` : ''}.`,
+      messageAr: `تم جلب ${tsdbRes.matches.length} مباراة من TheSportsDB (منها ${egyptianCount} للدوري المصري الممتاز)${failedEndpoints > 0 ? ` — فشل ${failedEndpoints} من ${tsdbRes.endpoints.length} نقطة نهاية` : ''}${tsdbRes.skippedEndpoints ? ` — تجاوز الوقت المخصص فتُخطّي ${tsdbRes.skippedEndpoints} طلبًا` : ''}${tsdbRes.skippedRecords ? ` — تخطي ${tsdbRes.skippedRecords} سجلًا غير صالح أو غير كروي` : ''}.`,
       endpoints: tsdbRes.endpoints,
     });
     sourceUpdates.thesportsdb = {
@@ -362,7 +404,7 @@ export async function runGatewaySync(
     // skipped in quick mode (no key => no matches from this source)
   } else if (fdRes.ok) {
     if (fdRes.seasons.length > 0) upsertSeasonsInStore(fdRes.seasons);
-    if (fdRes.matches.length > 0) upsertMatchesInStore(fdRes.matches);
+    if (fdRes.matches.length > 0) addWrite(upsertMatchesInStoreWithStats(fdRes.matches));
     sourceResults.push({
       sourceId: 'football-data',
       status: fdRes.status,
@@ -412,7 +454,7 @@ export async function runGatewaySync(
   );
   if (apifRes) {
     if (apifRes.ok && apifRes.matches.length > 0) {
-      upsertMatchesInStore(apifRes.matches);
+      addWrite(upsertMatchesInStoreWithStats(apifRes.matches));
     }
     sourceResults.push({
       sourceId: 'api-football',
@@ -448,6 +490,19 @@ export async function runGatewaySync(
     matchesFetched: matchesFetchedTotal,
     sourcesOk,
     sourcesFailed,
+    matchesInserted: writeTotals.inserted,
+    matchesUpdated: writeTotals.updated,
+    recordsSkipped: writeTotals.recordsSkipped,
+    sourceStatus: Object.fromEntries(
+      matchSources.map((r) => [
+        r.sourceId,
+        {
+          httpStatus: r.httpStatus,
+          ok: !r.usedCachedSnapshot && r.status !== 'degraded',
+          ...(r.usedCachedSnapshot || r.status === 'degraded' ? { error: r.messageAr } : {}),
+        },
+      ])
+    ) as NonNullable<Parameters<typeof recordMatchesSyncAttempt>[0]['sourceStatus']>,
   });
 
   // 5. Google News RSS — the only news-capable source among the five

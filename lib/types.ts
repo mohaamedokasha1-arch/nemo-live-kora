@@ -30,11 +30,11 @@ export type MatchStatusCode =
   | 'suspended'
   | 'unconfirmed';
 
-export type NemoLinkType =
-  | 'direct_match'
-  | 'competition_fallback'
-  | 'schedule_fallback'
-  | 'unavailable';
+/**
+ * Every broadcast CTA on the gateway points to the general NEMO Sports broadcast section
+ * (`/watch`). Per-match destinations are not produced, so no match-level link type exists.
+ */
+export type NemoLinkType = 'broadcast_section' | 'unavailable';
 
 export type NemoMatchCriterion =
   | 'original_match_id'
@@ -172,6 +172,11 @@ export interface MatchRecord {
   seasonLabel: string;
   roundLabelAr: string | null;
   utcKickoff: string;
+  /**
+   * false when the source did not provide a kick-off time. utcKickoff is then only a day
+   * placeholder and must not be displayed as a time. Undefined is treated as confirmed.
+   */
+  kickoffConfirmed?: boolean;
   cairoDate: string;
   cairoTime: string;
   homeTeam: MatchTeamSummary;
@@ -410,6 +415,12 @@ export interface GatewayDatabase {
       matchesFetched: number;
       sourcesOk: SourceId[];
       sourcesFailed: SourceId[];
+      /** Counters for the attempt (absent on records written before they were tracked). */
+      matchesInserted?: number;
+      matchesUpdated?: number;
+      recordsSkipped?: number;
+      /** Per-source HTTP status and error summary for the attempt. */
+      sourceStatus?: Partial<Record<SourceId, { httpStatus: number | null; ok: boolean; error?: string }>>;
     } | null;
   };
   sources: Record<SourceId, SourceDefinition>;

@@ -1,0 +1,33 @@
+{
+  "_capture": {
+    "source": "https://www.thesportsdb.com/api/v1/json/123/ (free key path, fetched with the fetch tool)",
+    "capturedAt": "2026-10-12",
+    "note": "Values copied from the live response. Only fields read by the adapter are kept; all kept values are unchanged. Capture was made through the fetch tool, not the production server.",
+    "request": "eventspastleague.php?id=4829 (free tier: 1 event)"
+  },
+  "events": [
+    {
+      "idEvent": "2561125",
+      "idAPIfootball": "1612254",
+      "strTimestamp": "2026-10-12T17:00:00",
+      "strEvent": "Smouha vs Ghazl El Mahalla",
+      "strSport": "Soccer",
+      "idLeague": "4829",
+      "strLeague": "Egyptian Premier League",
+      "strSeason": "2026-2027",
+      "strHomeTeam": "Smouha",
+      "strAwayTeam": "Ghazl El Mahalla",
+      "idHomeTeam": "139840",
+      "idAwayTeam": "140794",
+      "intHomeScore": "1",
+      "intAwayScore": "0",
+      "intRound": "6",
+      "dateEvent": "2026-10-12",
+      "strTime": "17:00",
+      "strVenue": "Alexandria Stadium",
+      "strCountry": "Egypt",
+      "strStatus": "FT",
+      "strPostponed": "no"
+    }
+  ]
+}

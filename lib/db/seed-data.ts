@@ -1336,7 +1336,7 @@ export function buildInitialVerifiedDatabase(): GatewayDatabase {
  * Deduplication & Non-Destructive Conflict Resolution Rule (Section 8 & Section 9):
  * - Never overwrite a known valid score with null.
  * - Prefer 'live' or 'finished' status over 'not_started' when a source has updated status.
- * - Preserve verified direct_match NEMO Sports links over generic fallbacks.
+ * - Keep a confirmed kick-off time over an unconfirmed placeholder from a source.
  * - Combine contributingSources and externalIds from all matching providers.
  */
 export function mergeMatchRecords(
@@ -1369,12 +1369,16 @@ export function mergeMatchRecords(
         : existing.score.halfTimeAway,
   };
 
-  const preferredNemoLink =
-    existing.nemoLink.linkType === 'direct_match' && existing.nemoLink.verified
-      ? existing.nemoLink
-      : incoming.nemoLink.linkType === 'direct_match' && incoming.nemoLink.verified
-      ? incoming.nemoLink
-      : incoming.nemoLink;
+  // Every record resolves to the same broadcast section, so the incoming link is current.
+  const preferredNemoLink = incoming.nemoLink;
+
+  // A source that did not send a kick-off time must not overwrite a confirmed one.
+  const incomingKickoffValid = Number.isFinite(Date.parse(incoming.utcKickoff));
+  const keepExistingKickoff =
+    incoming.kickoffConfirmed === false &&
+    existing.kickoffConfirmed !== false &&
+    Number.isFinite(Date.parse(existing.utcKickoff));
+  const useIncomingKickoff = !keepExistingKickoff && incomingKickoffValid;
   const externalIds = Object.fromEntries(
     Object.entries({ ...existing.externalIds, ...incoming.externalIds }).filter(
       ([, value]) => value !== undefined && value !== null && value !== ''
@@ -1389,15 +1393,10 @@ export function mergeMatchRecords(
     statusLabelAr: useIncomingStatus ? incoming.statusLabelAr : existing.statusLabelAr,
     statusNoteAr: useIncomingStatus ? incoming.statusNoteAr : existing.statusNoteAr,
     liveMinute: incoming.liveMinute ?? existing.liveMinute,
-    utcKickoff: Number.isFinite(Date.parse(incoming.utcKickoff))
-      ? incoming.utcKickoff
-      : existing.utcKickoff,
-    cairoDate: Number.isFinite(Date.parse(incoming.utcKickoff))
-      ? incoming.cairoDate
-      : existing.cairoDate,
-    cairoTime: Number.isFinite(Date.parse(incoming.utcKickoff))
-      ? incoming.cairoTime
-      : existing.cairoTime,
+    utcKickoff: useIncomingKickoff ? incoming.utcKickoff : existing.utcKickoff,
+    kickoffConfirmed: useIncomingKickoff ? incoming.kickoffConfirmed : existing.kickoffConfirmed,
+    cairoDate: useIncomingKickoff ? incoming.cairoDate : existing.cairoDate,
+    cairoTime: useIncomingKickoff ? incoming.cairoTime : existing.cairoTime,
     score: mergedScore,
     incidents:
       existing.incidents && existing.incidents.length > 0

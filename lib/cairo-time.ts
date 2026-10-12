@@ -200,7 +200,8 @@ export function normalizeMatchStatus(
       if (!Number.isNaN(kickoffMs)) {
         const elapsedMs = now.getTime() - kickoffMs;
         const maxEarlyLiveMs = 15 * 60 * 1000;
-        const maxLiveAgeMs = 6 * 60 * 60 * 1000;
+        // Upper bound for a plausible live match (2 halves, HT, stoppage, extra time).
+        const maxLiveAgeMs = 180 * 60 * 1000;
         if (elapsedMs < -maxEarlyLiveMs || elapsedMs > maxLiveAgeMs) {
           return {
             status: 'unconfirmed',

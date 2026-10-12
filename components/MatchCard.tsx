@@ -5,6 +5,10 @@ import Image from 'next/image';
 import { formatScoreDisplay } from '@/lib/cairo-time';
 import { getMatchSourceLabelAr } from '@/lib/catalog';
 import { MatchRecord } from '@/lib/types';
+import { NEMO_BROADCAST_SECTION_URL } from '@/lib/nemo-resolver';
+
+/** Label for the broadcast CTA. It names the general section, not a stream for this match. */
+export const BROADCAST_CTA_LABEL_AR = 'قسم البث العام على NEMO Sports';
 
 /**
  * Professional Club Crest pedestal component with high-res PNG support
@@ -90,13 +94,9 @@ function formatCleanTime(utcIso: string): string {
 export default function MatchCard({ match }: { match: MatchRecord }) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
   const sourceLabel = getMatchSourceLabelAr(match.primarySource);
-  const targetUrl =
-    match.nemoLink.linkType === 'direct_match' && match.nemoLink.verified
-      ? match.nemoLink.url
-      : null;
-  const cardClass = `kl-match-card ${
-    match.status === 'live' ? 'kl-match-card-live' : ''
-  } ${targetUrl ? '' : 'kl-match-card-unlinked'}`.trim();
+  const kickoffConfirmed = match.kickoffConfirmed !== false;
+  const targetUrl = NEMO_BROADCAST_SECTION_URL;
+  const cardClass = `kl-match-card ${match.status === 'live' ? 'kl-match-card-live' : ''}`.trim();
 
   const statusText =
     match.status === 'not_started'
@@ -138,9 +138,13 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
 
         {/* Center: Kickoff Time + Score (when available) + Status Pin */}
         <div className="kl-center-info">
-          <time className="kl-match-time" dir="ltr" dateTime={match.utcKickoff}>
-            {formatCleanTime(match.utcKickoff)}
-          </time>
+          {kickoffConfirmed ? (
+            <time className="kl-match-time" dir="ltr" dateTime={match.utcKickoff}>
+              {formatCleanTime(match.utcKickoff)}
+            </time>
+          ) : (
+            <span className="kl-match-time">الموعد غير مؤكد</span>
+          )}
 
           {scoreDisplay.hasScore ? (
             <div className="kl-score-badge" dir="ltr">
@@ -211,41 +215,24 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
         </div>
 
         <div className="kl-meta-item kl-meta-action">
-          <span>
-            {targetUrl
-              ? 'مشاهدة البث على NEMO Sports'
-              : 'لا يتوفر رابط بث مطابق على NEMO Sports'}
-          </span>
-          {targetUrl ? (
-            <svg
-              viewBox="0 0 16 16"
-              width="13"
-              height="13"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 8H4M4 8L8 4M4 8L8 12" />
-            </svg>
-          ) : null}
+          <span>{BROADCAST_CTA_LABEL_AR}</span>
+          <svg
+            viewBox="0 0 16 16"
+            width="13"
+            height="13"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 8H4M4 8L8 4M4 8L8 12" />
+          </svg>
         </div>
       </div>
     </>
   );
-
-  if (!targetUrl) {
-    return (
-      <article
-        className={cardClass}
-        aria-label={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.statusLabelAr}`}
-      >
-        {cardContent}
-      </article>
-    );
-  }
 
   return (
     <a
@@ -253,8 +240,8 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       target="_blank"
       rel="noopener noreferrer"
       className={cardClass}
-      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
-      aria-label={`مشاهدة بث ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} على NEMO Sports`}
+      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${BROADCAST_CTA_LABEL_AR}`}
+      aria-label={`${BROADCAST_CTA_LABEL_AR} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
     >
       {cardContent}
     </a>

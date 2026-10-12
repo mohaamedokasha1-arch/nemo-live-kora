@@ -1,45 +1,19 @@
 import { NEMO_SPORTS_BASE_URL } from './catalog';
-import {
-  NemoLinkResolution,
-  NemoMappingEntry,
-  NemoMatchCriterion,
-} from './types';
+import { NemoLinkResolution, NemoMappingEntry } from './types';
 
 /**
- * Broadcast section anchor on NEMO Sports match pages.
+ * Path of NEMO Sports' general broadcast section (`app/watch/page.tsx` on the main site: the
+ * "NEMO Watch Guide" that lists operator-registered streams).
  *
- * Verified against the main site's source (app/matches/[slug]/page.tsx): the page always
- * renders `<section id="live-stream">` — either the registered stream player
- * (components/match/MatchStreamPlayer.tsx, default `sectionId = "live-stream"`) or the
- * "no verified broadcast for this match" notice. The anchor therefore never points at a
- * missing element, and browsers keep the fragment across the main site's own redirects.
+ * Per-match broadcast links are not used. The main site's `/matches/[slug]` page renders a
+ * live-stream section for every match, but that section only shows a stream when one is
+ * registered for the match, and nothing in this gateway can verify that per match. Every
+ * broadcast CTA therefore points at this single general destination.
  */
-export const NEMO_LIVE_STREAM_ANCHOR = 'live-stream';
+export const NEMO_BROADCAST_PATH = '/watch';
 
-/**
- * NEMO Sports addresses a match page by the SportScore permalink slug
- * (`packages/sdl/src/adapters/sportscore.ts#matchSlugFromUrl` → `providerId`, and
- * `lib/match-links.ts#matchPath` → `/matches/${encodeURIComponent(slug)}`). The gateway
- * reads the same slug from the same provider URL, so this is the main site's own match
- * identifier — not a guess derived from team names, competition or date.
- */
-export function buildNemoBroadcastUrl(nemoMatchSlug: string): string {
-  return `${NEMO_SPORTS_BASE_URL}/matches/${encodeURIComponent(nemoMatchSlug)}#${NEMO_LIVE_STREAM_ANCHOR}`;
-}
-
-/**
- * SportScore emits `team-<opaque id>` for a side whose club name is missing; NEMO Sports
- * answers 404 for such slugs (lib/match-identity.ts#isPlaceholderIdentity on the main
- * site). Never send a visitor there.
- */
-const PLACEHOLDER_SIDE = /^(?:team|club|player|home|away)-[a-z0-9]{8,}$/i;
-
-export function isLinkableNemoMatchSlug(slug?: string | null): slug is string {
-  if (!slug || !/^[a-z0-9-]+$/i.test(slug)) return false;
-  const sides = slug.split('-vs-');
-  if (sides.length !== 2 || !sides[0] || !sides[1]) return false;
-  return !sides.some((side) => PLACEHOLDER_SIDE.test(side));
-}
+/** Absolute URL of the NEMO Sports broadcast section; the only broadcast destination. */
+export const NEMO_BROADCAST_SECTION_URL = `${NEMO_SPORTS_BASE_URL.replace(/\/+$/, '')}${NEMO_BROADCAST_PATH}`;
 
 /**
  * Extracts the match slug from a SportScore match URL.
@@ -152,7 +126,7 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
 export interface ResolveNemoLinkInput {
   canonicalMatchId?: string;
   sportscoreSlug?: string | null;
-  /** @deprecated Slugs are not treated as proof of an exact match page. */
+  /** @deprecated Kept for call-site compatibility; has no effect on the destination. */
   sportscoreMatchDateVerified?: boolean;
   sportscoreTrackerId?: string | null;
   thesportsdbEventId?: string | null;
@@ -162,6 +136,28 @@ export interface ResolveNemoLinkInput {
   awayTeamId: string;
   cairoDate: string;
   customMappingTable?: NemoMappingEntry[];
+}
+
+/**
+ * Resolves the broadcast CTA for a match. Every match gets the same general destination,
+ * `NEMO_BROADCAST_SECTION_URL`, so no visitor is sent to a per-match page that might be
+ * missing or might show the wrong fixture. The input is accepted for call-site compatibility
+ * and is not used to build the URL. Identity (dedupe, stable ids) still uses the source ids
+ * through `findVerifiedMatchMapping` and `lib/match-identity.ts`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for call-site compatibility
+export function resolveNemoSportsLink(_input: ResolveNemoLinkInput): NemoLinkResolution {
+  return {
+    url: NEMO_BROADCAST_SECTION_URL,
+    linkType: 'broadcast_section',
+    labelAr: 'قسم البث على NEMO Sports',
+    subLabelAr:
+      'يفتح قسم البث العام على NEMO Sports. القسم لا يعرض بثًا لكل مباراة؛ قد لا تكون هذه المباراة متاحة هناك.',
+    verified: true,
+    matchedBy: [],
+    competitionUrl: null,
+    scheduleUrl: null,
+  };
 }
 
 function matchesTrustedSourceId(
@@ -176,94 +172,6 @@ function matchesTrustedSourceId(
       (input.thesportsdbEventId && entry.thesportsdbEventId === input.thesportsdbEventId) ||
       (input.apiFootballFixtureId && entry.apiFootballFixtureId === input.apiFootballFixtureId)
   );
-}
-
-function unavailableLink(note?: string): NemoLinkResolution {
-  return {
-    url: null,
-    linkType: 'unavailable',
-    labelAr: 'لا يتوفر رابط بث مطابق لهذه المباراة على NEMO Sports',
-    subLabelAr:
-      note ||
-      'لا يملك مصدر هذه المباراة المعرّف الذي يستخدمه NEMO Sports لصفحة المباراة؛ لن نوجّهك إلى بطولة أو جدول عام أو مباراة أخرى.',
-    verified: false,
-    matchedBy: [],
-    competitionUrl: null,
-    scheduleUrl: null,
-  };
-}
-
-/**
- * Resolves the NEMO Sports broadcast destination for a match.
- *
- * Priority:
- * 1. The match's own SportScore permalink slug (the identifier NEMO Sports keys its
- *    match pages by) → `/matches/{slug}#live-stream`.
- * 2. A bridge-table entry that ties a TheSportsDB / API-Football fixture id to a
- *    SportScore slug verified on the published site (same competition and ordered teams).
- * 3. Otherwise no link. Competition pages, date schedules and name-guessed slugs are
- *    deliberately never used as a substitute for a specific match.
- */
-export function resolveNemoSportsLink(input: ResolveNemoLinkInput): NemoLinkResolution {
-  const table = input.customMappingTable || VERIFIED_NEMO_MAPPING_TABLE;
-  const mapping = table.find((entry) => {
-    const contextMatches =
-      entry.competitionCode === input.competitionCode &&
-      entry.homeTeamId === input.homeTeamId &&
-      entry.awayTeamId === input.awayTeamId;
-    if (!contextMatches) return false;
-
-    const stableSourceIdMatches = matchesTrustedSourceId(input, entry);
-    const stableCanonicalIdMatches =
-      Boolean(input.canonicalMatchId) && entry.canonicalMatchId === input.canonicalMatchId;
-    return stableSourceIdMatches || stableCanonicalIdMatches;
-  });
-
-  // 1) The provider slug NEMO Sports itself uses as the match page identifier.
-  if (isLinkableNemoMatchSlug(input.sportscoreSlug)) {
-    const matchedBy: NemoMatchCriterion[] = ['original_match_id'];
-    if (mapping?.verifiedNemoMatchSlug === input.sportscoreSlug) {
-      matchedBy.push('mapping_table', 'competition_id', 'team_ids');
-      if (input.cairoDate === mapping.cairoDate) matchedBy.push('match_date');
-    }
-    return {
-      url: buildNemoBroadcastUrl(input.sportscoreSlug),
-      linkType: 'direct_match',
-      labelAr: 'مشاهدة البث على NEMO Sports',
-      subLabelAr:
-        mapping?.verifiedNemoMatchSlug === input.sportscoreSlug
-          ? mapping.verificationNoteAr
-          : 'الرابط مبني على معرّف المباراة الأصلي من SportScore، وهو المعرّف نفسه الذي تستخدمه صفحة المباراة على NEMO Sports.',
-      verified: true,
-      matchedBy,
-      competitionUrl: null,
-      scheduleUrl: null,
-    };
-  }
-
-  // 2) Bridge table: another source's fixture id tied to a verified SportScore slug.
-  if (!mapping || !isLinkableNemoMatchSlug(mapping.verifiedNemoMatchSlug)) {
-    return unavailableLink(mapping?.verificationNoteAr);
-  }
-
-  const matchedBy: NemoMatchCriterion[] = ['mapping_table', 'competition_id', 'team_ids'];
-  if (matchesTrustedSourceId(input, mapping)) {
-    matchedBy.unshift('original_match_id');
-  }
-  if (input.cairoDate === mapping.cairoDate) {
-    matchedBy.push('match_date');
-  }
-
-  return {
-    url: buildNemoBroadcastUrl(mapping.verifiedNemoMatchSlug),
-    linkType: 'direct_match',
-    labelAr: 'مشاهدة البث على NEMO Sports',
-    subLabelAr: mapping.verificationNoteAr,
-    verified: true,
-    matchedBy,
-    competitionUrl: null,
-    scheduleUrl: null,
-  };
 }
 
 /**

@@ -227,20 +227,41 @@ export function mapSportScoreMatchToRecord(
 }
 
 /**
- * Fetches the live/rolling 50-match widget feed from SportScore.
+ * Why a raw SportScore record cannot be stored (null = usable). Only the fields the mapper
+ * depends on are checked, so one malformed row is dropped alone instead of discarding the batch.
  */
-export async function fetchSportScoreMatches(): Promise<{
+export function sportScoreSkipReason(raw: SportScoreRawMatch): string | null {
+  if (!raw || typeof raw !== 'object') return 'not_an_object';
+  if (typeof raw.home !== 'string' || !raw.home.trim()) return 'missing_home';
+  if (typeof raw.away !== 'string' || !raw.away.trim()) return 'missing_away';
+  if (typeof raw.time !== 'string' || !raw.time.trim()) return 'missing_time';
+  if (!Number.isFinite(Date.parse(raw.time))) return 'invalid_time';
+  return null;
+}
+
+export interface SportScoreFetchOptions {
+  timeoutMs?: number;
+  retries?: number;
+  cacheTtlMs?: number;
+}
+
+/**
+ * Fetches the live/rolling 50-match widget feed from SportScore.
+ * Records that fail validation or mapping are counted in `skippedRecords`; the rest are kept.
+ */
+export async function fetchSportScoreMatches(options: SportScoreFetchOptions = {}): Promise<{
   ok: boolean;
   httpStatus: number | null;
   latencyMs: number;
   matches: MatchRecord[];
+  skippedRecords: number;
   error?: string;
 }> {
   const url = `${SPORTSCORE_BASE_URL}/matches/?sport=football&limit=50&src=nemo-sports`;
   const res = await fetchWithProtection<SportScoreMatchesEnvelope>(url, {
-    timeoutMs: 8000,
-    retries: 1,
-    cacheTtlMs: 45_000,
+    timeoutMs: options.timeoutMs ?? 8000,
+    retries: options.retries ?? 1,
+    cacheTtlMs: options.cacheTtlMs ?? 45_000,
   });
 
   if (!res.ok || !res.data || !Array.isArray(res.data.matches)) {
@@ -249,16 +270,30 @@ export async function fetchSportScoreMatches(): Promise<{
       httpStatus: res.httpStatus,
       latencyMs: res.latencyMs,
       matches: [],
+      skippedRecords: 0,
       error: res.error || 'Invalid SportScore matches payload',
     };
   }
 
-  const mapped = res.data.matches.map((m) => mapSportScoreMatchToRecord(m));
+  const mapped: MatchRecord[] = [];
+  let skippedRecords = 0;
+  for (const raw of res.data.matches) {
+    if (sportScoreSkipReason(raw)) {
+      skippedRecords += 1;
+      continue;
+    }
+    try {
+      mapped.push(mapSportScoreMatchToRecord(raw));
+    } catch {
+      skippedRecords += 1;
+    }
+  }
   return {
     ok: true,
     httpStatus: res.httpStatus,
     latencyMs: res.latencyMs,
     matches: mapped,
+    skippedRecords,
   };
 }
 

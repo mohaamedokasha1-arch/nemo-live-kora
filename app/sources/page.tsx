@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { NEMO_SPORTS_BASE_URL } from '@/lib/catalog';
+import { NEMO_BROADCAST_SECTION_URL } from '@/lib/nemo-resolver';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
 import { getNewsAdminStats } from '@/lib/news/query';
@@ -144,7 +144,7 @@ export default function SourcesPage() {
                   <th>التاريخ (القاهرة)</th>
                   <th>معرّف TheSportsDB</th>
                   <th>معرّف API-Football</th>
-                  <th>وجهة المباراة على NEMO Sports</th>
+                  <th>وجهة البث على NEMO Sports</th>
                   <th>نتيجة التحقق</th>
                 </tr>
               </thead>
@@ -158,18 +158,15 @@ export default function SourcesPage() {
                     <td dir="ltr">{entry.thesportsdbEventId || '—'}</td>
                     <td dir="ltr">{entry.apiFootballFixtureId || '—'}</td>
                     <td dir="ltr">
-                      {entry.verifiedNemoMatchSlug ? (
-                        <a
-                          href={`${NEMO_SPORTS_BASE_URL}/matches/${entry.verifiedNemoMatchSlug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="standings-team-link"
-                        >
-                          /matches/{entry.verifiedNemoMatchSlug} ↗
-                        </a>
-                      ) : (
-                        <span>لا توجد صفحة مباراة مباشرة تم التحقق منها</span>
-                      )}
+                      {/* Every broadcast CTA points to the general /watch section. */}
+                      <a
+                        href={NEMO_BROADCAST_SECTION_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="standings-team-link"
+                      >
+                        قسم البث العام /watch ↗
+                      </a>
                     </td>
                     <td style={{ textAlign: 'right' }}>{entry.verificationNoteAr}</td>
                   </tr>

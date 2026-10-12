@@ -29,12 +29,6 @@ export function createMatchScheduleStructuredData(
     numberOfItems: matches.length,
     itemListElement: matches.slice(0, 20).map((match, index) => {
       const eventStatus = eventStatusUrl(match.status);
-      // Structured data points at the canonical match page; the user-facing button adds the
-      // broadcast-section fragment, which has no meaning for search engines.
-      const matchUrl =
-        match.nemoLink.linkType === 'direct_match' && match.nemoLink.verified && match.nemoLink.url
-          ? match.nemoLink.url.split('#')[0]
-          : null;
       const startDate = Number.isFinite(Date.parse(match.utcKickoff))
         ? match.utcKickoff
         : null;
@@ -60,8 +54,8 @@ export function createMatchScheduleStructuredData(
           name: match.venue,
         };
       }
-      // A match-specific URL is added only for an explicitly verified direct destination.
-      if (matchUrl) item.url = matchUrl;
+      // No per-match URL: the gateway has no verified NEMO Sports page per match, and the
+      // visible cards link only to the general broadcast section.
 
       return {
         '@type': 'ListItem',

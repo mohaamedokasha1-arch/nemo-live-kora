@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SYNTHETIC fixture. Built to the item layout that lib/sources/google-news-rss.ts parses
+  (title, link, guid, pubDate, description, <source url>). Google News was unreachable from the
+  2026-10-12 audit sandbox, so no real feed was captured. Use it only to test parsing and
+  resolution logic, never as evidence of live news content.
+-->
+<rss version="2.0"><channel>
+<title>الدوري المصري - Google News</title>
+<item>
+  <title>موعد مباراة الزمالك والأهلي في الدوري المصري - اليوم السابع</title>
+  <link>https://news.google.com/rss/articles/CBMiSyNEVEVTVF9TWU5DX1RFU1Q?oc=5</link>
+  <guid isPermaLink="false">CBMiSyNEVEVTVF9TWU5DX1RFU1Q</guid>
+  <pubDate>Sun, 11 Oct 2026 22:15:00 GMT</pubDate>
+  <description>&lt;a href="https://news.google.com/rss/articles/CBMiSyNEVEVTVF9TWU5DX1RFU1Q?oc=5"&gt;موعد مباراة الزمالك والأهلي&lt;/a&gt;</description>
+  <source url="https://www.youm7.com">اليوم السابع</source>
+</item>
+</channel></rss>

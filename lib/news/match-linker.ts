@@ -70,20 +70,8 @@ export function linkNewsToMatches(
     return false;
   });
 
-  const verifiedMatch = relatedMatches.find(
-    (match) => match.nemoLink.verified && match.nemoLink.url
-  );
-  const anyMatch = verifiedMatch || relatedMatches[0];
-  if (anyMatch?.nemoLink.url) {
-    return {
-      relatedMatchIds: relatedMatches.map((match) => match.id),
-      relatedTeamIds,
-      relatedCompetitionCodes,
-      nemoRelatedUrl: anyMatch.nemoLink.url,
-      nemoRelatedLabelAr: `تفاصيل ${anyMatch.homeTeam.nameAr} ضد ${anyMatch.awayTeam.nameAr} على NEMO Sports`,
-    };
-  }
-
+  // No per-match NEMO Sports page exists to link a news item to. Related matches are listed as
+  // text only (see app/news/[slug]/page.tsx), so the item carries no NEMO Sports link.
   return {
     relatedMatchIds: relatedMatches.map((match) => match.id),
     relatedTeamIds,

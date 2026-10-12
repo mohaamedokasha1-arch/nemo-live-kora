@@ -1,0 +1,9 @@
+{
+  "_capture": {
+    "source": "https://www.thesportsdb.com/api/v1/json/123/ (free key path, fetched with the fetch tool)",
+    "capturedAt": "2026-10-12",
+    "note": "Values copied from the live response. Only fields read by the adapter are kept; all kept values are unchanged. Capture was made through the fetch tool, not the production server.",
+    "request": "eventsnextleague.php?id=4830 (returned no events; 4830 is KBO baseball in TheSportsDB)"
+  },
+  "events": null
+}

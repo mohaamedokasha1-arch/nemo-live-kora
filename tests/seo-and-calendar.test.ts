@@ -64,7 +64,7 @@ test('sitemap contains only canonical, useful dates and indexable news', () => {
   }
 });
 
-test('sports-event JSON-LD omits generic fallback URLs and emits verified direct pages only', () => {
+test('sports-event JSON-LD carries no per-match URL and matches the visible card content', () => {
   const verifiedDate = '2026-10-11';
   const matches = queryGatewayMatches({ cairoDate: verifiedDate }).matches;
   const structured = createMatchScheduleStructuredData(verifiedDate, matches);
@@ -72,29 +72,15 @@ test('sports-event JSON-LD omits generic fallback URLs and emits verified direct
   const elements = structured.itemListElement as Array<{
     item: Record<string, unknown>;
   }>;
-  const directMatch = matches.find((match) => match.nemoLink.linkType === 'direct_match');
-  assert.ok(directMatch);
-  const directEvent = elements.find(
-    ({ item }) => item.name === `${directMatch.homeTeam.nameAr} ضد ${directMatch.awayTeam.nameAr}`
-  );
-  // Structured data points at the canonical match page; the user-facing button adds #live-stream.
-  assert.equal(directEvent?.item.url, directMatch.nemoLink.url?.split('#')[0]);
-  assert.ok(directMatch.nemoLink.url?.endsWith('#live-stream'));
-
-  const unverifiedDate = '2026-10-12';
-  const unverifiedMatches = queryGatewayMatches({ cairoDate: unverifiedDate }).matches;
-  const unlinkedMatch = unverifiedMatches.find((match) => match.nemoLink.url === null);
-  assert.ok(unlinkedMatch);
-  const unverifiedStructured = createMatchScheduleStructuredData(unverifiedDate, unverifiedMatches);
-  assert.ok(unverifiedStructured);
-  const unverifiedElements = unverifiedStructured.itemListElement as Array<{
-    item: Record<string, unknown>;
-  }>;
-  const unlinkedEvent = unverifiedElements.find(
-    ({ item }) => item.name === `${unlinkedMatch.homeTeam.nameAr} ضد ${unlinkedMatch.awayTeam.nameAr}`
-  );
-  assert.ok(unlinkedEvent);
-  assert.equal('url' in unlinkedEvent.item, false);
+  assert.ok(elements.length > 0);
+  // No per-match page exists for the gateway to point at, so no SportsEvent gets a url.
+  for (const { item } of elements) {
+    assert.equal('url' in item, false);
+  }
+  // Every visible card's CTA is the general broadcast section, so nothing else is claimed.
+  for (const match of matches) {
+    assert.equal(match.nemoLink.url, 'https://nemo-sports.vercel.app/watch');
+  }
   assert.match(serializeJsonLd({ text: '</script>&' }), /\\u003c\/script\\u003e\\u0026/);
 });
 
