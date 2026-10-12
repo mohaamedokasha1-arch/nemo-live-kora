@@ -284,7 +284,7 @@ export interface MatchesUpdatePipelineResult {
 }
 
 /**
- * Database Pipeline used by the cron endpoint `/api/cron/update-matches`.
+ * Database Pipeline used by the update API `/api/cron/update-matches` (manual or external scheduler).
  *
  * Wraps `runGatewaySync` with a before/after fingerprint of every match record so the
  * endpoint can report an honest "how many matches were updated" number
@@ -305,7 +305,7 @@ export async function runMatchesUpdatePipeline(
   const log = await runGatewaySync({
     ...options,
     mode,
-    trigger: options.trigger || 'Cron: /api/cron/update-matches',
+    trigger: options.trigger || 'API: /api/cron/update-matches',
   });
 
   const afterDb = getGatewayDatabase();

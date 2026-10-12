@@ -40,7 +40,8 @@
 .
 ├── app/
 │   ├── api/
-│   │   ├── cron/sync/route.ts      # نقطة التحديث الخلفي المجدول والمحمية بـ CRON_SECRET
+│   │   ├── cron/sync/route.ts      # نقطة المزامنة الخلفية اليدوية أو المجدولة خارجيًا
+│   │   ├── cron/update-matches/route.ts # API تحديث المباريات المحمي بـ CRON_SECRET (GET/POST)
 │   │   ├── matches/route.ts        # واجهة JSON للمباريات والتصفية حسب التاريخ والبطولة
 │   │   └── sources/route.ts        # واجهة JSON لحالة المصادر الخمسة وسجل المزامنة
 │   ├── matches/[date]/page.tsx     # صفحة جدول مباريات تاريخ محدد (/matches/YYYY-MM-DD)
@@ -79,12 +80,12 @@
 ├── scripts/
 │   └── run-sync.ts
 ├── tests/
-│   └── gateway.test.ts
+│   ├── gateway.test.ts
+│   └── update-matches.test.ts
 ├── .env.example
 ├── next.config.mjs
 ├── package.json
-├── tsconfig.json
-└── vercel.json
+└── tsconfig.json
 ```
 
 ---
@@ -116,26 +117,29 @@ npm run dev
 - **Root Directory**: `./` (الجذر مباشرة)
 - **Build Command**: `npm run build`
 - **Output Directory**: `.next` (الافتراضي لـ Next.js)
+- لا يحتاج المشروع إلى `vercel.json`؛ لا توجد إعدادات `crons` أو جدولة تعتمد على Vercel Crons.
 - **المتغيرات البيئية الاختيارية** (انظر `.env.example`):
   - `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`
   - `NEXT_PUBLIC_GATEWAY_URL=https://nemo-live-kora.vercel.app`
   - `FOOTBALL_DATA_API_KEY` (اختياري لتفعيل مسار المباريات في Football-Data.org)
   - `API_FOOTBALL_KEY` (اختياري لتفعيل الجلب المباشر من API-Football)
-  - `CRON_SECRET` (لحماية مساري `/api/cron/sync` و `/api/cron/update-matches`)
+- **`CRON_SECRET` مطلوب لتشغيل `/api/cron/update-matches`**، ويُستخدم أيضًا لحماية `/api/cron/sync`. اضبطه في متغيرات بيئة الاستضافة، ثم أعد النشر. احتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له.
 
 ---
 
-## 6. مسار التحديث التلقائي للمباريات (Cron Endpoint)
+## 6. API تحديث المباريات يدويًا أو عبر مجدول خارجي
 
 **الملف:** `app/api/cron/update-matches/route.ts` — **المسار:** `/api/cron/update-matches`
 
 | العنصر | التفاصيل |
 | --- | --- |
-| الطريقة | `GET` (يستدعيه Vercel Cron) و `POST` (للتشغيل اليدوي) |
+| الطريقة | `GET` و `POST` للتشغيل اليدوي أو عبر مجدول خارجي |
 | الحماية | `Authorization: Bearer ${process.env.CRON_SECRET}` |
-| عند غياب السر | `401 Unauthorized` |
+| عند غياب ترويسة التفويض أو إرسال سر غير صحيح | `401 Unauthorized` |
+| عند عدم ضبط `CRON_SECRET` على الخادم | `500` (خطأ إعدادات؛ يظل المسار مغلقًا) |
 | وظيفة التحديث | `runMatchesUpdatePipeline()` في `lib/sync/engine.ts` (Database Pipeline) |
-| الجدولة | `vercel.json` ← `crons[0].schedule = "0 * * * *"` (كل ساعة) |
+| الأنماط | `live` (الافتراضي)، `daily`، `standings`، `manual`؛ عبر `?mode=` أو جسم JSON في `POST` |
+| الجدولة | لا توجد جدولة داخل Vercel؛ الاستدعاء يدوي أو من مجدول خارجي تضبطه لاحقًا |
 
 مثال استجابة ناجحة:
 
@@ -159,13 +163,27 @@ npm run dev
 ### تشغيله يدويًا
 
 ```bash
-curl -X GET "https://<your-project>.vercel.app/api/cron/update-matches" \
+curl --fail-with-body -X GET "https://<your-project>.vercel.app/api/cron/update-matches" \
   -H "Authorization: Bearer $CRON_SECRET"
 
 # أو مع تحديد نمط التحديث: live (الافتراضي) | daily | standings | manual
-curl -X POST "https://<your-project>.vercel.app/api/cron/update-matches?mode=daily" \
+curl --fail-with-body -X POST "https://<your-project>.vercel.app/api/cron/update-matches?mode=daily" \
   -H "Authorization: Bearer $CRON_SECRET"
+
+# أو تحديد النمط في جسم JSON
+curl --fail-with-body -X POST "https://<your-project>.vercel.app/api/cron/update-matches" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  --data '{"mode":"daily"}'
 ```
 
-> **تنبيه مهم:** الجدول `0 * * * *` (كل ساعة) يعمل على خطط Vercel **Pro / Enterprise** فقط.
-> على خطة **Hobby** يرفض Vercel أي جدول أسرع من مرة واحدة يوميًا، فاستبدله مثلًا بـ `0 0 * * *`.
+اضبط `CRON_SECRET` في بيئة الطرف الذي ينفذ `curl` بنفس قيمة السر على الخادم، واستبدل `<your-project>` باسم مشروعك.
+
+### الاستدعاء من مجدول خارجي لاحقًا
+
+- استخدم الرابط نفسه مع `GET` أو `POST`، وأضف الترويسة `Authorization: Bearer <CRON_SECRET>` صراحةً؛ لا تضيفها Vercel تلقائيًا للطلبات الخارجية.
+- احفظ السر في مخزن الأسرار الخاص بالمجدول (مثل GitHub Actions Secrets)، وليس في ملف داخل المستودع أو ضمن رابط الطلب.
+- اختر وتيرة مناسبة لحدود استدعاء الوظائف ومصادر البيانات. إزالة Vercel Crons لا تلغي حدود مدة التنفيذ أو الاستهلاك في خطة Hobby.
+- اسم المسار `/api/cron/update-matches` محفوظ للتوافق فقط؛ وجود كلمة `cron` في الرابط لا ينشئ جدولة في Vercel.
+
+> **ملاحظة التخزين:** يستخدم المشروع حاليًا ملف JSON مع ذاكرة مؤقتة. على Vercel، كتابة الملف ليست تخزينًا دائمًا، وقد لا تكون التحديثات مشتركة بين مثيلات الوظائف. للتحديثات الدائمة في الإنتاج يلزم مخزن بيانات خارجي؛ هذا قيد موجود مسبقًا ولا تغيّره إزالة الجدولة.
