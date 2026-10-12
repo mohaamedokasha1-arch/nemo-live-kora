@@ -10,6 +10,7 @@ import {
   translateTeamNameAr,
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
+import { getStableMatchId } from '../match-identity';
 import { MatchRecord, SeasonRecord, SourceHealthStatus } from '../types';
 import { fetchWithProtection } from './http-client';
 
@@ -160,7 +161,18 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
         const cairoDate = toCairoDateString(m.utcDate);
         const cairoTime = toCairoTimeArabic(m.utcDate);
         const normStatus = normalizeMatchStatus(m.status, m.status, m.utcDate);
-        const canonicalId = `match-${comp.code.toLowerCase()}-${cairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+        const externalIds = {
+          footballDataMatchId: String(m.id),
+        };
+        const fallbackId = `match-${comp.code.toLowerCase()}-${cairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+        const canonicalId = getStableMatchId({
+          externalIds,
+          competitionCode: comp.code,
+          homeTeamId: homeId,
+          awayTeamId: awayId,
+          cairoDate,
+          fallbackId,
+        });
 
         matches.push({
           id: canonicalId,
@@ -205,13 +217,10 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
           venue: null,
           primarySource: 'football-data',
           contributingSources: ['football-data'],
-          externalIds: {
-            footballDataMatchId: String(m.id),
-          },
+          externalIds,
           nemoLink: resolveNemoSportsLink({
             canonicalMatchId: canonicalId,
             competitionCode: comp.code,
-            nemoCompetitionSlug: comp.nemoCompetitionSlug,
             homeTeamId: homeId,
             awayTeamId: awayId,
             cairoDate,

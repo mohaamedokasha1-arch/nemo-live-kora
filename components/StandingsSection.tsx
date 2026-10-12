@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { CompetitionStandingTable } from '@/lib/types';
 
 export default function StandingsSection({
@@ -71,9 +72,12 @@ export default function StandingsSection({
                       <td className="team-cell">
                         <div className="standings-team-wrap">
                           {row.teamLogo && (
-                            <img
+                            <Image
                               src={row.teamLogo}
                               alt={row.teamNameAr}
+                              width={24}
+                              height={24}
+                              unoptimized
                               className="standings-team-logo"
                               loading="lazy"
                             />

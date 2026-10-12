@@ -11,7 +11,12 @@ import {
   resolveVerifiedTeamLogo,
   translateTeamNameAr,
 } from '../catalog';
-import { extractSportscoreMatchSlug, resolveNemoSportsLink } from '../nemo-resolver';
+import {
+  extractSportscoreMatchSlug,
+  extractSportscoreTrackerId,
+  resolveNemoSportsLink,
+} from '../nemo-resolver';
+import { getStableMatchId } from '../match-identity';
 import {
   CompetitionStandingTable,
   MatchIncidentSummary,
@@ -123,7 +128,20 @@ export function mapSportScoreMatchToRecord(
   const normStatus = normalizeMatchStatus(raw.status, raw.status_text, raw.time);
 
   const extractedSlug = explicitSlug || extractSportscoreMatchSlug(raw.url);
-  const canonicalId = `match-${comp.code.toLowerCase()}-${cairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+  const sportscoreTrackerId = raw.tracker?.id || extractSportscoreTrackerId(raw.url);
+  const externalIds = {
+    sportscoreSlug: extractedSlug || undefined,
+    sportscoreTrackerId: sportscoreTrackerId || undefined,
+  };
+  const fallbackId = `match-${comp.code.toLowerCase()}-${cairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+  const canonicalId = getStableMatchId({
+    externalIds,
+    competitionCode: comp.code,
+    homeTeamId: homeId,
+    awayTeamId: awayId,
+    cairoDate,
+    fallbackId,
+  });
 
   const isEgyptianInterest = Boolean(
     comp.isEgyptianPriority || homeEq?.isEgyptian || awayEq?.isEgyptian
@@ -132,9 +150,8 @@ export function mapSportScoreMatchToRecord(
   const nemoLink = resolveNemoSportsLink({
     canonicalMatchId: canonicalId,
     sportscoreSlug: extractedSlug,
-    sportscoreMatchDateVerified: true,
+    sportscoreTrackerId,
     competitionCode: comp.code,
-    nemoCompetitionSlug: comp.nemoCompetitionSlug,
     homeTeamId: homeId,
     awayTeamId: awayId,
     cairoDate,
@@ -203,10 +220,7 @@ export function mapSportScoreMatchToRecord(
     venue: homeEq?.stadium || null,
     primarySource: 'sportscore',
     contributingSources: ['sportscore'],
-    externalIds: {
-      sportscoreSlug: extractedSlug || undefined,
-      sportscoreTrackerId: raw.tracker?.id,
-    },
+    externalIds,
     nemoLink,
     lastUpdatedAt: new Date().toISOString(),
   };

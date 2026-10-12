@@ -3,14 +3,19 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getGatewayDatabase } from '@/lib/db/store';
 import { getArchiveNews } from '@/lib/news/query';
+import { isIndexableNewsArticle } from '@/lib/news/validate';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'أرشيف الأخبار الرياضية',
-  description: 'أرشيف الأخبار الرياضية المنشورة سابقًا بعد التحقق، مرتبة حسب تاريخ النشر الأصلي.',
-  alternates: { canonical: '/news/archive' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const archive = getArchiveNews(getGatewayDatabase().news);
+  return {
+    title: 'أرشيف الأخبار الرياضية',
+    description: 'أرشيف العناوين الرياضية المنشورة سابقًا بعد التحقق، مرتبة حسب تاريخ النشر الأصلي.',
+    alternates: { canonical: '/news/archive' },
+    robots: { index: archive.some(isIndexableNewsArticle), follow: true },
+  };
+}
 
 export default async function NewsArchivePage() {
   const db = getGatewayDatabase();

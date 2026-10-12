@@ -12,6 +12,7 @@ import {
   translateTeamNameAr,
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
+import { getStableMatchId } from '../match-identity';
 import { MatchRecord } from '../types';
 import { fetchWithProtection } from './http-client';
 
@@ -97,22 +98,30 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
     raw.strPostponed?.toLowerCase() === 'yes' ? 'PST' : raw.strStatus;
   const normStatus = normalizeMatchStatus(effectiveRawStatus, raw.strStatus, utcIso);
 
-  const canonicalId = `match-${comp.code.toLowerCase()}-${cairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+  const externalIds = {
+    thesportsdbEventId: raw.idEvent,
+    apiFootballFixtureId: raw.idAPIfootball || undefined,
+  };
+  const fallbackId = `match-${comp.code.toLowerCase()}-${cairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+  const canonicalId = getStableMatchId({
+    externalIds,
+    competitionCode: comp.code,
+    homeTeamId: homeId,
+    awayTeamId: awayId,
+    cairoDate,
+    fallbackId,
+  });
 
   const isEgyptianInterest = Boolean(
     comp.isEgyptianPriority || homeEq?.isEgyptian || awayEq?.isEgyptian
   );
 
-  // Resolve NEMO Sports link via mapping table & competition/schedule fallback
-  // Note: sportscoreMatchDateVerified is false by default for raw TheSportsDB events unless
-  // explicitly matched in VERIFIED_NEMO_MAPPING_TABLE or merged with a live SportScore record.
+  // Link only to a direct match page explicitly mapped to this source fixture id.
   const nemoLink = resolveNemoSportsLink({
     canonicalMatchId: canonicalId,
     thesportsdbEventId: raw.idEvent,
     apiFootballFixtureId: raw.idAPIfootball || null,
-    sportscoreMatchDateVerified: false,
     competitionCode: comp.code,
-    nemoCompetitionSlug: comp.nemoCompetitionSlug,
     homeTeamId: homeId,
     awayTeamId: awayId,
     cairoDate,
@@ -165,10 +174,7 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
     venue: raw.strVenue || homeEq?.stadium || null,
     primarySource: 'thesportsdb',
     contributingSources: ['thesportsdb'],
-    externalIds: {
-      thesportsdbEventId: raw.idEvent,
-      apiFootballFixtureId: raw.idAPIfootball || undefined,
-    },
+    externalIds,
     nemoLink,
     lastUpdatedAt: new Date().toISOString(),
   };

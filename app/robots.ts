@@ -1,17 +1,15 @@
 import { MetadataRoute } from 'next';
-
-const GATEWAY_URL =
-  process.env.NEXT_PUBLIC_GATEWAY_URL || 'https://nemo-live-kora.vercel.app';
+import { GATEWAY_SITE_URL } from '@/lib/site-url';
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/matches/', '/sources', '/news'],
-        disallow: ['/api/', '/admin'],
+        allow: '/',
+        disallow: ['/api/', '/admin/', '/admin'],
       },
     ],
-    sitemap: `${GATEWAY_URL}/sitemap.xml`,
+    sitemap: `${GATEWAY_SITE_URL}/sitemap.xml`,
   };
 }

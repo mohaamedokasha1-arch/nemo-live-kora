@@ -10,6 +10,8 @@ export default function Header() {
   useEffect(() => {
     const saved = window.localStorage.getItem('nemo-gateway-theme');
     if (saved === 'dark' || saved === 'light') {
+      // Apply the browser-only preference after hydration to keep the server render deterministic.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only available in the browser.
       setTheme(saved);
       document.documentElement.setAttribute('data-theme', saved);
     } else {

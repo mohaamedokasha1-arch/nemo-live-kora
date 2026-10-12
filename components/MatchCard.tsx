@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { formatScoreDisplay } from '@/lib/cairo-time';
-import { getCompetitionChannelAr, NEMO_SPORTS_BASE_URL } from '@/lib/catalog';
+import { getMatchSourceLabelAr } from '@/lib/catalog';
 import { MatchRecord } from '@/lib/types';
 
 /**
@@ -56,9 +57,12 @@ function TeamCrest({
           <circle cx="24" cy="23" r="2.2" fill="#FDE68A" />
         </svg>
       ) : (
-        <img
+        <Image
           src={logoUrl}
           alt={nameAr}
+          width={48}
+          height={48}
+          unoptimized
           className="kl-team-logo-img"
           loading="lazy"
           referrerPolicy="no-referrer"
@@ -85,8 +89,14 @@ function formatCleanTime(utcIso: string): string {
 
 export default function MatchCard({ match }: { match: MatchRecord }) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
-  const channelLabel = getCompetitionChannelAr(match.competitionCode, match.region);
-  const targetUrl = match.nemoLink.url || `${NEMO_SPORTS_BASE_URL}/matches?date=${match.cairoDate}`;
+  const sourceLabel = getMatchSourceLabelAr(match.primarySource);
+  const targetUrl =
+    match.nemoLink.linkType === 'direct_match' && match.nemoLink.verified
+      ? match.nemoLink.url
+      : null;
+  const cardClass = `kl-match-card ${
+    match.status === 'live' ? 'kl-match-card-live' : ''
+  } ${targetUrl ? '' : 'kl-match-card-unlinked'}`.trim();
 
   const statusText =
     match.status === 'not_started'
@@ -112,14 +122,8 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       ? 'kl-status-pin kl-pin-warn'
       : 'kl-status-pin kl-pin-upcoming';
 
-  return (
-    <a
-      href={targetUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`kl-match-card ${match.status === 'live' ? 'kl-match-card-live' : ''}`}
-      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
-    >
+  const cardContent = (
+    <>
       {/* Main Body: Home Team (Right) — Center Time/Score/Status Pin — Away Team (Left) */}
       <div className="kl-card-main">
         {/* Right Side: Home Team */}
@@ -134,9 +138,9 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
 
         {/* Center: Kickoff Time + Score (when available) + Status Pin */}
         <div className="kl-center-info">
-          <span className="kl-match-time" dir="ltr">
+          <time className="kl-match-time" dir="ltr" dateTime={match.utcKickoff}>
             {formatCleanTime(match.utcKickoff)}
-          </span>
+          </time>
 
           {scoreDisplay.hasScore ? (
             <div className="kl-score-badge" dir="ltr">
@@ -181,7 +185,7 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
             <rect x="2" y="5" width="16" height="11" rx="2" />
             <polyline points="6 2 10 5 14 2" />
           </svg>
-          <span>{channelLabel}</span>
+          <span>مصدر البيانات: {sourceLabel}</span>
         </div>
 
         <div className="kl-meta-item kl-meta-league">
@@ -207,22 +211,52 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
         </div>
 
         <div className="kl-meta-item kl-meta-action">
-          <span>عرض المباراة</span>
-          <svg
-            viewBox="0 0 16 16"
-            width="13"
-            height="13"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 8H4M4 8L8 4M4 8L8 12" />
-          </svg>
+          <span>
+            {targetUrl
+              ? 'تفاصيل المباراة على NEMO Sports'
+              : 'لا توجد صفحة مطابقة موثقة على NEMO Sports'}
+          </span>
+          {targetUrl ? (
+            <svg
+              viewBox="0 0 16 16"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 8H4M4 8L8 4M4 8L8 12" />
+            </svg>
+          ) : null}
         </div>
       </div>
+    </>
+  );
+
+  if (!targetUrl) {
+    return (
+      <article
+        className={cardClass}
+        aria-label={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.statusLabelAr}`}
+      >
+        {cardContent}
+      </article>
+    );
+  }
+
+  return (
+    <a
+      href={targetUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cardClass}
+      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+      aria-label={`تفاصيل ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} على NEMO Sports`}
+    >
+      {cardContent}
     </a>
   );
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { NEMO_SPORTS_BASE_URL } from '@/lib/catalog';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
 import { getNewsAdminStats } from '@/lib/news/query';
@@ -9,9 +10,11 @@ import { getGatewayDatabase } from '@/lib/db/store';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'حالة المصادر الخمسة المعتمدة وسجل المزامنة',
+  title: 'حالة المصادر وسجل المزامنة',
   description:
-    'لوحة الشفافية التقنية للمصادر الخمسة المعتمدة مع التمييز بين مصادر المباريات ومصدر الأخبار، دون اعتبار استجابة HTTP وحدها نجاحًا.',
+    'صفحة تشغيلية توضّح مصادر بيانات المباريات والأخبار وحالة المزامنة.',
+  alternates: { canonical: '/sources' },
+  robots: { index: false, follow: true },
 };
 
 function sourcePublicState(sourceId: keyof typeof SOURCE_CAPABILITIES, lastHttp: number | null, lastSync: string | null, newsPublished: number) {
@@ -141,7 +144,7 @@ export default function SourcesPage() {
                   <th>التاريخ (القاهرة)</th>
                   <th>معرّف TheSportsDB</th>
                   <th>معرّف API-Football</th>
-                  <th>المسار المباشر على NEMO Sports</th>
+                  <th>وجهة المباراة على NEMO Sports</th>
                   <th>نتيجة التحقق</th>
                 </tr>
               </thead>
@@ -157,7 +160,7 @@ export default function SourcesPage() {
                     <td dir="ltr">
                       {entry.verifiedNemoMatchSlug ? (
                         <a
-                          href={`https://nemo-sports.vercel.app/matches/${entry.verifiedNemoMatchSlug}`}
+                          href={`${NEMO_SPORTS_BASE_URL}/matches/${entry.verifiedNemoMatchSlug}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="standings-team-link"
@@ -165,14 +168,7 @@ export default function SourcesPage() {
                           /matches/{entry.verifiedNemoMatchSlug} ↗
                         </a>
                       ) : (
-                        <a
-                          href={`https://nemo-sports.vercel.app/competitions/${entry.verifiedNemoCompetitionSlug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="standings-team-link"
-                        >
-                          /competitions/{entry.verifiedNemoCompetitionSlug} (بديل آمن) ↗
-                        </a>
+                        <span>لا توجد صفحة مباراة مباشرة تم التحقق منها</span>
                       )}
                     </td>
                     <td style={{ textAlign: 'right' }}>{entry.verificationNoteAr}</td>

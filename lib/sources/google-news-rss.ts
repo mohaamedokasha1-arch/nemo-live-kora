@@ -1,5 +1,9 @@
 import { RawNewsCandidate } from '../types';
-import { collapseWhitespace, stripHtml } from '../news/normalize';
+import {
+  isDirectPublisherArticleUrl,
+  isGoogleNewsUrl,
+} from '../news/validate';
+import { collapseWhitespace, normalizeNewsUrl, stripHtml } from '../news/normalize';
 import { fetchWithProtection } from './http-client';
 
 const GOOGLE_NEWS_RSS_BASE_URL =
@@ -62,7 +66,7 @@ export function parseGoogleNewsRssXml(
     let title = collapseWhitespace(rawTitle);
     const link = collapseWhitespace(rawLink);
     const publisherUrl = sourceMatch?.[1] ? collapseWhitespace(decodeXmlEntities(sourceMatch[1])) : null;
-    let publisherName = sourceMatch?.[2]
+    const publisherName = sourceMatch?.[2]
       ? collapseWhitespace(decodeXmlEntities(sourceMatch[2]))
       : '';
 
@@ -95,6 +99,119 @@ export function parseGoogleNewsRssXml(
   }
 
   return items;
+}
+
+const GOOGLE_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const GOOGLE_ARTICLE_REDIRECT_TIMEOUT_MS = 2500;
+const GOOGLE_ARTICLE_REDIRECT_LIMIT = 5;
+
+function isAllowedGoogleNewsRedirect(url: URL): boolean {
+  return (
+    url.protocol === 'https:' &&
+    !url.username &&
+    !url.password &&
+    (!url.port || url.port === '443') &&
+    isGoogleNewsUrl(url.href)
+  );
+}
+
+/**
+ * Resolve a Google News RSS hop only when its HTTP redirect points to the publisher named
+ * in that RSS item. Redirects are followed manually: this code never fetches the publisher
+ * (or an unrelated redirect target) from the server.
+ */
+export async function resolveGoogleNewsArticleUrl(
+  candidate: RawNewsCandidate,
+  timeoutMs = GOOGLE_ARTICLE_REDIRECT_TIMEOUT_MS
+): Promise<string | null> {
+  const candidateUrl = candidate.originalUrl || candidate.link;
+  if (!candidateUrl) return null;
+
+  if (!isGoogleNewsUrl(candidateUrl)) {
+    return isDirectPublisherArticleUrl(candidateUrl, candidate.publisherUrl)
+      ? normalizeNewsUrl(candidateUrl)
+      : null;
+  }
+
+  let currentUrl: URL;
+  try {
+    currentUrl = new URL(candidateUrl);
+    if (!isAllowedGoogleNewsRedirect(currentUrl)) return null;
+  } catch {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    for (let hop = 0; hop < GOOGLE_ARTICLE_REDIRECT_LIMIT; hop += 1) {
+      if (!isAllowedGoogleNewsRedirect(currentUrl)) return null;
+
+      const response = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual',
+        cache: 'no-store',
+        headers: {
+          Accept: 'text/html,application/xhtml+xml',
+          'User-Agent': 'NemoLiveKoraNewsResolver/1.0',
+        },
+        signal: controller.signal,
+      });
+
+      const location = response.headers.get('location');
+      const isRedirect = GOOGLE_REDIRECT_STATUSES.has(response.status);
+      try {
+        await response.body?.cancel();
+      } catch {
+        // The response body is intentionally not read or stored.
+      }
+
+      if (!isRedirect || !location) return null;
+
+      let nextUrl: URL;
+      try {
+        nextUrl = new URL(location, currentUrl);
+      } catch {
+        return null;
+      }
+      if (nextUrl.protocol !== 'https:' || nextUrl.username || nextUrl.password) return null;
+
+      if (isGoogleNewsUrl(nextUrl.href)) {
+        if (!isAllowedGoogleNewsRedirect(nextUrl)) return null;
+        currentUrl = nextUrl;
+        continue;
+      }
+
+      return isDirectPublisherArticleUrl(nextUrl.href, candidate.publisherUrl)
+        ? normalizeNewsUrl(nextUrl.href)
+        : null;
+    }
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  return null;
+}
+
+async function resolveFeedArticleUrls(
+  candidates: RawNewsCandidate[],
+  maxResolved = 8
+): Promise<RawNewsCandidate[]> {
+  const resolveCount = Math.min(candidates.length, maxResolved);
+  const resolved = await Promise.all(
+    candidates.slice(0, resolveCount).map(async (candidate) => {
+      const directUrl = await resolveGoogleNewsArticleUrl(candidate);
+      return directUrl
+        ? { ...candidate, link: directUrl, originalUrl: directUrl }
+        : candidate;
+    })
+  );
+
+  // Keep the remaining RSS records for audit/rejection accounting. Unresolved Google
+  // relay URLs remain subject to rejection by the normal news validator.
+  return [...resolved, ...candidates.slice(resolveCount)];
 }
 
 export interface GoogleNewsFetchResult {
@@ -178,7 +295,8 @@ export async function fetchGoogleNewsRss(options: {
       }
       anyOk = true;
       const parsed = parseGoogleNewsRssXml(res.data, feed.lang, feed.categoryAr, fetchedAt);
-      allItems.push(...parsed.slice(0, 20));
+      const feedCandidates = await resolveFeedArticleUrls(parsed.slice(0, 20));
+      allItems.push(...feedCandidates);
       feedResults.push({
         url: feed.url,
         ok: true,

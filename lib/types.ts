@@ -131,7 +131,7 @@ export interface NemoLinkResolution {
   verified: boolean;
   matchedBy: NemoMatchCriterion[];
   competitionUrl: string | null;
-  scheduleUrl: string;
+  scheduleUrl: string | null;
 }
 
 export interface MatchTeamSummary {
@@ -325,6 +325,8 @@ export interface NewsDedupRecord {
 export interface NemoMappingEntry {
   canonicalMatchId: string;
   sportscoreSlug: string | null;
+  /** Provider-generated fixture id, distinct from the reusable descriptive slug. */
+  sportscoreTrackerId?: string | null;
   thesportsdbEventId: string | null;
   apiFootballFixtureId: string | null;
   competitionCode: string;

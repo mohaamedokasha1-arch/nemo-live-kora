@@ -1,4 +1,4 @@
-import { RawNewsCandidate } from '../types';
+import { NewsItemRecord, RawNewsCandidate } from '../types';
 import { collapseWhitespace, normalizeNewsUrl, stripHtml } from './normalize';
 
 export interface NewsValidationResult {
@@ -21,11 +21,21 @@ export function isValidHttpUrl(value: string | null | undefined): boolean {
   return normalizeNewsUrl(value) !== null;
 }
 
+export function isGoogleNewsUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === 'news.google.com' || host.endsWith('.news.google.com');
+  } catch {
+    return false;
+  }
+}
+
+/** Kept as a narrow compatibility helper for existing tests/integrations. */
 export function isGoogleNewsSearchUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return (
-      url.hostname.includes('news.google.com') &&
+      isGoogleNewsUrl(value) &&
       (url.pathname.includes('/rss/search') || url.pathname.includes('/search'))
     );
   } catch {
@@ -35,9 +45,64 @@ export function isGoogleNewsSearchUrl(value: string): boolean {
 
 export function isLikelyArticleUrl(value: string): boolean {
   const normalized = normalizeNewsUrl(value);
-  if (!normalized) return false;
-  if (isGoogleNewsSearchUrl(normalized)) return false;
-  return true;
+  if (!normalized || isGoogleNewsUrl(normalized)) return false;
+
+  try {
+    const url = new URL(normalized);
+    if (url.pathname === '/' || /^\/(?:rss|feed|search)(?:\/|$)/i.test(url.pathname)) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The publisher root URL is not an article URL. Accept direct article URLs only when the
+ * article host exactly matches the RSS publisher host (with only the www alias normalized).
+ */
+export function isDirectPublisherArticleUrl(
+  articleUrl: string | null | undefined,
+  publisherUrl: string | null | undefined
+): boolean {
+  if (!articleUrl || !publisherUrl || !isLikelyArticleUrl(articleUrl)) return false;
+
+  try {
+    const article = new URL(articleUrl);
+    const publisher = new URL(publisherUrl);
+    if (
+      !['http:', 'https:'].includes(publisher.protocol) ||
+      article.username ||
+      article.password ||
+      article.port ||
+      publisher.username ||
+      publisher.password ||
+      publisher.port
+    ) {
+      return false;
+    }
+
+    // Normalize the common www alias, but require the same host. Suffix-only checks can
+    // accidentally treat public suffixes (for example, "com") as a publisher domain.
+    const articleHost = article.hostname.toLowerCase().replace(/^www\./, '');
+    const publisherHost = publisher.hostname.toLowerCase().replace(/^www\./, '');
+    return articleHost === publisherHost && article.pathname.split('/').filter(Boolean).length >= 2;
+  } catch {
+    return false;
+  }
+}
+
+/** Thin headline-only syndication pages are intentionally not indexable. */
+export function isIndexableNewsArticle(item: NewsItemRecord): boolean {
+  return (
+    item.publishStatus === 'published' &&
+    item.publishedAtKnown &&
+    Boolean(item.publishedAt && !Number.isNaN(Date.parse(item.publishedAt))) &&
+    collapseWhitespace(item.title).length >= 15 &&
+    collapseWhitespace(stripHtml(item.excerpt || '')).length >= 160 &&
+    isDirectPublisherArticleUrl(item.originalUrl || item.link, item.publisherUrl)
+  );
 }
 
 export function looksLikeErrorPage(title: string, excerpt?: string | null): boolean {
@@ -76,11 +141,12 @@ export function validateNewsCandidate(candidate: RawNewsCandidate): NewsValidati
   }
 
   const link = candidate.originalUrl || candidate.link;
-  if (!isLikelyArticleUrl(link)) {
+  if (!isDirectPublisherArticleUrl(link, candidate.publisherUrl)) {
     return {
       ok: false,
       code: 'invalid_url',
-      messageAr: 'رفض: الرابط غير صالح أو يشير إلى صفحة بحث وليس إلى خبر.',
+      messageAr:
+        'رفض: الرابط ليس رابط مقالة مباشرة من الناشر (روابط بحث أو تحويل Google News غير قابلة للنشر).',
       normalizedUrl: normalizeNewsUrl(link),
     };
   }
