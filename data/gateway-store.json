@@ -1,0 +1,4172 @@
+{
+  "meta": {
+    "schemaVersion": "1.0.0",
+    "gatewayName": "بوابة مباريات NEMO Sports",
+    "mainSiteUrl": "https://nemo-sports.vercel.app",
+    "timezone": "Africa/Cairo",
+    "lastFullSyncAt": "2026-10-12T00:25:31.151Z",
+    "lastLiveSyncAt": "2026-10-12T00:35:00Z"
+  },
+  "sources": {
+    "sportscore": {
+      "id": "sportscore",
+      "name": "SportScore Widget API",
+      "nameAr": "SportScore (المباريات الحية والترتيب)",
+      "type": "REST JSON API",
+      "baseUrl": "https://sportscore.com/api/widget",
+      "requiresKey": false,
+      "keyEnvVar": null,
+      "isKeyConfigured": true,
+      "status": "active",
+      "statusLabelAr": "متصل ومفعّل بالكامل (200 OK)",
+      "dataTypesProvided": [
+        "المباريات الحية والنتائج الفورية",
+        "تفاصيل المباراة والأحداث والتشكيلات",
+        "جدول ترتيب الدوري المصري والبطولات الكبرى",
+        "شعارات الأندية والبطولات ومسارات NEMO Sports المباشرة"
+      ],
+      "rateLimitPolicy": "تخزين مؤقت 45 ثانية للمباريات و10 دقائق للترتيب؛ حد أمان 150ms بين الطلبات",
+      "testedEndpoints": [
+        "GET /api/widget/matches/?sport=football&limit=50&src=nemo-sports",
+        "GET /api/widget/match/?sport=football&slug=zamalek-sc-vs-al-ahly-fc",
+        "GET /api/widget/match/?sport=football&slug=olympic-el-qanal-vs-al-masry",
+        "GET /api/widget/standings/?sport=football&slug=egyptian-premier-league",
+        "GET /api/widget/standings/?sport=football&slug=caf-champions-league"
+      ],
+      "lastSyncAt": "2026-10-12T00:35:00Z",
+      "lastHttpStatus": 200,
+      "lastLatencyMs": 240,
+      "recordsImported": 65,
+      "errorCount": 0,
+      "notesAr": "يعمل بدون مفتاح سري؛ يغذي مسارات المباريات المباشرة المتوافقة مع NEMO Sports وجداول الترتيب."
+    },
+    "football-data": {
+      "id": "football-data",
+      "name": "Football-Data.org v4 API",
+      "nameAr": "Football-Data.org v4 (فهرس البطولات والمواسم)",
+      "type": "REST JSON API",
+      "baseUrl": "https://api.football-data.org/v4",
+      "requiresKey": true,
+      "keyEnvVar": "FOOTBALL_DATA_API_KEY",
+      "isKeyConfigured": false,
+      "status": "partial_keyless",
+      "statusLabelAr": "متصل جزئيًا بدون مفتاح (/v4/competitions مفعّل · 190 بطولة)",
+      "dataTypesProvided": [
+        "قائمة 190 بطولة رسمية وشعاراتها",
+        "بيانات الموسم الحالي والجولة الحالية (currentMatchday)",
+        "مباريات الدوريات الأوروبية وكأس أمم أفريقيا وكأس العالم (عند توفر FOOTBALL_DATA_API_KEY)"
+      ],
+      "rateLimitPolicy": "10 طلبات/دقيقة في الخطة المجانية؛ تخزين مؤقت 30 دقيقة للبطولات و60 ثانية للمباريات",
+      "testedEndpoints": [
+        "GET /v4/competitions (200 OK — 190 بطولة)",
+        "GET /v4/matches (يتطلب X-Auth-Token)",
+        "GET /v4/competitions/PL (403 بدون مفتاح)"
+      ],
+      "lastSyncAt": "2026-10-12T00:35:00Z",
+      "lastHttpStatus": 200,
+      "lastLatencyMs": 310,
+      "recordsImported": 190,
+      "errorCount": 0,
+      "notesAr": "مسار /v4/competitions يعمل مجانًا بدون مفتاح ويعيد 190 بطولة وموسمًا؛ مسار /v4/matches يتطلب إضافة FOOTBALL_DATA_API_KEY في البيئة."
+    },
+    "thesportsdb": {
+      "id": "thesportsdb",
+      "name": "TheSportsDB v1 JSON API",
+      "nameAr": "TheSportsDB (الدوري المصري وكأس الرابطة والكونفدرالية)",
+      "type": "REST JSON API",
+      "baseUrl": "https://www.thesportsdb.com/api/v1/json/3",
+      "requiresKey": false,
+      "keyEnvVar": "THESPORTSDB_API_KEY",
+      "isKeyConfigured": true,
+      "status": "active",
+      "statusLabelAr": "متصل ومفعّل بالكامل (200 OK — مفتاح عام 3)",
+      "dataTypesProvided": [
+        "مباريات الدوري المصري الممتاز (idLeague=4829) للجولات 5 و6 و7 و8",
+        "مباريات كأس الرابطة المصرية (idLeague=5185)",
+        "مباريات كأس الكونفدرالية الأفريقية (idLeague=5057)",
+        "بيانات وشعارات وملاعب 20 ناديًا مصريًا ومعرّفات idAPIfootball"
+      ],
+      "rateLimitPolicy": "تخزين مؤقت 3 دقائق للمباريات؛ حد تتابع آمن بين الطلبات",
+      "testedEndpoints": [
+        "GET /api/v1/json/3/eventsround.php?id=4829&r=6&s=2026-2027",
+        "GET /api/v1/json/3/eventsround.php?id=4829&r=7&s=2026-2027",
+        "GET /api/v1/json/3/eventsseason.php?id=5185&s=2026-2027",
+        "GET /api/v1/json/3/eventsround.php?id=5057&r=2&s=2026-2027",
+        "GET /api/v1/json/3/eventsday.php?d=2026-10-12&s=Soccer",
+        "GET /api/v1/json/3/search_all_teams.php?l=Egyptian%20Premier%20League"
+      ],
+      "lastSyncAt": "2026-10-12T00:35:00Z",
+      "lastHttpStatus": 200,
+      "lastLatencyMs": 280,
+      "recordsImported": 42,
+      "errorCount": 0,
+      "notesAr": "المصدر الأساسي لجدول مباريات الدوري المصري الممتاز (اليوم والأمس والجولات القادمة) وكأس الرابطة المصرية والكونفدرالية الأفريقية."
+    },
+    "api-football": {
+      "id": "api-football",
+      "name": "API-Football v3 (api-sports.io)",
+      "nameAr": "API-Football v3 (إثراء المباريات والنتائج الحية)",
+      "type": "REST JSON API",
+      "baseUrl": "https://v3.football.api-sports.io",
+      "requiresKey": true,
+      "keyEnvVar": "API_FOOTBALL_KEY",
+      "isKeyConfigured": false,
+      "status": "requires_api_key",
+      "statusLabelAr": "يتطلب مفتاح API_FOOTBALL_KEY (تم ربط معرّفات idAPIfootball للمباريات)",
+      "dataTypesProvided": [
+        "معرّفات المباريات القياسية (idAPIfootball) المرتبطة بمباريات الدوري المصري والعالمي",
+        "التحديث المباشر للدقائق والنتائج عند تفعيل API_FOOTBALL_KEY"
+      ],
+      "rateLimitPolicy": "100 طلب/يوم في الباقة المجانية؛ يُستدعى فقط عند الحاجة مع تخزين مؤقت",
+      "testedEndpoints": [
+        "GET /status (200 OK — Missing application key error 4xHe عند غياب المفتاح)",
+        "GET /fixtures?date=YYYY-MM-DD&timezone=Africa/Cairo"
+      ],
+      "lastSyncAt": "2026-10-12T00:25:30.509Z",
+      "lastHttpStatus": 200,
+      "lastLatencyMs": 195,
+      "recordsImported": 0,
+      "errorCount": 0,
+      "notesAr": "تم اختبار الاتصال بـ v3.football.api-sports.io/status بنجاح؛ يتطلب إضافة API_FOOTBALL_KEY في متغيرات البيئة لجلب المباريات مباشرة."
+    },
+    "google-news-rss": {
+      "id": "google-news-rss",
+      "name": "Google News RSS (AR & EN)",
+      "nameAr": "Google News RSS (أخبار الكرة المصرية والعالمية)",
+      "type": "RSS 2.0 XML Feed",
+      "baseUrl": "https://news.google.com/rss/search",
+      "requiresKey": false,
+      "keyEnvVar": null,
+      "isKeyConfigured": true,
+      "status": "active",
+      "statusLabelAr": "متصل ومفعّل بالكامل (200 OK)",
+      "dataTypesProvided": [
+        "عناوين الأخبار الرياضية العربية والإنجليزية",
+        "اسم الناشر الأصلي والرابط المباشر وتاريخ النشر بتوقيت القاهرة"
+      ],
+      "rateLimitPolicy": "تخزين مؤقت 10 دقائق؛ تحديث دوري كل 30 دقيقة",
+      "testedEndpoints": [
+        "GET /rss/search?q=الدوري+المصري&hl=ar&gl=EG&ceid=EG:ar",
+        "GET /rss/search?q=Egyptian+Premier+League&hl=en&gl=EG&ceid=EG:en"
+      ],
+      "lastSyncAt": "2026-10-12T00:35:00Z",
+      "lastHttpStatus": 200,
+      "lastLatencyMs": 215,
+      "recordsImported": 6,
+      "errorCount": 0,
+      "notesAr": "يعرض عناوين الأخبار مع نسبتها الكاملة لمصادرها الأصلية دون نسخ المحتوى الكامل."
+    }
+  },
+  "competitions": [
+    {
+      "id": "comp-egy-pl",
+      "code": "EGY",
+      "nameAr": "الدوري المصري الممتاز",
+      "nameEn": "Egyptian Premier League",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianPriority": true,
+      "logoUrl": "https://img.thesports.com/football/competition/c840aa9f8b4c65b1441bb36459a40642.png",
+      "nemoCompetitionSlug": "egyptian-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "egyptian-premier-league",
+        "thesportsdbId": "4829",
+        "apiFootballId": 233
+      }
+    },
+    {
+      "id": "comp-egy-cup",
+      "code": "EGY_CUP",
+      "nameAr": "كأس مصر",
+      "nameEn": "Egypt Cup",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "region": "egypt",
+      "priority": 12,
+      "isEgyptianPriority": true,
+      "logoUrl": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "nemoCompetitionSlug": "egyptian-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "thesportsdbId": "4830",
+        "apiFootballId": 714
+      }
+    },
+    {
+      "id": "comp-egy-lc",
+      "code": "EGY_LC",
+      "nameAr": "كأس الرابطة المصرية",
+      "nameEn": "Egypt League Cup",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "region": "egypt",
+      "priority": 14,
+      "isEgyptianPriority": true,
+      "logoUrl": "https://r2.thesportsdb.com/images/media/league/badge/nvw1fl1645320012.png",
+      "nemoCompetitionSlug": "egyptian-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "thesportsdbId": "5185",
+        "apiFootballId": 895
+      }
+    },
+    {
+      "id": "comp-caf-cl",
+      "code": "CAF",
+      "nameAr": "دوري أبطال أفريقيا",
+      "nameEn": "CAF Champions League",
+      "countryAr": "أفريقيا",
+      "countryEn": "Africa",
+      "region": "africa",
+      "priority": 16,
+      "isEgyptianPriority": true,
+      "logoUrl": "https://img.thesports.com/football/competition/caf-champions-league.png",
+      "nemoCompetitionSlug": "caf-champions-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "caf-champions-league",
+        "apiFootballId": 12
+      }
+    },
+    {
+      "id": "comp-caf-cc",
+      "code": "CAFC",
+      "nameAr": "كأس الكونفدرالية الأفريقية",
+      "nameEn": "CAF Confederation Cup",
+      "countryAr": "أفريقيا",
+      "countryEn": "Africa",
+      "region": "africa",
+      "priority": 18,
+      "isEgyptianPriority": true,
+      "logoUrl": "https://r2.thesportsdb.com/images/media/league/badge/faybl51762184629.png",
+      "nemoCompetitionSlug": "caf-confederation-cup",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "caf-confederation-cup",
+        "thesportsdbId": "5057",
+        "apiFootballId": 20
+      }
+    },
+    {
+      "id": "comp-afcon",
+      "code": "AC",
+      "nameAr": "كأس أمم أفريقيا",
+      "nameEn": "Africa Cup of Nations",
+      "countryAr": "أفريقيا",
+      "countryEn": "Africa",
+      "region": "africa",
+      "priority": 20,
+      "isEgyptianPriority": true,
+      "logoUrl": "https://crests.football-data.org/ac.png",
+      "nemoCompetitionSlug": null,
+      "currentSeason": "2025-2027",
+      "sourceIds": {
+        "footballDataCode": "AC",
+        "apiFootballId": 6
+      }
+    },
+    {
+      "id": "comp-wcq-caf",
+      "code": "QCAF",
+      "nameAr": "تصفيات كأس العالم — أفريقيا",
+      "nameEn": "WC Qualification CAF",
+      "countryAr": "أفريقيا",
+      "countryEn": "Africa",
+      "region": "africa",
+      "priority": 22,
+      "isEgyptianPriority": true,
+      "logoUrl": null,
+      "nemoCompetitionSlug": null,
+      "currentSeason": "2023-2026",
+      "sourceIds": {
+        "footballDataCode": "QCAF",
+        "apiFootballId": 29
+      }
+    },
+    {
+      "id": "comp-spl",
+      "code": "SPL",
+      "nameAr": "دوري روشن السعودي",
+      "nameEn": "Saudi Pro League",
+      "countryAr": "السعودية",
+      "countryEn": "Saudi Arabia",
+      "region": "arab",
+      "priority": 25,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/890f0a0ce2f2b7bf384b6268c53ce81a.png",
+      "nemoCompetitionSlug": "saudi-pro-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "saudi-professional-league",
+        "thesportsdbId": "4668",
+        "apiFootballId": 307
+      }
+    },
+    {
+      "id": "comp-ucl",
+      "code": "CL",
+      "nameAr": "دوري أبطال أوروبا",
+      "nameEn": "UEFA Champions League",
+      "countryAr": "أوروبا",
+      "countryEn": "Europe",
+      "region": "europe",
+      "priority": 30,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/e506c9d6e409d8d13b47ff13f50983b1.png",
+      "nemoCompetitionSlug": "champions-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "uefa-champions-league",
+        "thesportsdbId": "4480",
+        "footballDataCode": "CL",
+        "apiFootballId": 2
+      }
+    },
+    {
+      "id": "comp-uel",
+      "code": "UEL",
+      "nameAr": "الدوري الأوروبي",
+      "nameEn": "UEFA Europa League",
+      "countryAr": "أوروبا",
+      "countryEn": "Europe",
+      "region": "europe",
+      "priority": 32,
+      "isEgyptianPriority": false,
+      "logoUrl": null,
+      "nemoCompetitionSlug": "uefa-europa-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "uefa-europa-league",
+        "footballDataCode": "EL",
+        "apiFootballId": 3
+      }
+    },
+    {
+      "id": "comp-epl",
+      "code": "PL",
+      "nameAr": "الدوري الإنجليزي الممتاز",
+      "nameEn": "English Premier League",
+      "countryAr": "إنجلترا",
+      "countryEn": "England",
+      "region": "europe",
+      "priority": 35,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/964b5b0a5b21bc76da51a1d829944149.png",
+      "nemoCompetitionSlug": "premier-league",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "english-premier-league",
+        "thesportsdbId": "4328",
+        "footballDataCode": "PL",
+        "apiFootballId": 39
+      }
+    },
+    {
+      "id": "comp-laliga",
+      "code": "PD",
+      "nameAr": "الدوري الإسباني (لا ليغا)",
+      "nameEn": "Spanish La Liga",
+      "countryAr": "إسبانيا",
+      "countryEn": "Spain",
+      "region": "europe",
+      "priority": 36,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/1fbbb4be3b47d9465c5badecc3122e07.png",
+      "nemoCompetitionSlug": "la-liga",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "spanish-la-liga",
+        "thesportsdbId": "4335",
+        "footballDataCode": "PD",
+        "apiFootballId": 140
+      }
+    },
+    {
+      "id": "comp-seriea",
+      "code": "SA",
+      "nameAr": "الدوري الإيطالي (سيري آ)",
+      "nameEn": "Italian Serie A",
+      "countryAr": "إيطاليا",
+      "countryEn": "Italy",
+      "region": "europe",
+      "priority": 37,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/6b38f4015a6b3309ad9462e6ce27ae99.png",
+      "nemoCompetitionSlug": "serie-a",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "italian-serie-a",
+        "thesportsdbId": "4332",
+        "footballDataCode": "SA",
+        "apiFootballId": 135
+      }
+    },
+    {
+      "id": "comp-bundesliga",
+      "code": "BL1",
+      "nameAr": "الدوري الألماني (بوندسليغا)",
+      "nameEn": "German Bundesliga",
+      "countryAr": "ألمانيا",
+      "countryEn": "Germany",
+      "region": "europe",
+      "priority": 38,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/0c6a25cd746e802296d9064b4504179d.png",
+      "nemoCompetitionSlug": "bundesliga",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "bundesliga",
+        "thesportsdbId": "4331",
+        "footballDataCode": "BL1",
+        "apiFootballId": 78
+      }
+    },
+    {
+      "id": "comp-ligue1",
+      "code": "FL1",
+      "nameAr": "الدوري الفرنسي (ليغ 1)",
+      "nameEn": "French Ligue 1",
+      "countryAr": "فرنسا",
+      "countryEn": "France",
+      "region": "europe",
+      "priority": 39,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://crests.football-data.org/FL1.png",
+      "nemoCompetitionSlug": "ligue-1",
+      "currentSeason": "2026-2027",
+      "sourceIds": {
+        "sportscoreSlug": "french-ligue-1",
+        "thesportsdbId": "4334",
+        "footballDataCode": "FL1",
+        "apiFootballId": 61
+      }
+    },
+    {
+      "id": "comp-wc",
+      "code": "WC",
+      "nameAr": "كأس العالم FIFA",
+      "nameEn": "FIFA World Cup",
+      "countryAr": "دولي",
+      "countryEn": "World",
+      "region": "world",
+      "priority": 40,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://crests.football-data.org/wc.png",
+      "nemoCompetitionSlug": null,
+      "currentSeason": "2026",
+      "sourceIds": {
+        "footballDataCode": "WC",
+        "apiFootballId": 1
+      }
+    },
+    {
+      "id": "comp-bsa",
+      "code": "BSA",
+      "nameAr": "الدوري البرازيلي الممتاز",
+      "nameEn": "Brazilian Serie A",
+      "countryAr": "البرازيل",
+      "countryEn": "Brazil",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "nemoCompetitionSlug": "brazilian-serie-a",
+      "currentSeason": "2026",
+      "sourceIds": {
+        "sportscoreSlug": "brazilian-serie-a",
+        "thesportsdbId": "4351",
+        "footballDataCode": "BSA",
+        "apiFootballId": 71
+      }
+    },
+    {
+      "id": "comp-ccl",
+      "code": "CCL",
+      "nameAr": "دوري أبطال الكونكاكاف",
+      "nameEn": "CONCACAF Champions Cup",
+      "countryAr": "أمريكا الشمالية",
+      "countryEn": "CONCACAF",
+      "region": "americas",
+      "priority": 52,
+      "isEgyptianPriority": false,
+      "logoUrl": null,
+      "nemoCompetitionSlug": "concacaf-league-champions-cup",
+      "currentSeason": "2026",
+      "sourceIds": {
+        "sportscoreSlug": "concacaf-league-champions-cup"
+      }
+    },
+    {
+      "id": "comp-j1",
+      "code": "J1",
+      "nameAr": "الدوري الياباني الدرجة الأولى",
+      "nameEn": "Japanese J1 League",
+      "countryAr": "اليابان",
+      "countryEn": "Japan",
+      "region": "asia",
+      "priority": 54,
+      "isEgyptianPriority": false,
+      "logoUrl": null,
+      "nemoCompetitionSlug": "japanese-j1-league",
+      "currentSeason": "2026",
+      "sourceIds": {
+        "sportscoreSlug": "japanese-j1-league"
+      }
+    },
+    {
+      "id": "comp-usl",
+      "code": "USL",
+      "nameAr": "بطولة الدوري الأمريكي USL",
+      "nameEn": "American USL Championship",
+      "countryAr": "الولايات المتحدة",
+      "countryEn": "United States",
+      "region": "americas",
+      "priority": 58,
+      "isEgyptianPriority": false,
+      "logoUrl": "https://r2.thesportsdb.com/images/media/league/badge/uh4zas1688513782.png",
+      "nemoCompetitionSlug": "usl-championship",
+      "currentSeason": "2026",
+      "sourceIds": {
+        "sportscoreSlug": "usl-championship",
+        "thesportsdbId": "4684"
+      }
+    }
+  ],
+  "seasons": [
+    {
+      "id": "season-fd-AC-2025",
+      "competitionId": "comp-afcon",
+      "competitionCode": "AC",
+      "label": "2025/2027",
+      "startDate": "2025-12-21",
+      "endDate": "2026-01-18",
+      "currentMatchday": 3,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-QCAF-2023",
+      "competitionId": "comp-wcq-caf",
+      "competitionCode": "QCAF",
+      "label": "2023/2026",
+      "startDate": "2023-11-15",
+      "endDate": "2025-11-18",
+      "currentMatchday": 10,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-CL-2026",
+      "competitionId": "comp-ucl",
+      "competitionCode": "CL",
+      "label": "2026/2027",
+      "startDate": "2026-09-15",
+      "endDate": "2027-05-29",
+      "currentMatchday": 2,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-PL-2026",
+      "competitionId": "comp-epl",
+      "competitionCode": "PL",
+      "label": "2026/2027",
+      "startDate": "2026-08-15",
+      "endDate": "2027-05-23",
+      "currentMatchday": 7,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-PD-2026",
+      "competitionId": "comp-laliga",
+      "competitionCode": "PD",
+      "label": "2026/2027",
+      "startDate": "2026-08-14",
+      "endDate": "2027-05-23",
+      "currentMatchday": 8,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-SA-2026",
+      "competitionId": "comp-seriea",
+      "competitionCode": "SA",
+      "label": "2026/2027",
+      "startDate": "2026-08-22",
+      "endDate": "2027-05-23",
+      "currentMatchday": 6,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-BL1-2026",
+      "competitionId": "comp-bundesliga",
+      "competitionCode": "BL1",
+      "label": "2026/2027",
+      "startDate": "2026-08-21",
+      "endDate": "2027-05-15",
+      "currentMatchday": 5,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-FL1-2026",
+      "competitionId": "comp-ligue1",
+      "competitionCode": "FL1",
+      "label": "2026/2027",
+      "startDate": "2026-08-14",
+      "endDate": "2027-05-15",
+      "currentMatchday": 7,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-WC-2026",
+      "competitionId": "comp-wc",
+      "competitionCode": "WC",
+      "label": "2026",
+      "startDate": "2026-06-11",
+      "endDate": "2026-07-19",
+      "currentMatchday": 1,
+      "sourceId": "football-data"
+    },
+    {
+      "id": "season-fd-BSA-2026",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "label": "2026",
+      "startDate": "2026-03-28",
+      "endDate": "2026-12-06",
+      "currentMatchday": 29,
+      "sourceId": "football-data"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-al-ahly",
+      "nameAr": "الأهلي",
+      "nameEn": "Al Ahly FC",
+      "shortNameAr": "الأهلي",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/x8753q1751421890.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد القاهرة الدولي",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ahly%20FC",
+      "externalIds": {
+        "sportscoreSlug": "al-ahly-fc",
+        "thesportsdbId": "138995",
+        "apiFootballId": 1029
+      }
+    },
+    {
+      "id": "team-zamalek",
+      "nameAr": "الزمالك",
+      "nameEn": "Zamalek SC",
+      "shortNameAr": "الزمالك",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/tgekj81580930027.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد القاهرة الدولي",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Zamalek%20SC",
+      "externalIds": {
+        "sportscoreSlug": "zamalek-sc",
+        "thesportsdbId": "138997",
+        "apiFootballId": 1040
+      }
+    },
+    {
+      "id": "team-pyramids",
+      "nameAr": "بيراميدز",
+      "nameEn": "Pyramids FC",
+      "shortNameAr": "بيراميدز",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/8liy611607352549.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد الدفاع الجوي (30 يونيو)",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pyramids%20FC",
+      "externalIds": {
+        "sportscoreSlug": "pyramids-fc",
+        "thesportsdbId": "139838",
+        "apiFootballId": 1036
+      }
+    },
+    {
+      "id": "team-al-masry",
+      "nameAr": "المصري البورسعيدي",
+      "nameEn": "Al Masry",
+      "shortNameAr": "المصري",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/3aw86h1589807260.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد السويس الجديد",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Masry",
+      "externalIds": {
+        "sportscoreSlug": "al-masry",
+        "thesportsdbId": "139844",
+        "apiFootballId": 1032
+      }
+    },
+    {
+      "id": "team-zed",
+      "nameAr": "زد إف سي",
+      "nameEn": "ZED FC",
+      "shortNameAr": "زد",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/dfpdle1729784943.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد القاهرة الدولي",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC",
+      "externalIds": {
+        "sportscoreSlug": "zed-fc",
+        "thesportsdbId": "149505",
+        "apiFootballId": 10019
+      }
+    },
+    {
+      "id": "team-ceramica",
+      "nameAr": "سيراميكا كليوباترا",
+      "nameEn": "Ceramica Cleopatra FC",
+      "shortNameAr": "سيراميكا",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/xy4shs1751422167.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد هيئة قناة السويس",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ceramica%20Cleopatra%20FC",
+      "externalIds": {
+        "sportscoreSlug": "ceramica-cleopatra-fc",
+        "thesportsdbId": "140795"
+      }
+    },
+    {
+      "id": "team-modern-sport",
+      "nameAr": "مودرن سبورت",
+      "nameEn": "Modern Sport FC",
+      "shortNameAr": "مودرن سبورت",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/larnky1729784569.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد السلام",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Modern%20Sport%20FC",
+      "externalIds": {
+        "sportscoreSlug": "modern-sport-fc",
+        "thesportsdbId": "144160"
+      }
+    },
+    {
+      "id": "team-enppi",
+      "nameAr": "إنبي",
+      "nameEn": "Enppi",
+      "shortNameAr": "إنبي",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/m6p9ml1787512639.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد بتروسبورت",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi",
+      "externalIds": {
+        "sportscoreSlug": "enppi",
+        "thesportsdbId": "139841"
+      }
+    },
+    {
+      "id": "team-mokawloon",
+      "nameAr": "المقاولون العرب",
+      "nameEn": "El Mokawloon El Arab",
+      "shortNameAr": "المقاولون",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/gi170k1589807275.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد عثمان أحمد عثمان",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/El%20Mokawloon%20El%20Arab",
+      "externalIds": {
+        "sportscoreSlug": "el-mokawloon-el-arab",
+        "thesportsdbId": "139837"
+      }
+    },
+    {
+      "id": "team-ittihad-alex",
+      "nameAr": "الاتحاد السكندري",
+      "nameEn": "Al Ittihad Alexandria",
+      "shortNameAr": "الاتحاد السكندري",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/bqnmfm1786058466.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد الإسكندرية",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ittihad%20Alexandria",
+      "externalIds": {
+        "sportscoreSlug": "al-ittihad-alexandria",
+        "thesportsdbId": "139839"
+      }
+    },
+    {
+      "id": "team-smouha",
+      "nameAr": "سموحة",
+      "nameEn": "Smouha SC",
+      "shortNameAr": "سموحة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/qq4pkd1589807413.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد برج العرب",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Smouha%20SC",
+      "externalIds": {
+        "sportscoreSlug": "smouha-sc",
+        "thesportsdbId": "139840"
+      }
+    },
+    {
+      "id": "team-nbe",
+      "nameAr": "البنك الأهلي",
+      "nameEn": "National Bank Egypt SC",
+      "shortNameAr": "البنك الأهلي",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/p0j65z1614891546.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد القاهرة الدولي",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/National%20Bank%20Egypt%20SC",
+      "externalIds": {
+        "sportscoreSlug": "national-bank-egypt-sc",
+        "thesportsdbId": "140796"
+      }
+    },
+    {
+      "id": "team-talaea",
+      "nameAr": "طلائع الجيش",
+      "nameEn": "Talaea EI Gaish",
+      "shortNameAr": "طلائع الجيش",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/a4scm31589807423.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد جهاز الرياضة العسكري",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Talaea%20EI%20Gaish",
+      "externalIds": {
+        "sportscoreSlug": "talaea-ei-gaish",
+        "thesportsdbId": "139848"
+      }
+    },
+    {
+      "id": "team-el-gouna",
+      "nameAr": "الجونة",
+      "nameEn": "El Gouna",
+      "shortNameAr": "الجونة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/6vdj631589807310.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد خالد بشارة",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/El%20Gouna",
+      "externalIds": {
+        "sportscoreSlug": "el-gouna",
+        "thesportsdbId": "139845"
+      }
+    },
+    {
+      "id": "team-ghazl-el-mahalla",
+      "nameAr": "غزل المحلة",
+      "nameEn": "Ghazl El Mahallah",
+      "shortNameAr": "غزل المحلة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/18f9091786058467.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد غزل المحلة",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ghazl%20El%20Mahallah",
+      "externalIds": {
+        "sportscoreSlug": "ghazl-el-mahallah",
+        "thesportsdbId": "140844"
+      }
+    },
+    {
+      "id": "team-pharco",
+      "nameAr": "فاركو",
+      "nameEn": "Pharco FC",
+      "shortNameAr": "فاركو",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/kmgfun1751422815.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد حرس الحدود",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pharco%20FC",
+      "externalIds": {
+        "sportscoreSlug": "pharco-fc",
+        "thesportsdbId": "144159"
+      }
+    },
+    {
+      "id": "team-petrojet",
+      "nameAr": "بتروجيت",
+      "nameEn": "Petrojet",
+      "shortNameAr": "بتروجيت",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/gy9ge11729783347.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد بتروسبورت",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Petrojet",
+      "externalIds": {
+        "sportscoreSlug": "petrojet",
+        "thesportsdbId": "139847"
+      }
+    },
+    {
+      "id": "team-wadi-degla",
+      "nameAr": "وادي دجلة",
+      "nameEn": "Wadi Degla SC",
+      "shortNameAr": "وادي دجلة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/2rchzz1589807440.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد السلام",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Wadi%20Degla%20SC",
+      "externalIds": {
+        "sportscoreSlug": "wadi-degla-sc",
+        "thesportsdbId": "139850"
+      }
+    },
+    {
+      "id": "team-el-qanah",
+      "nameAr": "القناة",
+      "nameEn": "Olympic El Qanal",
+      "shortNameAr": "القناة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/9amngv1786057661.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد هيئة قناة السويس",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Olympic%20El%20Qanal",
+      "externalIds": {
+        "sportscoreSlug": "olympic-el-qanal",
+        "thesportsdbId": "156494"
+      }
+    },
+    {
+      "id": "team-kahrabaa-ismailia",
+      "nameAr": "كهرباء الإسماعيلية",
+      "nameEn": "Kahrabaa Ismailia",
+      "shortNameAr": "كهرباء الإسماعيلية",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/1g46qo1589807617.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد الإسماعيلية",
+      "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Kahrabaa%20Ismailia",
+      "externalIds": {
+        "sportscoreSlug": "kahrabaa-ismailia"
+      }
+    },
+    {
+      "id": "team-asyut-petroleum",
+      "nameAr": "بترول أسيوط",
+      "nameEn": "Asyut Petroleum",
+      "shortNameAr": "بترول أسيوط",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/kkohuv1786057778.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد بترول أسيوط",
+      "nemoTeamUrl": null,
+      "externalIds": {
+        "thesportsdbId": "156495"
+      }
+    },
+    {
+      "id": "team-abou-qir",
+      "nameAr": "أبو قير للأسمدة",
+      "nameEn": "Abou Qir Fertilizers",
+      "shortNameAr": "أبو قير للأسمدة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/i7rxde1786059556.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد الإسكندرية",
+      "nemoTeamUrl": null,
+      "externalIds": {
+        "thesportsdbId": "156496"
+      }
+    },
+    {
+      "id": "team-tersana",
+      "nameAr": "الترسانة",
+      "nameEn": "Tersana",
+      "shortNameAr": "الترسانة",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/1v13r01679424667.png",
+      "isEgyptian": true,
+      "isNationalTeam": false,
+      "stadium": "استاد حسن الشاذلي",
+      "nemoTeamUrl": null,
+      "externalIds": {
+        "thesportsdbId": "147084"
+      }
+    },
+    {
+      "id": "team-egypt-nt",
+      "nameAr": "منتخب مصر",
+      "nameEn": "Egypt",
+      "shortNameAr": "مصر",
+      "countryAr": "مصر",
+      "countryEn": "Egypt",
+      "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/rxryvy1467462651.png",
+      "isEgyptian": true,
+      "isNationalTeam": true,
+      "stadium": "استاد القاهرة الدولي",
+      "nemoTeamUrl": null,
+      "externalIds": {}
+    }
+  ],
+  "matches": [
+    {
+      "id": "match-egy-2026-10-11-el-qanah-al-masry",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://img.thesports.com/football/competition/c840aa9f8b4c65b1441bb36459a40642.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 6",
+      "utcKickoff": "2026-10-11T14:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-el-qanah",
+        "nameAr": "القناة",
+        "nameEn": "Olympic El Qanal",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/9amngv1786057661.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Olympic%20El%20Qanal"
+      },
+      "awayTeam": {
+        "id": "team-al-masry",
+        "nameAr": "المصري البورسعيدي",
+        "nameEn": "Al Masry",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/3aw86h1589807260.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Masry"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1,
+        "halfTimeHome": 1,
+        "halfTimeAway": 0
+      },
+      "incidents": [
+        {
+          "minute": 22,
+          "type": "goal",
+          "side": "home",
+          "player": "Hazem Abosena"
+        },
+        {
+          "minute": 75,
+          "type": "penalty_goal",
+          "side": "away",
+          "player": "Salah Mohsen"
+        }
+      ],
+      "venue": "استاد هيئة قناة السويس",
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore",
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "olympic-el-qanal-vs-al-masry",
+        "sportscoreTrackerId": "4wyrn4h6kpwlq86",
+        "thesportsdbEventId": "2561120",
+        "apiFootballFixtureId": "1612249"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المباشرة (الأحداث والتشكيلات والإحصائيات)",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "mapping_table",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.183Z"
+    },
+    {
+      "id": "match-egy-2026-10-11-zamalek-al-ahly",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://img.thesports.com/football/competition/c840aa9f8b4c65b1441bb36459a40642.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 6 — قمة الكرة المصرية",
+      "utcKickoff": "2026-10-11T17:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "٠٨:٠٠ م",
+      "homeTeam": {
+        "id": "team-zamalek",
+        "nameAr": "الزمالك",
+        "nameEn": "Zamalek SC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/tgekj81580930027.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Zamalek%20SC"
+      },
+      "awayTeam": {
+        "id": "team-al-ahly",
+        "nameAr": "الأهلي",
+        "nameEn": "Al Ahly FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/x8753q1751421890.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ahly%20FC"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 0,
+        "away": 2,
+        "halfTimeHome": 0,
+        "halfTimeAway": 1
+      },
+      "incidents": [
+        {
+          "minute": 39,
+          "type": "goal",
+          "side": "away",
+          "player": "Achraf Bencharki"
+        },
+        {
+          "minute": 70,
+          "type": "yellow_card",
+          "side": "home",
+          "player": "Omar Gaber"
+        },
+        {
+          "minute": 80,
+          "type": "goal",
+          "side": "away",
+          "player": "Monsef Bakrar"
+        }
+      ],
+      "venue": "استاد القاهرة الدولي",
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore",
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "zamalek-sc-vs-al-ahly-fc",
+        "sportscoreTrackerId": "l5ergph49xdlr8k",
+        "thesportsdbEventId": "2561121",
+        "apiFootballFixtureId": "1612250"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المباشرة (الأحداث والتشكيلات والإحصائيات)",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "mapping_table",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.182Z"
+    },
+    {
+      "id": "match-egy-2026-10-12-mokawloon-zed",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 6",
+      "utcKickoff": "2026-10-12T14:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-mokawloon",
+        "nameAr": "المقاولون العرب",
+        "nameEn": "El Mokawloon El Arab",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/gi170k1589807275.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/El%20Mokawloon%20El%20Arab"
+      },
+      "awayTeam": {
+        "id": "team-zed",
+        "nameAr": "زد إف سي",
+        "nameEn": "ZED FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/dfpdle1729784943.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد عثمان أحمد عثمان (الجبل الأخضر)",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561122",
+        "apiFootballFixtureId": "1612251"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة التفصيلية لهذا التاريخ لم تُدرج بعد — تصفح جدول وترتيب البطولة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "mapping_table",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.188Z"
+    },
+    {
+      "id": "match-egy-2026-10-12-modern-sport-enppi",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 6",
+      "utcKickoff": "2026-10-12T14:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-modern-sport",
+        "nameAr": "مودرن سبورت",
+        "nameEn": "Modern Sport FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/larnky1729784569.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Modern%20Sport%20FC"
+      },
+      "awayTeam": {
+        "id": "team-enppi",
+        "nameAr": "إنبي",
+        "nameEn": "Enppi",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/m6p9ml1787512639.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد السلام بالقاهرة",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561123",
+        "apiFootballFixtureId": "1612252"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة التفصيلية لهذا التاريخ لم تُدرج بعد — تصفح جدول وترتيب البطولة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "mapping_table",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.188Z"
+    },
+    {
+      "id": "match-egy-2026-10-12-pyramids-ceramica",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 6",
+      "utcKickoff": "2026-10-12T17:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٨:٠٠ م",
+      "homeTeam": {
+        "id": "team-pyramids",
+        "nameAr": "بيراميدز",
+        "nameEn": "Pyramids FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/8liy611607352549.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pyramids%20FC"
+      },
+      "awayTeam": {
+        "id": "team-ceramica",
+        "nameAr": "سيراميكا كليوباترا",
+        "nameEn": "Ceramica Cleopatra FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/xy4shs1751422167.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ceramica%20Cleopatra%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد الدفاع الجوي (30 يونيو)",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561124",
+        "apiFootballFixtureId": "1612253"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة التفصيلية لهذا التاريخ لم تُدرج بعد — تصفح جدول وترتيب البطولة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "mapping_table",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+    },
+    {
+      "id": "match-egy-2026-10-19-smouha-ceramica",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 7",
+      "utcKickoff": "2026-10-19T14:00:00.000Z",
+      "cairoDate": "2026-10-19",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-smouha",
+        "nameAr": "سموحة",
+        "nameEn": "Smouha SC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/qq4pkd1589807413.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Smouha%20SC"
+      },
+      "awayTeam": {
+        "id": "team-ceramica",
+        "nameAr": "سيراميكا كليوباترا",
+        "nameEn": "Ceramica Cleopatra FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/xy4shs1751422167.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ceramica%20Cleopatra%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد الإسكندرية",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561130",
+        "apiFootballFixtureId": "1612259"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-19"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+    },
+    {
+      "id": "match-egy-2026-10-19-enppi-pyramids",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 7",
+      "utcKickoff": "2026-10-19T17:00:00.000Z",
+      "cairoDate": "2026-10-19",
+      "cairoTime": "٠٨:٠٠ م",
+      "homeTeam": {
+        "id": "team-enppi",
+        "nameAr": "إنبي",
+        "nameEn": "Enppi",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/m6p9ml1787512639.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi"
+      },
+      "awayTeam": {
+        "id": "team-pyramids",
+        "nameAr": "بيراميدز",
+        "nameEn": "Pyramids FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/8liy611607352549.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pyramids%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد بتروسبورت",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561131",
+        "apiFootballFixtureId": "1612260"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-19"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+    },
+    {
+      "id": "match-egy-2026-10-20-zed-modern-sport",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 7",
+      "utcKickoff": "2026-10-20T14:00:00.000Z",
+      "cairoDate": "2026-10-20",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-zed",
+        "nameAr": "زد إف سي",
+        "nameEn": "ZED FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/dfpdle1729784943.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC"
+      },
+      "awayTeam": {
+        "id": "team-modern-sport",
+        "nameAr": "مودرن سبورت",
+        "nameEn": "Modern Sport FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/larnky1729784569.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Modern%20Sport%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد القاهرة الدولي",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561132",
+        "apiFootballFixtureId": "1612261"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-20"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+    },
+    {
+      "id": "match-egy-2026-10-20-ittihad-alex-zamalek",
+      "competitionId": "comp-egy-pl",
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 10,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 7",
+      "utcKickoff": "2026-10-20T17:00:00.000Z",
+      "cairoDate": "2026-10-20",
+      "cairoTime": "٠٨:٠٠ م",
+      "homeTeam": {
+        "id": "team-ittihad-alex",
+        "nameAr": "الاتحاد السكندري",
+        "nameEn": "Al Ittihad Alexandria",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/bqnmfm1786058466.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ittihad%20Alexandria"
+      },
+      "awayTeam": {
+        "id": "team-zamalek",
+        "nameAr": "الزمالك",
+        "nameEn": "Zamalek SC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/tgekj81580930027.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Zamalek%20SC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد برج العرب بالإسكندرية",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2561134",
+        "apiFootballFixtureId": "1612263"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-20"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.193Z"
+    },
+    {
+      "id": "match-egy_lc-2026-10-07-pyramids-el-qanah",
+      "competitionId": "comp-egy-lc",
+      "competitionCode": "EGY_LC",
+      "competitionNameAr": "كأس الرابطة المصرية",
+      "competitionNameEn": "Egypt League Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/nvw1fl1645320012.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 14,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 1",
+      "utcKickoff": "2026-10-07T14:00:00.000Z",
+      "cairoDate": "2026-10-07",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-pyramids",
+        "nameAr": "بيراميدز",
+        "nameEn": "Pyramids FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/8liy611607352549.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pyramids%20FC"
+      },
+      "awayTeam": {
+        "id": "team-el-qanah",
+        "nameAr": "القناة",
+        "nameEn": "Olympic El Qanal",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/9amngv1786057661.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Olympic%20El%20Qanal"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 3,
+        "away": 2
+      },
+      "venue": "استاد الدفاع الجوي (30 يونيو)",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2606362",
+        "apiFootballFixtureId": "1640289"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-07"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.190Z"
+    },
+    {
+      "id": "match-egy_lc-2026-10-07-ittihad-alex-el-gouna",
+      "competitionId": "comp-egy-lc",
+      "competitionCode": "EGY_LC",
+      "competitionNameAr": "كأس الرابطة المصرية",
+      "competitionNameEn": "Egypt League Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/nvw1fl1645320012.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 14,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 1",
+      "utcKickoff": "2026-10-07T14:00:00.000Z",
+      "cairoDate": "2026-10-07",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-ittihad-alex",
+        "nameAr": "الاتحاد السكندري",
+        "nameEn": "Al Ittihad Alexandria",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/bqnmfm1786058466.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ittihad%20Alexandria"
+      },
+      "awayTeam": {
+        "id": "team-el-gouna",
+        "nameAr": "الجونة",
+        "nameEn": "El Gouna",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/6vdj631589807310.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/El%20Gouna"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "venue": "استاد الإسكندرية",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2606364",
+        "apiFootballFixtureId": "1640291"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-07"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.190Z"
+    },
+    {
+      "id": "match-egy_lc-2026-10-07-talaea-abou-qir",
+      "competitionId": "comp-egy-lc",
+      "competitionCode": "EGY_LC",
+      "competitionNameAr": "كأس الرابطة المصرية",
+      "competitionNameEn": "Egypt League Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/nvw1fl1645320012.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 14,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 1",
+      "utcKickoff": "2026-10-07T17:00:00.000Z",
+      "cairoDate": "2026-10-07",
+      "cairoTime": "٠٨:٠٠ م",
+      "homeTeam": {
+        "id": "team-talaea",
+        "nameAr": "طلائع الجيش",
+        "nameEn": "Talaea EI Gaish",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/a4scm31589807423.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Talaea%20EI%20Gaish"
+      },
+      "awayTeam": {
+        "id": "team-abou-qir",
+        "nameAr": "أبو قير للأسمدة",
+        "nameEn": "Abou Qir Fertilizers",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/i7rxde1786059556.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Abou%20Qir%20Fertilizers"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "venue": "استاد جهاز الرياضة العسكري",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2606365",
+        "apiFootballFixtureId": "1640292"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-07"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+    },
+    {
+      "id": "match-egy_lc-2026-10-08-mokawloon-tersana",
+      "competitionId": "comp-egy-lc",
+      "competitionCode": "EGY_LC",
+      "competitionNameAr": "كأس الرابطة المصرية",
+      "competitionNameEn": "Egypt League Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/nvw1fl1645320012.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 14,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 1",
+      "utcKickoff": "2026-10-08T14:00:00.000Z",
+      "cairoDate": "2026-10-08",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-mokawloon",
+        "nameAr": "المقاولون العرب",
+        "nameEn": "El Mokawloon El Arab",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/gi170k1589807275.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/El%20Mokawloon%20El%20Arab"
+      },
+      "awayTeam": {
+        "id": "team-tersana",
+        "nameAr": "الترسانة",
+        "nameEn": "Tersana",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/1v13r01679424667.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Tersana"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "venue": "استاد عثمان أحمد عثمان",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2606363",
+        "apiFootballFixtureId": "1640290"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-08"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+    },
+    {
+      "id": "match-egy_lc-2026-10-08-pharco-enppi",
+      "competitionId": "comp-egy-lc",
+      "competitionCode": "EGY_LC",
+      "competitionNameAr": "كأس الرابطة المصرية",
+      "competitionNameEn": "Egypt League Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/nvw1fl1645320012.png",
+      "countryAr": "مصر",
+      "region": "egypt",
+      "priority": 14,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 1",
+      "utcKickoff": "2026-10-08T14:00:00.000Z",
+      "cairoDate": "2026-10-08",
+      "cairoTime": "٠٥:٠٠ م",
+      "homeTeam": {
+        "id": "team-pharco",
+        "nameAr": "فاركو",
+        "nameEn": "Pharco FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/kmgfun1751422815.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pharco%20FC"
+      },
+      "awayTeam": {
+        "id": "team-enppi",
+        "nameAr": "إنبي",
+        "nameEn": "Enppi",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/m6p9ml1787512639.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "venue": "استاد حرس الحدود",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2606366",
+        "apiFootballFixtureId": "1640293"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-08"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+    },
+    {
+      "id": "match-cafc-2026-10-16-zed-tsdb-140638",
+      "competitionId": "comp-caf-cc",
+      "competitionCode": "CAFC",
+      "competitionNameAr": "كأس الكونفدرالية الأفريقية",
+      "competitionNameEn": "CAF Confederation Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/faybl51762184629.png",
+      "countryAr": "أفريقيا",
+      "region": "africa",
+      "priority": 18,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 2",
+      "utcKickoff": "2026-10-16T17:00:00.000Z",
+      "cairoDate": "2026-10-16",
+      "cairoTime": "٠٨:٠٠ م",
+      "homeTeam": {
+        "id": "team-zed",
+        "nameAr": "زد إف سي",
+        "nameEn": "ZED FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/dfpdle1729784943.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-140638",
+        "nameAr": "عزام التنزاني",
+        "nameEn": "Azam",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/8y9c9r1679380577.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Azam"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "استاد القاهرة الدولي",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2601875",
+        "apiFootballFixtureId": "1636497"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-16"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+    },
+    {
+      "id": "match-cafc-2026-10-17-tsdb-154998-al-ahly",
+      "competitionId": "comp-caf-cc",
+      "competitionCode": "CAFC",
+      "competitionNameAr": "كأس الكونفدرالية الأفريقية",
+      "competitionNameEn": "CAF Confederation Cup",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/faybl51762184629.png",
+      "countryAr": "أفريقيا",
+      "region": "africa",
+      "priority": 18,
+      "isEgyptianInterest": true,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 2",
+      "utcKickoff": "2026-10-17T13:00:00.000Z",
+      "cairoDate": "2026-10-17",
+      "cairoTime": "٠٤:٠٠ م",
+      "homeTeam": {
+        "id": "team-tsdb-154998",
+        "nameAr": "كيتارا الأوغندي",
+        "nameEn": "Kitara",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/p6981x1724249890.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Kitara"
+      },
+      "awayTeam": {
+        "id": "team-al-ahly",
+        "nameAr": "الأهلي",
+        "nameEn": "Al Ahly FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/x8753q1751421890.png",
+        "isEgyptian": true,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ahly%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "Mandela National Stadium",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2601876",
+        "apiFootballFixtureId": "1636498"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/caf-confederation-cup",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-17"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+    },
+    {
+      "id": "match-spl-2026-10-10-tsdb-136017-tsdb-139080",
+      "competitionId": "comp-spl",
+      "competitionCode": "SPL",
+      "competitionNameAr": "دوري روشن السعودي",
+      "competitionNameEn": "Saudi Pro League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/w67i621701772123.png",
+      "countryAr": "السعودية",
+      "region": "arab",
+      "priority": 25,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 8",
+      "utcKickoff": "2026-10-10T14:55:00.000Z",
+      "cairoDate": "2026-10-10",
+      "cairoTime": "٠٥:٥٥ م",
+      "homeTeam": {
+        "id": "team-tsdb-136017",
+        "nameAr": "الاتفاق السعودي",
+        "nameEn": "Al-Ettifaq",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/m272h51694761970.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al-Ettifaq"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-139080",
+        "nameAr": "الخليج السعودي",
+        "nameEn": "Al-Khaleej",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/mvf6ga1755192630.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al-Khaleej"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "venue": "Al-Ettifaq Club Stadium",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2573366",
+        "apiFootballFixtureId": "1603036"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-10"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+    },
+    {
+      "id": "match-spl-2026-10-10-tsdb-136013-tsdb-136018",
+      "competitionId": "comp-spl",
+      "competitionCode": "SPL",
+      "competitionNameAr": "دوري روشن السعودي",
+      "competitionNameEn": "Saudi Pro League",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/w67i621701772123.png",
+      "countryAr": "السعودية",
+      "region": "arab",
+      "priority": 25,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 8",
+      "utcKickoff": "2026-10-10T18:00:00.000Z",
+      "cairoDate": "2026-10-10",
+      "cairoTime": "٠٩:٠٠ م",
+      "homeTeam": {
+        "id": "team-tsdb-136013",
+        "nameAr": "الهلال السعودي",
+        "nameEn": "Al-Hilal",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/w0b80d1661656916.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al-Hilal"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-136018",
+        "nameAr": "الاتحاد السعودي",
+        "nameEn": "Al-Ittihad",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/8n1t1j1755192418.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al-Ittihad"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 3,
+        "away": 2
+      },
+      "venue": "Kingdom Arena",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2573365",
+        "apiFootballFixtureId": "1603040"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-10"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.191Z"
+    },
+    {
+      "id": "match-pd-2026-10-17-tsdb-133734-tsdb-133729",
+      "competitionId": "comp-laliga",
+      "competitionCode": "PD",
+      "competitionNameAr": "الدوري الإسباني (لا ليغا)",
+      "competitionNameEn": "Spanish La Liga",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png",
+      "countryAr": "إسبانيا",
+      "region": "europe",
+      "priority": 36,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 9",
+      "utcKickoff": "2026-10-17T12:00:00.000Z",
+      "cairoDate": "2026-10-17",
+      "cairoTime": "٠٣:٠٠ م",
+      "homeTeam": {
+        "id": "team-tsdb-133734",
+        "nameAr": "إسبانيول",
+        "nameEn": "Espanyol",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/867nzz1681703222.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Espanyol"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-133729",
+        "nameAr": "أتلتيكو مدريد",
+        "nameEn": "Atlético Madrid",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/0ulh3q1719984315.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Atl%C3%A9tico%20Madrid"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "RCDE Stadium",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2506253",
+        "apiFootballFixtureId": "1570416"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/la-liga",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/la-liga",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-17"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+    },
+    {
+      "id": "match-pd-2026-10-17-tsdb-133722-tsdb-133739",
+      "competitionId": "comp-laliga",
+      "competitionCode": "PD",
+      "competitionNameAr": "الدوري الإسباني (لا ليغا)",
+      "competitionNameEn": "Spanish La Liga",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png",
+      "countryAr": "إسبانيا",
+      "region": "europe",
+      "priority": 36,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": "الجولة 9",
+      "utcKickoff": "2026-10-17T16:30:00.000Z",
+      "cairoDate": "2026-10-17",
+      "cairoTime": "٠٧:٣٠ م",
+      "homeTeam": {
+        "id": "team-tsdb-133722",
+        "nameAr": "ريال بيتيس",
+        "nameEn": "Real Betis",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/2oqulv1663245386.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Real%20Betis"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-133739",
+        "nameAr": "برشلونة",
+        "nameEn": "Barcelona",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/wq9sir1639406443.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Barcelona"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "Estadio de La Cartuja",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2506255",
+        "apiFootballFixtureId": "1570413"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/la-liga",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/la-liga",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-17"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.192Z"
+    },
+    {
+      "id": "match-spanish-segu-2026-10-11-ss-granada-cf-ss-cd-castellon",
+      "competitionId": "comp-spanish-segunda-division",
+      "competitionCode": "SPANISH-SEGU",
+      "competitionNameAr": "الدوري الإسباني الدرجة الثانية",
+      "competitionNameEn": "Spanish Segunda Division",
+      "competitionLogo": null,
+      "countryAr": "إسبانيا",
+      "region": "europe",
+      "priority": 45,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T19:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "١٠:٠٠ م",
+      "homeTeam": {
+        "id": "team-ss-granada-cf",
+        "nameAr": "غرناطة",
+        "nameEn": "Granada CF",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/f9iss11677472689.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Granada%20CF"
+      },
+      "awayTeam": {
+        "id": "team-ss-cd-castellon",
+        "nameAr": "كاستيلون",
+        "nameEn": "CD Castellon",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/ywibjw1733456820.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/CD%20Castellon"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "granada-cf-vs-cd-castellon",
+        "sportscoreTrackerId": "k82rekhg090zrep"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/granada-cf-vs-cd-castellon",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+    },
+    {
+      "id": "match-bsa-2026-10-11-ss-fluminense-rj-ss-vasco-da-gama",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "competitionNameAr": "الدوري البرازيلي الممتاز",
+      "competitionNameEn": "Brazilian Serie A",
+      "competitionLogo": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T19:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "١٠:٠٠ م",
+      "homeTeam": {
+        "id": "team-ss-fluminense-rj",
+        "nameAr": "فلومينينسي",
+        "nameEn": "Fluminense RJ",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/stvvwp1473538082.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Fluminense%20RJ"
+      },
+      "awayTeam": {
+        "id": "team-ss-vasco-da-gama",
+        "nameAr": "فاسكو دا غاما",
+        "nameEn": "Vasco da Gama",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/ynqlxo1630521109.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Vasco%20da%20Gama"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "fluminense-rj-vs-vasco-da-gama",
+        "sportscoreTrackerId": "vjxm8ghgej5nr6o"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/fluminense-rj-vs-vasco-da-gama",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.186Z"
+    },
+    {
+      "id": "match-bsa-2026-10-11-ss-palmeiras-ss-juventude",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "competitionNameAr": "الدوري البرازيلي الممتاز",
+      "competitionNameEn": "Brazilian Serie A",
+      "competitionLogo": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T19:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "١٠:٠٠ م",
+      "homeTeam": {
+        "id": "team-ss-palmeiras",
+        "nameAr": "بالميراس",
+        "nameEn": "Palmeiras",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/vsqwqp1473538105.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Palmeiras"
+      },
+      "awayTeam": {
+        "id": "team-ss-juventude",
+        "nameAr": "جوفينتود",
+        "nameEn": "Juventude",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/1ntter1766506778.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Juventude"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 3,
+        "away": 0,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "palmeiras-vs-juventude",
+        "sportscoreTrackerId": "318q66h09voqo9j"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/palmeiras-vs-juventude",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+    },
+    {
+      "id": "match-bsa-2026-10-11-ss-botafogo-rj-ss-red-bull-bragantino",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "competitionNameAr": "الدوري البرازيلي الممتاز",
+      "competitionNameEn": "Brazilian Serie A",
+      "competitionLogo": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T19:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "١٠:٠٠ م",
+      "homeTeam": {
+        "id": "team-ss-botafogo-rj",
+        "nameAr": "بوتافوغو",
+        "nameEn": "Botafogo RJ",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/bs5mbw1733004596.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Botafogo%20RJ"
+      },
+      "awayTeam": {
+        "id": "team-ss-red-bull-bragantino",
+        "nameAr": "ريد بول براغانتينو",
+        "nameEn": "Red Bull Bragantino",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/2p7tl41701423595.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Red%20Bull%20Bragantino"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 2,
+        "away": 2,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "botafogo-rj-vs-red-bull-bragantino",
+        "sportscoreTrackerId": "pxwrxlhgyj5kryk"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/botafogo-rj-vs-red-bull-bragantino",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+    },
+    {
+      "id": "match-bsa-2026-10-12-ss-gremio-ss-corinthians-paulista",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "competitionNameAr": "الدوري البرازيلي الممتاز",
+      "competitionNameEn": "Brazilian Serie A",
+      "competitionLogo": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T21:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "١٢:٠٠ ص",
+      "homeTeam": {
+        "id": "team-ss-gremio",
+        "nameAr": "جريميو",
+        "nameEn": "Gremio",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/uvpwyt1473538089.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Gremio"
+      },
+      "awayTeam": {
+        "id": "team-ss-corinthians-paulista",
+        "nameAr": "كورينثيانز",
+        "nameEn": "Corinthians Paulista",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/vvuvps1473538042.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Corinthians%20Paulista"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 1,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "gremio-vs-corinthians-paulista",
+        "sportscoreTrackerId": "l5ergph4kndlr8k"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/gremio-vs-corinthians-paulista",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.184Z"
+    },
+    {
+      "id": "match-bsa-2026-10-12-ss-sao-paulo-ss-vitoria-ba",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "competitionNameAr": "الدوري البرازيلي الممتاز",
+      "competitionNameEn": "Brazilian Serie A",
+      "competitionLogo": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T21:30:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "١٢:٣٠ ص",
+      "homeTeam": {
+        "id": "team-ss-sao-paulo",
+        "nameAr": "ساو باولو",
+        "nameEn": "Sao Paulo",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/sxpupx1473538135.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Sao%20Paulo"
+      },
+      "awayTeam": {
+        "id": "team-ss-vitoria-ba",
+        "nameAr": "فيتوريا باهيا",
+        "nameEn": "Vitoria BA",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/tysrrx1473538156.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Vitoria%20BA"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 2,
+        "away": 0,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "sao-paulo-vs-vitoria-ba",
+        "sportscoreTrackerId": "k82rekhg0vyzrep"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/sao-paulo-vs-vitoria-ba",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.184Z"
+    },
+    {
+      "id": "match-bsa-2026-10-12-ss-flamengo-ss-santos",
+      "competitionId": "comp-bsa",
+      "competitionCode": "BSA",
+      "competitionNameAr": "الدوري البرازيلي الممتاز",
+      "competitionNameEn": "Brazilian Serie A",
+      "competitionLogo": "https://img.thesports.com/football/competition/70d2cd91d1fc5dc5a558cd00237d2b4e.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 50,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T23:30:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٢:٣٠ ص",
+      "homeTeam": {
+        "id": "team-ss-flamengo",
+        "nameAr": "فلامنجو",
+        "nameEn": "Flamengo",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/syptwx1473538074.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Flamengo"
+      },
+      "awayTeam": {
+        "id": "team-ss-santos",
+        "nameAr": "سانتوس",
+        "nameEn": "Santos",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/j8xk9g1679447486.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Santos"
+      },
+      "status": "live",
+      "statusLabelAr": "جارية",
+      "statusNoteAr": null,
+      "liveMinute": 39,
+      "score": {
+        "home": 1,
+        "away": 0,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "flamengo-vs-santos",
+        "sportscoreTrackerId": "dn1m1gh318v6moe"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/flamengo-vs-santos",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/brazilian-serie-a",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.184Z"
+    },
+    {
+      "id": "match-united-state-2026-10-12-ss-colorado-rapids-ss-austin-fc",
+      "competitionId": "comp-united-states-mls",
+      "competitionCode": "UNITED-STATE",
+      "competitionNameAr": "الدوري الأمريكي للمحترفين",
+      "competitionNameEn": "United States MLS",
+      "competitionLogo": "https://img.thesports.com/football/competition/de0bf5ab03e39407f9fb8ff186258380.png",
+      "countryAr": "الولايات المتحدة",
+      "region": "americas",
+      "priority": 55,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-12T00:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٣:٠٠ ص",
+      "homeTeam": {
+        "id": "team-ss-colorado-rapids",
+        "nameAr": "كولورادو رابيدز",
+        "nameEn": "Colorado Rapids",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/uppupv1473536412.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Colorado%20Rapids"
+      },
+      "awayTeam": {
+        "id": "team-ss-austin-fc",
+        "nameAr": "أوستن إف سي",
+        "nameEn": "Austin FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/a3dlg61595434277.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Austin%20FC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "colorado-rapids-vs-austin-fc",
+        "sportscoreTrackerId": "l7oqdeh8glx6r51"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/colorado-rapids-vs-austin-fc",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.185Z"
+    },
+    {
+      "id": "match-united-state-2026-10-12-ss-seattle-sounders-ss-real-salt-lake",
+      "competitionId": "comp-united-states-mls",
+      "competitionCode": "UNITED-STATE",
+      "competitionNameAr": "الدوري الأمريكي للمحترفين",
+      "competitionNameEn": "United States MLS",
+      "competitionLogo": "https://img.thesports.com/football/competition/de0bf5ab03e39407f9fb8ff186258380.png",
+      "countryAr": "الولايات المتحدة",
+      "region": "americas",
+      "priority": 55,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-12T01:30:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٤:٣٠ ص",
+      "homeTeam": {
+        "id": "team-ss-seattle-sounders",
+        "nameAr": "سياتل ساوندرز",
+        "nameEn": "Seattle Sounders",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/2dy5cx1706711036.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Seattle%20Sounders"
+      },
+      "awayTeam": {
+        "id": "team-ss-real-salt-lake",
+        "nameAr": "ريال سالت ليك",
+        "nameEn": "Real Salt Lake",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/kkjlfa1556488022.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Real%20Salt%20Lake"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "seattle-sounders-vs-real-salt-lake",
+        "sportscoreTrackerId": "4wyrn4h6g35zq86"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/seattle-sounders-vs-real-salt-lake",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.186Z"
+    },
+    {
+      "id": "match-mexico-liga--2026-10-12-ss-puebla-ss-club-leon",
+      "competitionId": "comp-mexico-liga-mx",
+      "competitionCode": "MEXICO-LIGA-",
+      "competitionNameAr": "الدوري المكسيكي الممتاز",
+      "competitionNameEn": "Mexico Liga MX",
+      "competitionLogo": "https://img.thesports.com/football/competition/1c82791eb2236000bd25a1983862f268.png",
+      "countryAr": "المكسيك",
+      "region": "americas",
+      "priority": 56,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-12T01:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٤:٠٠ ص",
+      "homeTeam": {
+        "id": "team-ss-puebla",
+        "nameAr": "بويبلا",
+        "nameEn": "Puebla",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/h0jgg51593451845.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Puebla"
+      },
+      "awayTeam": {
+        "id": "team-ss-club-leon",
+        "nameAr": "كلوب ليون",
+        "nameEn": "Club Leon",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/pc9gro1752393439.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Club%20Leon"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "puebla-vs-club-leon",
+        "sportscoreTrackerId": "9vjxm8h59e8nr6o"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/puebla-vs-club-leon",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.186Z"
+    },
+    {
+      "id": "match-argentina-to-2026-10-11-ss-ca-huracan-ss-river-plate",
+      "competitionId": "comp-argentina-torneo-apertura",
+      "competitionCode": "ARGENTINA-TO",
+      "competitionNameAr": "الدوري الأرجنتيني الممتاز",
+      "competitionNameEn": "Argentina Torneo Apertura",
+      "competitionLogo": null,
+      "countryAr": "الأرجنتين",
+      "region": "americas",
+      "priority": 57,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T19:00:00.000Z",
+      "cairoDate": "2026-10-11",
+      "cairoTime": "١٠:٠٠ م",
+      "homeTeam": {
+        "id": "team-ss-ca-huracan",
+        "nameAr": "أوراكان",
+        "nameEn": "CA Huracan",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/kppi2b1775776550.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/CA%20Huracan"
+      },
+      "awayTeam": {
+        "id": "team-ss-river-plate",
+        "nameAr": "ريفر بليت",
+        "nameEn": "River Plate",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/03dmi31645539717.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/River%20Plate"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 1,
+        "away": 2,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "ca-huracan-vs-river-plate",
+        "sportscoreTrackerId": "zp5rzgh658wvq82"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/ca-huracan-vs-river-plate",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-11"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.187Z"
+    },
+    {
+      "id": "match-usl-2026-10-13-tsdb-138889-tsdb-138885",
+      "competitionId": "comp-usl",
+      "competitionCode": "USL",
+      "competitionNameAr": "بطولة الدوري الأمريكي USL",
+      "competitionNameEn": "American USL Championship",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/uh4zas1688513782.png",
+      "countryAr": "الولايات المتحدة",
+      "region": "americas",
+      "priority": 58,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": "الجولة 31",
+      "utcKickoff": "2026-10-13T00:00:00.000Z",
+      "cairoDate": "2026-10-13",
+      "cairoTime": "٠٣:٠٠ ص",
+      "homeTeam": {
+        "id": "team-tsdb-138889",
+        "nameAr": "سان أنطونيو",
+        "nameEn": "San Antonio FC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/xxbx5u1629299687.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/San%20Antonio%20FC"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-138885",
+        "nameAr": "أورانج كاونتي",
+        "nameEn": "Orange County SC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/efgdlf1690267070.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Orange%20County%20SC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "Toyota Field",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2397379",
+        "apiFootballFixtureId": "1493743"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/usl-championship",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/usl-championship",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-13"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+    },
+    {
+      "id": "match-usl-2026-10-13-tsdb-135418-tsdb-146582",
+      "competitionId": "comp-usl",
+      "competitionCode": "USL",
+      "competitionNameAr": "بطولة الدوري الأمريكي USL",
+      "competitionNameEn": "American USL Championship",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/uh4zas1688513782.png",
+      "countryAr": "الولايات المتحدة",
+      "region": "americas",
+      "priority": 58,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": "الجولة 31",
+      "utcKickoff": "2026-10-13T02:00:00.000Z",
+      "cairoDate": "2026-10-13",
+      "cairoTime": "٠٥:٠٠ ص",
+      "homeTeam": {
+        "id": "team-tsdb-135418",
+        "nameAr": "ساكرامنتو ريبابليك",
+        "nameEn": "Sacramento Republic",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/sxpvvw1431626576.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Sacramento%20Republic"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-146582",
+        "nameAr": "ليكسينغتون",
+        "nameEn": "Lexington SC",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/o2n7211675867761.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Lexington%20SC"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "Heart Health Park",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2397378",
+        "apiFootballFixtureId": "1493742"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/competitions/usl-championship",
+        "linkType": "competition_fallback",
+        "labelAr": "صفحة البطولة على NEMO Sports",
+        "subLabelAr": "صفحة المباراة المنفردة غير مفهرسة لهذا الموعد — افتح صفحة البطولة الرسمية على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": "https://nemo-sports.vercel.app/competitions/usl-championship",
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-13"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+    },
+    {
+      "id": "match-colombia-pri-2026-10-12-ss-independiente-santa-fe-ss-alianza-atletico",
+      "competitionId": "comp-colombia-primera-a",
+      "competitionCode": "COLOMBIA-PRI",
+      "competitionNameAr": "الدوري الكولومبي الممتاز",
+      "competitionNameEn": "Colombia Primera A",
+      "competitionLogo": "https://img.thesports.com/football/competition/a558d0df5c7bd1ab4c7ab4db2a6e3e9f.png",
+      "countryAr": "كولومبيا",
+      "region": "americas",
+      "priority": 60,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T23:10:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٢:١٠ ص",
+      "homeTeam": {
+        "id": "team-ss-independiente-santa-fe",
+        "nameAr": "إنديبندينتي سانتا في",
+        "nameEn": "Independiente Santa Fe",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/16vs771629122765.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Independiente%20Santa%20Fe"
+      },
+      "awayTeam": {
+        "id": "team-ss-alianza-atletico",
+        "nameAr": "أليانزا أتلتيكو",
+        "nameEn": "Alianza Atletico",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/wu4g171615130421.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Alianza%20Atletico"
+      },
+      "status": "live",
+      "statusLabelAr": "جارية",
+      "statusNoteAr": null,
+      "liveMinute": 23,
+      "score": {
+        "home": 0,
+        "away": 1,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "independiente-santa-fe-vs-alianza-atletico",
+        "sportscoreTrackerId": "zp5rzgh65w1vq82"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/independiente-santa-fe-vs-alianza-atletico",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.185Z"
+    },
+    {
+      "id": "match-chile-primer-2026-10-12-ss-universidad-de-chile-ss-deportes-limache",
+      "competitionId": "comp-chile-primera-division",
+      "competitionCode": "CHILE-PRIMER",
+      "competitionNameAr": "الدوري التشيلي الممتاز",
+      "competitionNameEn": "Chile Primera Division",
+      "competitionLogo": "https://img.thesports.com/football/competition/833638fa4b4cf28eb00cd8de7fb4eb9a.png",
+      "countryAr": "تشيلي",
+      "region": "americas",
+      "priority": 61,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": null,
+      "utcKickoff": "2026-10-11T21:00:00.000Z",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "١٢:٠٠ ص",
+      "homeTeam": {
+        "id": "team-ss-universidad-de-chile",
+        "nameAr": "أونيفرسيداد دي تشيلي",
+        "nameEn": "Universidad de Chile",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/po0o3c1578347873.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Universidad%20de%20Chile"
+      },
+      "awayTeam": {
+        "id": "team-ss-deportes-limache",
+        "nameAr": "ديبورتيس ليماتشي",
+        "nameEn": "Deportes Limache",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/1bd0ws1706521384.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Deportes%20Limache"
+      },
+      "status": "finished",
+      "statusLabelAr": "انتهت",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": 2,
+        "away": 2,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "venue": null,
+      "primarySource": "sportscore",
+      "contributingSources": [
+        "sportscore"
+      ],
+      "externalIds": {
+        "sportscoreSlug": "universidad-de-chile-vs-deportes-limache",
+        "sportscoreTrackerId": "x7lm7phw1deym2w"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches/universidad-de-chile-vs-deportes-limache",
+        "linkType": "direct_match",
+        "labelAr": "تفاصيل المباراة على NEMO Sports",
+        "subLabelAr": "انتقل مباشرة إلى صفحة المباراة على NEMO Sports",
+        "verified": true,
+        "matchedBy": [
+          "original_match_id",
+          "competition_id",
+          "team_ids",
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-12"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.185Z"
+    },
+    {
+      "id": "match-chilean-prim-2026-10-13-tsdb-142231-tsdb-138137",
+      "competitionId": "comp-chilean-primera-b",
+      "competitionCode": "CHILEAN-PRIM",
+      "competitionNameAr": "الدوري التشيلي الدرجة الثانية",
+      "competitionNameEn": "Chilean Primera B",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/g19n5v1715693622.png",
+      "countryAr": "تشيلي",
+      "region": "americas",
+      "priority": 62,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": "الجولة 28",
+      "utcKickoff": "2026-10-13T19:00:00.000Z",
+      "cairoDate": "2026-10-13",
+      "cairoTime": "١٠:٠٠ م",
+      "homeTeam": {
+        "id": "team-tsdb-142231",
+        "nameAr": "ديبورتيس ريكوليتا",
+        "nameEn": "Deportes Recoleta",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/4m46u51625426191.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Deportes%20Recoleta"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-138137",
+        "nameAr": "كوريكو أونيدو",
+        "nameEn": "Curicó Unido",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/44b0i51517582722.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Curic%C3%B3%20Unido"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "Estadio Municipal de Recoleta",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2437264",
+        "apiFootballFixtureId": "1515350"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches?date=2026-10-13",
+        "linkType": "schedule_fallback",
+        "labelAr": "جدول المباريات على NEMO Sports",
+        "subLabelAr": "افتح جدول مباريات هذا التاريخ على موقع NEMO Sports الرئيسي",
+        "verified": true,
+        "matchedBy": [
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-13"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.190Z"
+    },
+    {
+      "id": "match-brazilian-se-2026-10-14-tsdb-134292-tsdb-134739",
+      "competitionId": "comp-brazilian-serie-b",
+      "competitionCode": "BRAZILIAN-SE",
+      "competitionNameAr": "الدوري البرازيلي الدرجة الثانية",
+      "competitionNameEn": "Brazilian Serie B",
+      "competitionLogo": "https://r2.thesportsdb.com/images/media/league/badge/0198221719922051.png",
+      "countryAr": "البرازيل",
+      "region": "americas",
+      "priority": 66,
+      "isEgyptianInterest": false,
+      "seasonLabel": "2026",
+      "roundLabelAr": "الجولة 32",
+      "utcKickoff": "2026-10-13T22:00:00.000Z",
+      "cairoDate": "2026-10-14",
+      "cairoTime": "٠١:٠٠ ص",
+      "homeTeam": {
+        "id": "team-tsdb-134292",
+        "nameAr": "Ponte Preta",
+        "nameEn": "Ponte Preta",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/vqqwqx1473538905.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ponte%20Preta"
+      },
+      "awayTeam": {
+        "id": "team-tsdb-134739",
+        "nameAr": "Náutico",
+        "nameEn": "Náutico",
+        "logoUrl": "https://r2.thesportsdb.com/images/media/team/badge/yqtpqx1473538800.png",
+        "isEgyptian": false,
+        "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/N%C3%A1utico"
+      },
+      "status": "not_started",
+      "statusLabelAr": "لم تبدأ",
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "score": {
+        "home": null,
+        "away": null
+      },
+      "venue": "Estádio Moisés Lucarelli",
+      "primarySource": "thesportsdb",
+      "contributingSources": [
+        "thesportsdb"
+      ],
+      "externalIds": {
+        "thesportsdbEventId": "2450583",
+        "apiFootballFixtureId": "1528340"
+      },
+      "nemoLink": {
+        "url": "https://nemo-sports.vercel.app/matches?date=2026-10-14",
+        "linkType": "schedule_fallback",
+        "labelAr": "جدول المباريات على NEMO Sports",
+        "subLabelAr": "افتح جدول مباريات هذا التاريخ على موقع NEMO Sports الرئيسي",
+        "verified": true,
+        "matchedBy": [
+          "match_date"
+        ],
+        "competitionUrl": null,
+        "scheduleUrl": "https://nemo-sports.vercel.app/matches?date=2026-10-14"
+      },
+      "lastUpdatedAt": "2026-10-12T00:25:26.189Z"
+    }
+  ],
+  "standings": {
+    "EGY": {
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionLogo": "https://img.thesports.com/football/competition/c840aa9f8b4c65b1441bb36459a40642.png",
+      "seasonLabel": "2026-2027",
+      "sourceId": "sportscore",
+      "updatedAt": "2026-10-12T00:35:00Z",
+      "nemoCompetitionUrl": "https://nemo-sports.vercel.app/competitions/egyptian-league",
+      "rows": [
+        {
+          "position": 1,
+          "teamId": "team-al-ahly",
+          "teamNameAr": "الأهلي",
+          "teamNameEn": "Al Ahly FC",
+          "teamLogo": "https://img.thesports.com/football/team/e40a14044c93d0e5e2f9d558aa1640fa.png",
+          "played": 6,
+          "won": 5,
+          "drawn": 1,
+          "lost": 0,
+          "goalsFor": 13,
+          "goalsAgainst": 3,
+          "goalDiff": 10,
+          "points": 16,
+          "noteAr": "مجموعة التتويج · دوري أبطال أفريقيا",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ahly%20FC"
+        },
+        {
+          "position": 2,
+          "teamId": "team-pyramids",
+          "teamNameAr": "بيراميدز",
+          "teamNameEn": "Pyramids FC",
+          "teamLogo": "https://img.thesports.com/football/team/0c750c05518db78eeabc97fb11574fed.png",
+          "played": 5,
+          "won": 4,
+          "drawn": 1,
+          "lost": 0,
+          "goalsFor": 11,
+          "goalsAgainst": 4,
+          "goalDiff": 7,
+          "points": 13,
+          "noteAr": "مجموعة التتويج · دوري أبطال أفريقيا",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pyramids%20FC"
+        },
+        {
+          "position": 3,
+          "teamId": "team-zamalek",
+          "teamNameAr": "الزمالك",
+          "teamNameEn": "Zamalek SC",
+          "teamLogo": "https://img.thesports.com/football/team/6ad4e821a96f050ba29f431fbf57801e.png",
+          "played": 6,
+          "won": 4,
+          "drawn": 0,
+          "lost": 2,
+          "goalsFor": 9,
+          "goalsAgainst": 6,
+          "goalDiff": 3,
+          "points": 12,
+          "noteAr": "مجموعة التتويج · الكونفدرالية الأفريقية",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Zamalek%20SC"
+        },
+        {
+          "position": 4,
+          "teamId": "team-al-masry",
+          "teamNameAr": "المصري البورسعيدي",
+          "teamNameEn": "Al Masry",
+          "teamLogo": "https://img.thesports.com/football/team/1e724366f6bee2eb1e7dd707a3f7f671.png",
+          "played": 6,
+          "won": 3,
+          "drawn": 2,
+          "lost": 1,
+          "goalsFor": 8,
+          "goalsAgainst": 5,
+          "goalDiff": 3,
+          "points": 11,
+          "noteAr": "مجموعة التتويج · الكونفدرالية الأفريقية",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Masry"
+        },
+        {
+          "position": 5,
+          "teamId": "team-zed",
+          "teamNameAr": "زد إف سي",
+          "teamNameEn": "ZED FC",
+          "teamLogo": "https://img.thesports.com/football/team/a08754ab96c283bacbf148154a50c7fc.png",
+          "played": 5,
+          "won": 3,
+          "drawn": 1,
+          "lost": 1,
+          "goalsFor": 7,
+          "goalsAgainst": 4,
+          "goalDiff": 3,
+          "points": 10,
+          "noteAr": "مجموعة التتويج",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC"
+        },
+        {
+          "position": 6,
+          "teamId": "team-ceramica",
+          "teamNameAr": "سيراميكا كليوباترا",
+          "teamNameEn": "Ceramica Cleopatra FC",
+          "teamLogo": "https://img.thesports.com/football/team/8dee40fb1b26ee38a0d8e8a8333f89a8.png",
+          "played": 5,
+          "won": 3,
+          "drawn": 1,
+          "lost": 1,
+          "goalsFor": 8,
+          "goalsAgainst": 6,
+          "goalDiff": 2,
+          "points": 10,
+          "noteAr": "مجموعة التتويج",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ceramica%20Cleopatra%20FC"
+        },
+        {
+          "position": 7,
+          "teamId": "team-ittihad-alex",
+          "teamNameAr": "الاتحاد السكندري",
+          "teamNameEn": "Al Ittihad Alexandria",
+          "teamLogo": "https://img.thesports.com/football/team/99cb71e80b286af049523295d624c8b1.png",
+          "played": 5,
+          "won": 3,
+          "drawn": 0,
+          "lost": 2,
+          "goalsFor": 6,
+          "goalsAgainst": 4,
+          "goalDiff": 2,
+          "points": 9,
+          "noteAr": "مجموعة التتويج",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Al%20Ittihad%20Alexandria"
+        },
+        {
+          "position": 8,
+          "teamId": "team-smouha",
+          "teamNameAr": "سموحة",
+          "teamNameEn": "Smouha SC",
+          "teamLogo": "https://img.thesports.com/football/team/886e39d3b66ab0a9d381260900f9fa37.png",
+          "played": 5,
+          "won": 2,
+          "drawn": 2,
+          "lost": 1,
+          "goalsFor": 5,
+          "goalsAgainst": 4,
+          "goalDiff": 1,
+          "points": 8,
+          "noteAr": null,
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Smouha%20SC"
+        },
+        {
+          "position": 9,
+          "teamId": "team-modern-sport",
+          "teamNameAr": "مودرن سبورت",
+          "teamNameEn": "Modern Sport FC",
+          "teamLogo": "https://img.thesports.com/football/team/53f4bc55c48cd39be78fa4fa69645f31.png",
+          "played": 5,
+          "won": 2,
+          "drawn": 2,
+          "lost": 1,
+          "goalsFor": 6,
+          "goalsAgainst": 5,
+          "goalDiff": 1,
+          "points": 8,
+          "noteAr": null,
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Modern%20Sport%20FC"
+        },
+        {
+          "position": 10,
+          "teamId": "team-enppi",
+          "teamNameAr": "إنبي",
+          "teamNameEn": "Enppi",
+          "teamLogo": "https://img.thesports.com/football/team/1bd9415259f9b04af4c6164660af9a48.png",
+          "played": 5,
+          "won": 2,
+          "drawn": 1,
+          "lost": 2,
+          "goalsFor": 5,
+          "goalsAgainst": 5,
+          "goalDiff": 0,
+          "points": 7,
+          "noteAr": null,
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi"
+        }
+      ]
+    },
+    "CAF": {
+      "competitionCode": "CAF",
+      "competitionNameAr": "دوري أبطال أفريقيا",
+      "competitionNameEn": "CAF Champions League",
+      "competitionLogo": "https://img.thesports.com/football/competition/caf-champions-league.png",
+      "seasonLabel": "2026-2027",
+      "sourceId": "sportscore",
+      "updatedAt": "2026-10-12T00:35:00Z",
+      "nemoCompetitionUrl": "https://nemo-sports.vercel.app/competitions/caf-champions-league",
+      "rows": [
+        {
+          "position": 1,
+          "teamId": "team-pyramids",
+          "teamNameAr": "بيراميدز (مصر)",
+          "teamNameEn": "Pyramids FC",
+          "teamLogo": "https://img.thesports.com/football/team/0c750c05518db78eeabc97fb11574fed.png",
+          "played": 2,
+          "won": 2,
+          "drawn": 0,
+          "lost": 0,
+          "goalsFor": 6,
+          "goalsAgainst": 1,
+          "goalDiff": 5,
+          "points": 6,
+          "noteAr": "المجموعة A · متصدر",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Pyramids%20FC"
+        },
+        {
+          "position": 2,
+          "teamId": "team-simba",
+          "teamNameAr": "سيمبا التنزاني",
+          "teamNameEn": "Simba",
+          "teamLogo": null,
+          "played": 2,
+          "won": 1,
+          "drawn": 1,
+          "lost": 0,
+          "goalsFor": 3,
+          "goalsAgainst": 1,
+          "goalDiff": 2,
+          "points": 4,
+          "noteAr": "المجموعة A",
+          "nemoTeamUrl": null
+        },
+        {
+          "position": 3,
+          "teamId": "team-zamalek",
+          "teamNameAr": "الزمالك (مصر)",
+          "teamNameEn": "Zamalek SC",
+          "teamLogo": "https://img.thesports.com/football/team/6ad4e821a96f050ba29f431fbf57801e.png",
+          "played": 2,
+          "won": 1,
+          "drawn": 0,
+          "lost": 1,
+          "goalsFor": 3,
+          "goalsAgainst": 2,
+          "goalDiff": 1,
+          "points": 3,
+          "noteAr": "المجموعة B",
+          "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Zamalek%20SC"
+        }
+      ]
+    },
+    "SPL": {
+      "competitionCode": "SPL",
+      "competitionNameAr": "دوري روشن السعودي",
+      "competitionNameEn": "Saudi Pro League",
+      "competitionLogo": "https://img.thesports.com/football/competition/890f0a0ce2f2b7bf384b6268c53ce81a.png",
+      "seasonLabel": "2026-2027",
+      "sourceId": "sportscore",
+      "updatedAt": "2026-10-12T00:35:00Z",
+      "nemoCompetitionUrl": "https://nemo-sports.vercel.app/competitions/saudi-pro-league",
+      "rows": [
+        {
+          "position": 1,
+          "teamId": "team-al-hilal",
+          "teamNameAr": "الهلال السعودي",
+          "teamNameEn": "Al-Hilal Saudi FC",
+          "teamLogo": "https://r2.thesportsdb.com/images/media/team/badge/w0b80d1661656916.png",
+          "played": 8,
+          "won": 7,
+          "drawn": 1,
+          "lost": 0,
+          "goalsFor": 26,
+          "goalsAgainst": 6,
+          "goalDiff": 20,
+          "points": 22,
+          "noteAr": "دوري أبطال آسيا للنخبة"
+        },
+        {
+          "position": 2,
+          "teamId": "team-al-nassr",
+          "teamNameAr": "النصر السعودي",
+          "teamNameEn": "Al-Nassr FC",
+          "teamLogo": "https://r2.thesportsdb.com/images/media/team/badge/84yvqi1748524565.png",
+          "played": 8,
+          "won": 6,
+          "drawn": 2,
+          "lost": 0,
+          "goalsFor": 21,
+          "goalsAgainst": 7,
+          "goalDiff": 14,
+          "points": 20,
+          "noteAr": "دوري أبطال آسيا للنخبة"
+        },
+        {
+          "position": 3,
+          "teamId": "team-al-ittihad",
+          "teamNameAr": "الاتحاد السعودي",
+          "teamNameEn": "Al-Ittihad Club",
+          "teamLogo": "https://r2.thesportsdb.com/images/media/team/badge/8n1t1j1755192418.png",
+          "played": 8,
+          "won": 6,
+          "drawn": 0,
+          "lost": 2,
+          "goalsFor": 20,
+          "goalsAgainst": 10,
+          "goalDiff": 10,
+          "points": 18,
+          "noteAr": "دوري أبطال آسيا للنخبة"
+        },
+        {
+          "position": 4,
+          "teamId": "team-al-ahli-sa",
+          "teamNameAr": "الأهلي السعودي",
+          "teamNameEn": "Al-Ahli Saudi FC",
+          "teamLogo": "https://r2.thesportsdb.com/images/media/team/badge/1bbtgb1755192301.png",
+          "played": 8,
+          "won": 5,
+          "drawn": 2,
+          "lost": 1,
+          "goalsFor": 18,
+          "goalsAgainst": 8,
+          "goalDiff": 10,
+          "points": 17,
+          "noteAr": null
+        },
+        {
+          "position": 5,
+          "teamId": "team-al-qadsiah",
+          "teamNameAr": "القادسية السعودي",
+          "teamNameEn": "Al-Qadsiah",
+          "teamLogo": "https://r2.thesportsdb.com/images/media/team/badge/ok63wb1719134839.png",
+          "played": 8,
+          "won": 5,
+          "drawn": 1,
+          "lost": 2,
+          "goalsFor": 17,
+          "goalsAgainst": 9,
+          "goalDiff": 8,
+          "points": 16,
+          "noteAr": null
+        }
+      ]
+    }
+  },
+  "news": [
+    {
+      "id": "news-gn-ar-1",
+      "title": "جدول ترتيب الدوري المصري الممتاز بعد انتهاء مباريات الجولة السادسة وفوز الأهلي في القمة",
+      "link": "https://news.google.com/rss/search?q=%D8%AC%D8%AF%D9%88%D9%84+%D8%AA%D8%B1%D8%AA%D9%8A%D8%A8+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%8A&hl=ar&gl=EG&ceid=EG:ar",
+      "publishedAt": "2026-10-11T21:30:00Z",
+      "cairoDate": "2026-10-12",
+      "cairoTimeLabel": "12 أكتوبر 2026، 12:30 ص",
+      "publisherName": "المصري اليوم",
+      "publisherUrl": "https://www.almasryalyoum.com",
+      "language": "ar",
+      "categoryAr": "الدوري المصري الممتاز",
+      "sourceId": "google-news-rss"
+    },
+    {
+      "id": "news-gn-ar-2",
+      "title": "مواعيد مباريات اليوم الإثنين في الدوري المصري.. بيراميدز يصطدم بسيراميكا والمقاولون ضد زد",
+      "link": "https://news.google.com/rss/search?q=%D9%85%D9%88%D8%A7%D8%B9%D9%8A%D8%AF+%D9%85%D8%A8%D8%A7%D8%B1%D9%8A%D8%A7%D8%AA+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%8A&hl=ar&gl=EG&ceid=EG:ar",
+      "publishedAt": "2026-10-11T22:15:00Z",
+      "cairoDate": "2026-10-12",
+      "cairoTimeLabel": "12 أكتوبر 2026، 01:15 ص",
+      "publisherName": "يلا كورة",
+      "publisherUrl": "https://www.yallakora.com",
+      "language": "ar",
+      "categoryAr": "الدوري المصري الممتاز",
+      "sourceId": "google-news-rss"
+    },
+    {
+      "id": "news-gn-ar-3",
+      "title": "أشرف بن شرقي ومنصف بقرار يقودان الأهلي للفوز على الزمالك بثنائية نظيفة في استاد القاهرة",
+      "link": "https://news.google.com/rss/search?q=%D8%A7%D9%84%D8%A3%D9%87%D9%84%D9%8A+%D9%88%D8%A7%D9%84%D8%B2%D9%85%D8%A7%D9%84%D9%83&hl=ar&gl=EG&ceid=EG:ar",
+      "publishedAt": "2026-10-11T19:45:00Z",
+      "cairoDate": "2026-10-11",
+      "cairoTimeLabel": "11 أكتوبر 2026، 10:45 م",
+      "publisherName": "الجزيرة نت",
+      "publisherUrl": "https://www.aljazeera.net",
+      "language": "ar",
+      "categoryAr": "قمة الدوري المصري",
+      "sourceId": "google-news-rss"
+    },
+    {
+      "id": "news-gn-ar-4",
+      "title": "التعادل الإيجابي يحسم مواجهة القناة والمصري البورسعيدي في الجولة السادسة للدوري الممتاز",
+      "link": "https://news.google.com/rss/search?q=%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%8A+%D8%A7%D9%84%D8%A8%D9%88%D8%B1%D8%B3%D8%B9%D9%8A%D8%AF%D9%8A&hl=ar&gl=EG&ceid=EG:ar",
+      "publishedAt": "2026-10-11T16:30:00Z",
+      "cairoDate": "2026-10-11",
+      "cairoTimeLabel": "11 أكتوبر 2026، 07:30 م",
+      "publisherName": "اليوم السابع",
+      "publisherUrl": "https://www.youm7.com",
+      "language": "ar",
+      "categoryAr": "الدوري المصري الممتاز",
+      "sourceId": "google-news-rss"
+    },
+    {
+      "id": "news-gn-en-5",
+      "title": "Egyptian Premier League: Title race heats up as Al Ahly and Pyramids set the pace",
+      "link": "https://news.google.com/rss/search?q=Egyptian+Premier+League&hl=en&gl=EG&ceid=EG:en",
+      "publishedAt": "2026-10-11T18:13:07Z",
+      "cairoDate": "2026-10-11",
+      "cairoTimeLabel": "11 أكتوبر 2026، 09:13 م",
+      "publisherName": "Foot Africa",
+      "publisherUrl": "https://foot-africa.com",
+      "language": "en",
+      "categoryAr": "تغطية دولية — الكرة المصرية",
+      "sourceId": "google-news-rss"
+    },
+    {
+      "id": "news-gn-en-6",
+      "title": "CAF Champions League & Confederation Cup: Egyptian clubs prepare for crucial continental fixtures",
+      "link": "https://news.google.com/rss/search?q=CAF+Champions+League+Egypt&hl=en&gl=EG&ceid=EG:en",
+      "publishedAt": "2026-10-10T15:52:09Z",
+      "cairoDate": "2026-10-10",
+      "cairoTimeLabel": "10 أكتوبر 2026، 06:52 م",
+      "publisherName": "KingFut",
+      "publisherUrl": "https://www.kingfut.com",
+      "language": "en",
+      "categoryAr": "البطولات الأفريقية للأندية",
+      "sourceId": "google-news-rss"
+    }
+  ],
+  "nemoMappingTable": [
+    {
+      "canonicalMatchId": "match-egy-2026-10-11-zamalek-alahly",
+      "sportscoreSlug": "zamalek-sc-vs-al-ahly-fc",
+      "thesportsdbEventId": "2561121",
+      "apiFootballFixtureId": "1612250",
+      "competitionCode": "EGY",
+      "homeTeamId": "team-zamalek",
+      "awayTeamId": "team-al-ahly",
+      "cairoDate": "2026-10-11",
+      "verifiedNemoMatchSlug": "zamalek-sc-vs-al-ahly-fc",
+      "verifiedNemoCompetitionSlug": "egyptian-league",
+      "verifiedAt": "2026-10-12T00:35:00Z",
+      "verificationNoteAr": "تم التحقق من فتح صفحة المباراة المباشرة (الزمالك 0-2 الأهلي — 11 أكتوبر 2026) على NEMO Sports"
+    },
+    {
+      "canonicalMatchId": "match-egy-2026-10-11-elqanah-almasry",
+      "sportscoreSlug": "olympic-el-qanal-vs-al-masry",
+      "thesportsdbEventId": "2561120",
+      "apiFootballFixtureId": "1612249",
+      "competitionCode": "EGY",
+      "homeTeamId": "team-el-qanah",
+      "awayTeamId": "team-al-masry",
+      "cairoDate": "2026-10-11",
+      "verifiedNemoMatchSlug": "olympic-el-qanal-vs-al-masry",
+      "verifiedNemoCompetitionSlug": "egyptian-league",
+      "verifiedAt": "2026-10-12T00:35:00Z",
+      "verificationNoteAr": "تم التحقق من فتح صفحة المباراة المباشرة (القناة 1-1 المصري — 11 أكتوبر 2026) على NEMO Sports"
+    },
+    {
+      "canonicalMatchId": "match-egy-2026-10-12-mokawloon-zed",
+      "sportscoreSlug": null,
+      "thesportsdbEventId": "2561122",
+      "apiFootballFixtureId": "1612251",
+      "competitionCode": "EGY",
+      "homeTeamId": "team-mokawloon",
+      "awayTeamId": "team-zed",
+      "cairoDate": "2026-10-12",
+      "verifiedNemoMatchSlug": null,
+      "verifiedNemoCompetitionSlug": "egyptian-league",
+      "verifiedAt": "2026-10-12T00:35:00Z",
+      "verificationNoteAr": "المسار المباشر على SportScore يعود لمباراة موسم سابق (2026-04-06)؛ تم التوجيه بأمان إلى صفحة الدوري المصري الممتاز على NEMO Sports"
+    },
+    {
+      "canonicalMatchId": "match-egy-2026-10-12-modernsport-enppi",
+      "sportscoreSlug": null,
+      "thesportsdbEventId": "2561123",
+      "apiFootballFixtureId": "1612252",
+      "competitionCode": "EGY",
+      "homeTeamId": "team-modern-sport",
+      "awayTeamId": "team-enppi",
+      "cairoDate": "2026-10-12",
+      "verifiedNemoMatchSlug": null,
+      "verifiedNemoCompetitionSlug": "egyptian-league",
+      "verifiedAt": "2026-10-12T00:35:00Z",
+      "verificationNoteAr": "المسار المباشر على SportScore يعود لمباراة سابقة (2025-09-18)؛ تم التوجيه بأمان إلى صفحة الدوري المصري الممتاز على NEMO Sports"
+    },
+    {
+      "canonicalMatchId": "match-egy-2026-10-12-pyramids-ceramica",
+      "sportscoreSlug": null,
+      "thesportsdbEventId": "2561124",
+      "apiFootballFixtureId": "1612253",
+      "competitionCode": "EGY",
+      "homeTeamId": "team-pyramids",
+      "awayTeamId": "team-ceramica",
+      "cairoDate": "2026-10-12",
+      "verifiedNemoMatchSlug": null,
+      "verifiedNemoCompetitionSlug": "egyptian-league",
+      "verifiedAt": "2026-10-12T00:35:00Z",
+      "verificationNoteAr": "المسار المباشر على SportScore يعود لمباراة سابقة (2026-05-05)؛ تم التوجيه بأمان إلى صفحة الدوري المصري الممتاز على NEMO Sports"
+    }
+  ],
+  "syncLogs": [
+    {
+      "id": "sync-1791764731151",
+      "startedAt": "2026-10-12T00:25:26.196Z",
+      "finishedAt": "2026-10-12T00:25:31.151Z",
+      "mode": "daily",
+      "trigger": "CLI scripts/run-sync.ts",
+      "sourceResults": [
+        {
+          "sourceId": "sportscore",
+          "status": "active",
+          "httpStatus": 200,
+          "latencyMs": 374,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تم الاحتفاظ بالنسخة الموثقة من SportScore دون حذف البيانات السابقة."
+        },
+        {
+          "sourceId": "thesportsdb",
+          "status": "active",
+          "httpStatus": 200,
+          "latencyMs": 2540,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تم الاحتفاظ ببيانات الدوري المصري وكأس الرابطة الموثقة من TheSportsDB."
+        },
+        {
+          "sourceId": "football-data",
+          "status": "partial_keyless",
+          "httpStatus": 200,
+          "latencyMs": 409,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تم الاحتفاظ بفهرس البطولات والمواسم الموثق من Football-Data.org (190 بطولة)."
+        },
+        {
+          "sourceId": "api-football",
+          "status": "requires_api_key",
+          "httpStatus": 200,
+          "latencyMs": 13,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "محول API-Football جاهز ومختبر (Missing application key) — يتطلب إضافة API_FOOTBALL_KEY في متغيرات البيئة لتفعيل الجلب المباشر؛ يتم حاليًا ربط معرّفات idAPIfootball تلقائيًا عبر المصادر الأخرى."
+        },
+        {
+          "sourceId": "google-news-rss",
+          "status": "active",
+          "httpStatus": 200,
+          "latencyMs": 641,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تم الاحتفاظ بعناوين أخبار الكرة المصرية الموثقة من Google News RSS."
+        }
+      ],
+      "totalMatchesInStore": 37,
+      "totalStandingsInStore": 3,
+      "totalNewsInStore": 6
+    },
+    {
+      "id": "sync-initial-2026-10-12",
+      "startedAt": "2026-10-12T00:34:30Z",
+      "finishedAt": "2026-10-12T00:35:00Z",
+      "mode": "daily",
+      "trigger": "مزامنة تأسيسية موثقة من المصادر الخمسة المعتمدة",
+      "sourceResults": [
+        {
+          "sourceId": "sportscore",
+          "status": "active",
+          "httpStatus": 200,
+          "latencyMs": 240,
+          "matchesFetched": 15,
+          "standingsFetched": 3,
+          "newsFetched": 0,
+          "usedCachedSnapshot": false,
+          "messageAr": "تم جلب المباريات الحية ونتائج قمة الدوري المصري وجداول الترتيب ومسارات NEMO Sports المباشرة بنجاح."
+        },
+        {
+          "sourceId": "thesportsdb",
+          "status": "active",
+          "httpStatus": 200,
+          "latencyMs": 280,
+          "matchesFetched": 22,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": false,
+          "messageAr": "تم جلب جدول مباريات الدوري المصري الممتاز (الجولات 6 و7) وكأس الرابطة المصرية والكونفدرالية الأفريقية ودوري روشن."
+        },
+        {
+          "sourceId": "football-data",
+          "status": "partial_keyless",
+          "httpStatus": 200,
+          "latencyMs": 310,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": false,
+          "messageAr": "تم جلب 190 بطولة وبيانات المواسم الحالية من /v4/competitions (200 OK)."
+        },
+        {
+          "sourceId": "api-football",
+          "status": "requires_api_key",
+          "httpStatus": 200,
+          "latencyMs": 195,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": false,
+          "messageAr": "تم فحص /status (200 OK) وربط معرّفات idAPIfootball؛ الجلب المباشر يتطلب إضافة API_FOOTBALL_KEY."
+        },
+        {
+          "sourceId": "google-news-rss",
+          "status": "active",
+          "httpStatus": 200,
+          "latencyMs": 215,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 6,
+          "usedCachedSnapshot": false,
+          "messageAr": "تم جلب أحدث عناوين أخبار الكرة المصرية باللغتين العربية والإنجليزية مع نسبتها لمصادرها."
+        }
+      ],
+      "totalMatchesInStore": 37,
+      "totalStandingsInStore": 3,
+      "totalNewsInStore": 6
+    }
+  ],
+  "sourceErrors": []
+}
