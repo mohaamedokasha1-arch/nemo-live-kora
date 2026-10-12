@@ -70,8 +70,8 @@ export function linkNewsToMatches(
     return false;
   });
 
-  // No per-match NEMO Sports page exists to link a news item to. Related matches are listed as
-  // text only (see app/news/[slug]/page.tsx), so the item carries no NEMO Sports link.
+  // A news item has no independently verified match destination. Related fixtures remain plain
+  // text (see app/news/[slug]/page.tsx); generic or incidental match links are never attached.
   return {
     relatedMatchIds: relatedMatches.map((match) => match.id),
     relatedTeamIds,

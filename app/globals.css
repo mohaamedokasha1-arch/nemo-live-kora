@@ -357,6 +357,14 @@ a {
   border-color: var(--kl-border);
 }
 
+.kl-match-card-unlinked:hover .kl-team-logo-wrap {
+  transform: none;
+}
+
+.kl-match-card-unlinked .kl-meta-action {
+  color: var(--kl-text-secondary);
+}
+
 .kl-match-card-live {
   border-color: var(--kl-accent-green);
 }

@@ -188,6 +188,7 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
           seasonLabel: comp.currentSeason,
           roundLabelAr: m.matchday ? `الجولة ${m.matchday}` : null,
           utcKickoff: m.utcDate,
+          kickoffConfirmed: true,
           cairoDate,
           cairoTime,
           homeTeam: {

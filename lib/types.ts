@@ -30,14 +30,11 @@ export type MatchStatusCode =
   | 'suspended'
   | 'unconfirmed';
 
-/**
- * Every broadcast CTA on the gateway points to the general NEMO Sports broadcast section
- * (`/watch`). Per-match destinations are not produced, so no match-level link type exists.
- */
-export type NemoLinkType = 'broadcast_section' | 'unavailable';
+/** A match link exists only when the exact NEMO Sports match page is verified. */
+export type NemoLinkType = 'direct_match' | 'unavailable';
 
 export type NemoMatchCriterion =
-  | 'original_match_id'
+  | 'provider_match_id'
   | 'competition_id'
   | 'team_ids'
   | 'match_date'
@@ -173,8 +170,8 @@ export interface MatchRecord {
   roundLabelAr: string | null;
   utcKickoff: string;
   /**
-   * false when the source did not provide a kick-off time. utcKickoff is then only a day
-   * placeholder and must not be displayed as a time. Undefined is treated as confirmed.
+   * True only when a source supplied a trustworthy kick-off timestamp. False or missing means
+   * the stored timestamp may only be a date anchor and must not be displayed as a match time.
    */
   kickoffConfirmed?: boolean;
   cairoDate: string;

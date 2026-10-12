@@ -54,8 +54,8 @@ export function createMatchScheduleStructuredData(
           name: match.venue,
         };
       }
-      // No per-match URL: the gateway has no verified NEMO Sports page per match, and the
-      // visible cards link only to the general broadcast section.
+      // Deliberately omit `url`: this page describes the fixture list, not a canonical event
+      // detail page on the gateway. Third-party NEMO destinations are not event URLs here.
 
       return {
         '@type': 'ListItem',

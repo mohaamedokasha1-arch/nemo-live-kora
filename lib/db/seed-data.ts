@@ -1238,7 +1238,7 @@ export function buildInitialVerifiedDatabase(): GatewayDatabase {
 
   return {
     meta: {
-      schemaVersion: '1.2.0',
+      schemaVersion: '1.3.0',
       gatewayName: 'بوابة مباريات NEMO Sports',
       mainSiteUrl: NEMO_SPORTS_BASE_URL,
       timezone: 'Africa/Cairo',
@@ -1369,16 +1369,16 @@ export function mergeMatchRecords(
         : existing.score.halfTimeAway,
   };
 
-  // Every record resolves to the same broadcast section, so the incoming link is current.
+  // The incoming resolver result is recalculated from trusted source ids and exact match date.
   const preferredNemoLink = incoming.nemoLink;
 
-  // A source that did not send a kick-off time must not overwrite a confirmed one.
+  // Only a source-confirmed time may replace another confirmed time. Missing confirmation is
+  // treated as unknown, never as evidence that a stored timestamp is a real kick-off.
   const incomingKickoffValid = Number.isFinite(Date.parse(incoming.utcKickoff));
-  const keepExistingKickoff =
-    incoming.kickoffConfirmed === false &&
-    existing.kickoffConfirmed !== false &&
-    Number.isFinite(Date.parse(existing.utcKickoff));
-  const useIncomingKickoff = !keepExistingKickoff && incomingKickoffValid;
+  const incomingKickoffConfirmed = incoming.kickoffConfirmed === true;
+  const existingKickoffConfirmed = existing.kickoffConfirmed === true;
+  const useIncomingKickoff =
+    incomingKickoffValid && (incomingKickoffConfirmed || !existingKickoffConfirmed);
   const externalIds = Object.fromEntries(
     Object.entries({ ...existing.externalIds, ...incoming.externalIds }).filter(
       ([, value]) => value !== undefined && value !== null && value !== ''
@@ -1394,7 +1394,7 @@ export function mergeMatchRecords(
     statusNoteAr: useIncomingStatus ? incoming.statusNoteAr : existing.statusNoteAr,
     liveMinute: incoming.liveMinute ?? existing.liveMinute,
     utcKickoff: useIncomingKickoff ? incoming.utcKickoff : existing.utcKickoff,
-    kickoffConfirmed: useIncomingKickoff ? incoming.kickoffConfirmed : existing.kickoffConfirmed,
+    kickoffConfirmed: useIncomingKickoff ? incomingKickoffConfirmed : existingKickoffConfirmed,
     cairoDate: useIncomingKickoff ? incoming.cairoDate : existing.cairoDate,
     cairoTime: useIncomingKickoff ? incoming.cairoTime : existing.cairoTime,
     score: mergedScore,

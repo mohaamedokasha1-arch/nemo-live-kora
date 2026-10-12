@@ -419,7 +419,7 @@ export const NOT_STARTED_GRACE_MS = 15 * 60 * 1000;
 export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date()): MatchRecord {
   const nowMs = now.getTime();
   const kickoffMs = Date.parse(match.utcKickoff);
-  const kickoffKnown = match.kickoffConfirmed !== false && Number.isFinite(kickoffMs);
+  const kickoffKnown = match.kickoffConfirmed === true && Number.isFinite(kickoffMs);
 
   if (match.status === 'live') {
     const updatedMs = Date.parse(match.lastUpdatedAt);

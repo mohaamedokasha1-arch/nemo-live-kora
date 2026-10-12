@@ -188,6 +188,7 @@ export function mapSportScoreMatchToRecord(
     seasonLabel: comp.currentSeason,
     roundLabelAr: null,
     utcKickoff: new Date(raw.time).toISOString(),
+    kickoffConfirmed: true,
     cairoDate,
     cairoTime,
     homeTeam: {

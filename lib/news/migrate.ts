@@ -5,13 +5,10 @@ import {
   toCairoDateString,
   toCairoTimeArabic,
 } from '../cairo-time';
-import { mergeMatchRecords } from '../db/seed-data';
+import { mergeMatchRecords, VERIFIED_THESPORTSDB_EVENTS } from '../db/seed-data';
+import { resolveTheSportsDBKickoff } from '../sources/thesportsdb';
 import { buildMatchDedupKey, getStableMatchId } from '../match-identity';
-import {
-  NEMO_BROADCAST_SECTION_URL,
-  resolveNemoSportsLink,
-  VERIFIED_NEMO_MAPPING_TABLE,
-} from '../nemo-resolver';
+import { resolveNemoSportsLink, VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
 import { formatNewsTimestampLabel, toCairoDateStringOrNull } from './age-policy';
 import { buildNewsSlug, collapseWhitespace, stableNewsHash } from './normalize';
 import { validateNewsCandidate } from './validate';
@@ -170,6 +167,33 @@ function hasSameTrustedSourceIdentity(
   );
 }
 
+/**
+ * Old snapshots predate `kickoffConfirmed`. Recover certainty only when the legacy source is
+ * known to have supplied an explicit time and that time still matches its captured record;
+ * otherwise the stored UTC timestamp may be only a fallback/day anchor.
+ */
+function inferLegacyKickoffConfirmation(match: MatchRecord): boolean {
+  if (typeof match.kickoffConfirmed === 'boolean') return match.kickoffConfirmed;
+  const storedMs = Date.parse(match.utcKickoff);
+  if (!Number.isFinite(storedMs)) return false;
+
+  if (['sportscore', 'football-data', 'api-football'].includes(match.primarySource)) {
+    return true;
+  }
+
+  if (match.primarySource === 'thesportsdb' && match.externalIds?.thesportsdbEventId) {
+    const raw = VERIFIED_THESPORTSDB_EVENTS.find(
+      (event) => event.idEvent === match.externalIds.thesportsdbEventId
+    );
+    const resolved = raw ? resolveTheSportsDBKickoff(raw) : null;
+    return Boolean(
+      resolved?.confirmed && resolved.utcIso === new Date(storedMs).toISOString()
+    );
+  }
+
+  return false;
+}
+
 function migrateMatches(matches: MatchRecord[]): {
   matches: MatchRecord[];
   oldToNewId: Map<string, string>;
@@ -188,30 +212,40 @@ function migrateMatches(matches: MatchRecord[]): {
       cairoDate: original.cairoDate,
       fallbackId: original.id,
     });
+    const kickoffConfirmed = inferLegacyKickoffConfirmation(original);
+    const hasValidKickoff = Number.isFinite(Date.parse(original.utcKickoff));
     const normalizedStatus = normalizeMatchStatus(
       original.status,
       original.statusLabelAr,
-      original.utcKickoff
+      kickoffConfirmed ? original.utcKickoff : undefined
     );
-    const hasValidKickoff = Number.isFinite(Date.parse(original.utcKickoff));
+    const statusNeedsConfirmedKickoff =
+      !kickoffConfirmed &&
+      (normalizedStatus.status === 'live' || normalizedStatus.status === 'not_started');
+    const safeStatus = statusNeedsConfirmedKickoff
+      ? {
+          status: 'unconfirmed' as const,
+          statusLabelAr: 'الموعد غير مؤكد من المصدر',
+          statusNoteAr: 'لا يتوفر موعد انطلاق موثوق؛ لا نعرض المباراة على أنها لم تبدأ أو جارية.',
+        }
+      : normalizedStatus;
     const cairoDate = hasValidKickoff
       ? toCairoDateString(original.utcKickoff)
       : isValidDateParam(original.cairoDate)
       ? original.cairoDate
       : '';
-    const cairoTime = hasValidKickoff
+    const cairoTime = kickoffConfirmed && hasValidKickoff
       ? toCairoTimeArabic(original.utcKickoff)
-      : cairoDate
-      ? original.cairoTime
-      : 'غير محدد';
+      : 'الموعد غير مؤكد';
     const match: MatchRecord = {
       ...original,
       id,
       cairoDate,
       cairoTime,
-      status: normalizedStatus.status,
-      statusLabelAr: normalizedStatus.statusLabelAr,
-      statusNoteAr: normalizedStatus.statusNoteAr,
+      kickoffConfirmed,
+      status: safeStatus.status,
+      statusLabelAr: safeStatus.statusLabelAr,
+      statusNoteAr: safeStatus.statusNoteAr,
       nemoLink: resolveNemoSportsLink({
         canonicalMatchId: id,
         sportscoreSlug: externalIds.sportscoreSlug,
@@ -287,14 +321,13 @@ export function migrateGatewayDatabase(db: GatewayDatabase): GatewayDatabase {
         const relatedMatchIds = item.relatedMatchIds.map(
           (matchId) => migratedMatches.oldToNewId.get(matchId) || matchId
         );
-        // Only the general NEMO Sports broadcast section may remain as a news link; any stored
-        // per-match link from earlier versions is dropped.
-        const allowedLink = item.nemoRelatedUrl === NEMO_BROADCAST_SECTION_URL;
+        // Old generic /watch links were not match-specific. Do not carry them into public news;
+        // new related-match references remain plain text until an exact page is verified.
         return {
           ...item,
           relatedMatchIds,
-          nemoRelatedUrl: allowedLink ? item.nemoRelatedUrl : null,
-          nemoRelatedLabelAr: allowedLink ? item.nemoRelatedLabelAr : null,
+          nemoRelatedUrl: null,
+          nemoRelatedLabelAr: null,
         };
       })
     : [];
@@ -303,7 +336,7 @@ export function migrateGatewayDatabase(db: GatewayDatabase): GatewayDatabase {
     ...db,
     meta: {
       ...db.meta,
-      schemaVersion: '1.2.0',
+      schemaVersion: '1.3.0',
       lastNewsSyncAt: db.meta.lastNewsSyncAt ?? null,
       lastSuccessfulNewsSyncAt: db.meta.lastSuccessfulNewsSyncAt ?? null,
     },

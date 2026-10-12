@@ -151,7 +151,7 @@ export default async function NewsArticlePage({
           <ul>
             {relatedMatches.slice(0, 3).map((match) => (
               <li key={match.id}>
-                {/* Plain text: there is no per-match NEMO Sports page to link to. */}
+                {/* Plain text: the news item has no independently verified match destination. */}
                 <span>
                   {match.homeTeam.nameAr} ضد {match.awayTeam.nameAr} — {match.cairoDate}
                 </span>

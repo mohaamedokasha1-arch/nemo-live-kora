@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
-import MatchCard, { BROADCAST_CTA_LABEL_AR } from '../components/MatchCard';
+import MatchCard, {
+  UNVERIFIED_MATCH_LINK_LABEL_AR,
+  VERIFIED_MATCH_LINK_LABEL_AR,
+} from '../components/MatchCard';
 import {
-  NEMO_BROADCAST_PATH,
-  NEMO_BROADCAST_SECTION_URL,
+  getVerifiedNemoMatchPageUrl,
   resolveNemoSportsLink,
+  VERIFIED_NEMO_MAPPING_TABLE,
+  VERIFIED_NEMO_SPORTS_ORIGIN,
 } from '../lib/nemo-resolver';
 import { buildMatchDedupKey } from '../lib/match-identity';
 import { mapSportScoreMatchToRecord } from '../lib/sources/sportscore';
@@ -21,24 +25,107 @@ import {
   STALE_LIVE_MAX_AGE_MS,
   upsertMatchesInStore,
 } from '../lib/db/store';
+import { migrateGatewayDatabase } from '../lib/news/migrate';
 import { describeMatchesFreshness } from '../lib/freshness';
-import { MatchRecord } from '../lib/types';
+import { toCairoTimeArabic } from '../lib/cairo-time';
+import type { MatchRecord } from '../lib/types';
 
-const WATCH_URL = 'https://nemo-sports.vercel.app/watch';
+const EXACT_MATCH_URL =
+  'https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc#live-stream';
 
-test('Broadcast CTA: every match resolves to the general NEMO Sports /watch section', () => {
-  assert.equal(NEMO_BROADCAST_PATH, '/watch');
-  assert.equal(NEMO_BROADCAST_SECTION_URL, WATCH_URL);
+function zamalekVsAhlyInput(overrides: Partial<Parameters<typeof resolveNemoSportsLink>[0]> = {}) {
+  return {
+    thesportsdbEventId: '2561121',
+    apiFootballFixtureId: '1612250',
+    competitionCode: 'EGY',
+    homeTeamId: 'team-zamalek',
+    awayTeamId: 'team-al-ahly',
+    cairoDate: '2026-10-11',
+    ...overrides,
+  };
+}
 
-  const sportscore = mapSportScoreMatchToRecord({
-    home: 'Sao Paulo',
-    away: 'Vitoria BA',
-    status: 'notstarted',
-    time: '2026-10-12T22:30:00Z',
-    competition: 'Brasileiro Serie A',
-    url: '/football/match/sao-paulo-vs-vitoria-ba/k82rekhg0vyzrep/',
+test('Match resolver only allows exact, date-matched source identities in the verified table', () => {
+  assert.equal(VERIFIED_NEMO_SPORTS_ORIGIN, 'https://nemo-sports.vercel.app');
+  assert.equal(VERIFIED_NEMO_MAPPING_TABLE.filter((entry) => entry.verifiedNemoMatchSlug).length, 2);
+
+  const verified = resolveNemoSportsLink(zamalekVsAhlyInput());
+  assert.equal(verified.linkType, 'direct_match');
+  assert.equal(verified.url, EXACT_MATCH_URL);
+  assert.equal(verified.verified, true);
+  assert.match(verified.subLabelAr, /لا نفترض توفر بث نشط/);
+  assert.equal(
+    getVerifiedNemoMatchPageUrl({
+      ...VERIFIED_NEMO_MAPPING_TABLE[0],
+      verifiedNemoMatchSlug: 'an-unverified-match',
+    }),
+    null
+  );
+
+  const qanalMasry = resolveNemoSportsLink({
+    thesportsdbEventId: '2561120',
+    apiFootballFixtureId: '1612249',
+    competitionCode: 'EGY',
+    homeTeamId: 'team-el-qanah',
+    awayTeamId: 'team-al-masry',
+    cairoDate: '2026-10-11',
   });
-  const tsdb = mapTheSportsDBEventToRecord({
+  assert.equal(
+    qanalMasry.url,
+    'https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry#live-stream'
+  );
+
+  for (const input of [
+    zamalekVsAhlyInput({ cairoDate: '2026-10-12' }),
+    zamalekVsAhlyInput({ homeTeamId: 'team-al-ahly', awayTeamId: 'team-zamalek' }),
+    zamalekVsAhlyInput({ thesportsdbEventId: 'untrusted-id', apiFootballFixtureId: null }),
+    {
+      sportscoreSlug: 'zamalek-sc-vs-al-ahly-fc',
+      competitionCode: 'EGY',
+      homeTeamId: 'team-zamalek',
+      awayTeamId: 'team-al-ahly',
+      cairoDate: '2026-10-11',
+    },
+  ]) {
+    const rejected = resolveNemoSportsLink(input);
+    assert.equal(rejected.url, null);
+    assert.equal(rejected.linkType, 'unavailable');
+    assert.equal(rejected.verified, false);
+  }
+
+  const otherwiseMappedButUnverified = resolveNemoSportsLink({
+    thesportsdbEventId: '2561124',
+    apiFootballFixtureId: '1612253',
+    competitionCode: 'EGY',
+    homeTeamId: 'team-pyramids',
+    awayTeamId: 'team-ceramica',
+    cairoDate: '2026-10-12',
+  });
+  assert.equal(otherwiseMappedButUnverified.url, null);
+});
+
+test('MatchCard links only verified fixtures; other cards are non-clickable and hide unconfirmed times', () => {
+  const verifiedMatch = mapTheSportsDBEventToRecord({
+    idEvent: '2561121',
+    idAPIfootball: '1612250',
+    strEvent: 'Zamalek vs Al Ahly',
+    idLeague: '4829',
+    strLeague: 'Egyptian Premier League',
+    strHomeTeam: 'Zamalek',
+    strAwayTeam: 'Al Ahly',
+    strTimestamp: '2026-10-11T17:00:00Z',
+    dateEvent: '2026-10-11',
+    strStatus: 'FT',
+    intHomeScore: 0,
+    intAwayScore: 2,
+  });
+  const verifiedHtml = renderToStaticMarkup(MatchCard({ match: verifiedMatch }));
+  assert.ok(verifiedHtml.includes(`href="${EXACT_MATCH_URL}"`));
+  assert.ok(verifiedHtml.includes('انتهت المباراة — لا يوجد بث موثّق حاليًا'));
+  assert.ok(verifiedHtml.includes(VERIFIED_MATCH_LINK_LABEL_AR) === false);
+  assert.ok(verifiedHtml.includes(toCairoTimeArabic(verifiedMatch.utcKickoff)));
+
+  const unmatched = mapTheSportsDBEventToRecord({
     idEvent: '2561124',
     idAPIfootball: '1612253',
     strEvent: 'Pyramids vs Ceramica Cleopatra',
@@ -46,59 +133,18 @@ test('Broadcast CTA: every match resolves to the general NEMO Sports /watch sect
     strLeague: 'Egyptian Premier League',
     strHomeTeam: 'Pyramids',
     strAwayTeam: 'Ceramica Cleopatra',
-    strTimestamp: '2026-10-12T17:00:00',
+    strTimestamp: '2026-10-12T17:00:00Z',
     dateEvent: '2026-10-12',
     strStatus: 'NS',
   });
-  for (const record of [sportscore, tsdb]) {
-    assert.equal(record.nemoLink.linkType, 'broadcast_section');
-    assert.equal(record.nemoLink.url, WATCH_URL);
-    assert.equal(record.nemoLink.competitionUrl, null);
-    assert.equal(record.nemoLink.scheduleUrl, null);
-  }
+  const unmatchedHtml = renderToStaticMarkup(MatchCard({ match: unmatched }));
+  assert.match(unmatchedHtml, /^<article [^>]*kl-match-card-unlinked/);
+  assert.ok(unmatchedHtml.includes(UNVERIFIED_MATCH_LINK_LABEL_AR));
+  assert.ok(!unmatchedHtml.includes('href='));
+  assert.ok(!unmatchedHtml.includes('nemo-sports.vercel.app'));
+  assert.ok(unmatchedHtml.includes(toCairoTimeArabic(unmatched.utcKickoff)));
 
-  // The destination is a clean URL: no fragment, no query, no per-match slug.
-  const url = new URL(WATCH_URL);
-  assert.equal(url.pathname, '/watch');
-  assert.equal(url.hash, '');
-  assert.equal(url.search, '');
-  assert.ok(!WATCH_URL.includes('/matches/'));
-  assert.ok(!WATCH_URL.includes('live-stream'));
-
-  // Unknown source data, a placeholder slug and an unmapped competition all get the same CTA.
-  const placeholder = resolveNemoSportsLink({
-    sportscoreSlug: 'team-4wyrn4h9jwyq86p-vs-team-dn1m1gh15xlmoep',
-    competitionCode: 'UNKNOWN',
-    homeTeamId: 'team-ss-team-4wyrn4h9jwyq86p',
-    awayTeamId: 'team-ss-team-dn1m1gh15xlmoep',
-    cairoDate: '2026-10-12',
-  });
-  assert.equal(placeholder.url, WATCH_URL);
-});
-
-test('Broadcast CTA: MatchCard renders a /watch link on every card with the general-section label', () => {
-  const base = mapTheSportsDBEventToRecord({
-    idEvent: '2561124',
-    strEvent: 'Pyramids vs Ceramica Cleopatra',
-    idLeague: '4829',
-    strLeague: 'Egyptian Premier League',
-    strHomeTeam: 'Pyramids',
-    strAwayTeam: 'Ceramica Cleopatra',
-    strTimestamp: '2026-10-12T17:00:00',
-    dateEvent: '2026-10-12',
-    strStatus: 'NS',
-  }) as MatchRecord;
-  const confirmedHtml = renderToStaticMarkup(MatchCard({ match: base }));
-  assert.match(confirmedHtml, /<a [^>]*href="https:\/\/nemo-sports\.vercel\.app\/watch"/);
-  assert.ok(confirmedHtml.includes(BROADCAST_CTA_LABEL_AR));
-  assert.equal(BROADCAST_CTA_LABEL_AR, 'قسم البث العام على NEMO Sports');
-  assert.ok(!confirmedHtml.includes('/matches/'));
-  assert.ok(!confirmedHtml.includes('#live-stream'));
-  assert.ok(!confirmedHtml.includes('لا يتوفر رابط بث'));
-  assert.ok(confirmedHtml.includes('17:00') || confirmedHtml.includes('5:00 PM'), 'confirmed time is shown');
-
-  // Unconfirmed kick-off: the card still links to /watch but shows no invented clock time.
-  const unconfirmed = mapTheSportsDBEventToRecord({
+  const noSourceTime = mapTheSportsDBEventToRecord({
     idEvent: '9900002',
     strEvent: 'Smouha vs Ghazl El Mahalla',
     idLeague: '4829',
@@ -108,11 +154,54 @@ test('Broadcast CTA: MatchCard renders a /watch link on every card with the gene
     dateEvent: '2026-10-19',
     strTime: '16:00:00',
     strStatus: 'NS',
-  }) as MatchRecord;
-  const unconfirmedHtml = renderToStaticMarkup(MatchCard({ match: unconfirmed }));
-  assert.ok(unconfirmedHtml.includes('الموعد غير مؤكد'));
-  assert.ok(!unconfirmedHtml.includes('4:00 PM'), 'the 16:00 default must never be shown');
-  assert.ok(unconfirmedHtml.includes('href="https://nemo-sports.vercel.app/watch"'));
+  });
+  const noSourceTimeHtml = renderToStaticMarkup(MatchCard({ match: noSourceTime }));
+  assert.equal(noSourceTime.kickoffConfirmed, false);
+  assert.ok(noSourceTimeHtml.includes('الموعد غير مؤكد'));
+  assert.ok(!noSourceTimeHtml.includes('16:00'));
+  assert.ok(!noSourceTimeHtml.includes('4:00'));
+  assert.ok(!noSourceTimeHtml.includes('<time'));
+  assert.ok(!noSourceTimeHtml.includes('href='));
+});
+
+test('Legacy kickoff migration preserves only evidence-backed times and guards unsupported status', () => {
+  const db = getGatewayDatabase();
+  assert.ok(db.matches.length > 0);
+  assert.ok(db.matches.every((match) => typeof match.kickoffConfirmed === 'boolean'));
+
+  const seededTheSportsDBMatch = db.matches.find(
+    (match) => match.primarySource === 'thesportsdb' && match.externalIds.thesportsdbEventId
+  );
+  assert.ok(seededTheSportsDBMatch);
+  assert.equal(seededTheSportsDBMatch.kickoffConfirmed, true);
+
+  const rawDateOnly = mapTheSportsDBEventToRecord({
+    idEvent: '9900003',
+    strEvent: 'Smouha vs Ghazl El Mahalla',
+    idLeague: '4829',
+    strLeague: 'Egyptian Premier League',
+    strHomeTeam: 'Smouha',
+    strAwayTeam: 'Ghazl El Mahalla',
+    dateEvent: '2026-10-19',
+    strTime: '16:00:00',
+    strStatus: 'NS',
+  });
+  const legacyRecordFields = { ...rawDateOnly };
+  delete legacyRecordFields.kickoffConfirmed;
+  const legacyRecord = {
+    ...legacyRecordFields,
+    status: 'not_started' as const,
+    cairoTime: '04:00 م',
+  } as MatchRecord;
+  const migrated = migrateGatewayDatabase({ ...db, matches: [legacyRecord] });
+  const migratedRecord = migrated.matches.find(
+    (match) => match.externalIds.thesportsdbEventId === '9900003'
+  );
+  assert.ok(migratedRecord);
+  assert.equal(migratedRecord.kickoffConfirmed, false);
+  assert.equal(migratedRecord.cairoTime, 'الموعد غير مؤكد');
+  assert.equal(migratedRecord.status, 'unconfirmed');
+  assert.equal(migratedRecord.nemoLink.url, null);
 });
 
 test('Deduplication: the same fixture from SportScore and TheSportsDB is stored once', () => {
@@ -141,14 +230,17 @@ test('Deduplication: the same fixture from SportScore and TheSportsDB is stored 
   upsertMatchesInStore([tsdb]);
   upsertMatchesInStore([ss]);
   upsertMatchesInStore([ss]); // repeated sync must not duplicate
-  const stored = getGatewayDatabase().matches.filter((m) => buildMatchDedupKey(m) === buildMatchDedupKey(ss));
+  const stored = getGatewayDatabase().matches.filter(
+    (match) => buildMatchDedupKey(match) === buildMatchDedupKey(ss)
+  );
   assert.equal(stored.length, 1);
   assert.equal(stored[0].externalIds.thesportsdbEventId, '9900001');
   assert.equal(stored[0].externalIds.sportscoreSlug, 'smouha-sc-vs-ceramica-cleopatra-fc');
-  assert.equal(stored[0].nemoLink.url, WATCH_URL);
+  assert.equal(stored[0].nemoLink.url, null);
+  assert.equal(stored[0].nemoLink.linkType, 'unavailable');
 });
 
-test('Stale live guard: a "live" record older than the freshness window is shown as unconfirmed, never as live', () => {
+test('Stale live guard: an old "live" record is not shown as live', () => {
   const live = mapSportScoreMatchToRecord({
     home: 'Pyramids FC',
     away: 'Enppi',
@@ -170,6 +262,9 @@ test('Stale live guard: a "live" record older than the freshness window is shown
   assert.equal(stale.liveMinute, null);
   assert.equal(stale.score.home, 1, 'last known score is kept, not zeroed');
   assert.equal(stale.score.away, 0);
+
+  const noKickoffConfirmation = guardStaleLiveStatus({ ...live, kickoffConfirmed: false });
+  assert.equal(noKickoffConfirmation.status, 'unconfirmed');
 });
 
 test('TheSportsDB endpoints: Egyptian rounds first, no baseball league, no fixed API key path', () => {
@@ -177,18 +272,18 @@ test('TheSportsDB endpoints: Egyptian rounds first, no baseball league, no fixed
     season: '2026-2027',
     rounds: [5, 6, 7],
   });
-  const urls = endpoints.map((e) => e.url);
-  assert.ok(THESPORTSDB_FOLLOWED_LEAGUES.some((l) => l.id === '4829'), 'Egyptian Premier League is followed');
-  assert.ok(!THESPORTSDB_FOLLOWED_LEAGUES.some((l) => l.id === '4830'), 'league 4830 (KBO baseball) is not followed');
-  assert.ok(urls.some((u) => u.endsWith('/eventsround.php?id=4829&r=6&s=2026-2027')));
-  assert.ok(urls.some((u) => u.endsWith('/eventsnextleague.php?id=4829')));
-  assert.ok(urls.some((u) => u.endsWith('/eventspastleague.php?id=4829')));
-  assert.ok(urls.some((u) => u.includes('eventsday.php?d=2026-10-12&s=Soccer')));
-  assert.ok(urls.every((u) => /\/api\/v1\/json\/[^/]+\//.test(u)));
-  assert.ok(urls.every((u) => !u.includes('id=4830')));
+  const urls = endpoints.map((endpoint) => endpoint.url);
+  assert.ok(THESPORTSDB_FOLLOWED_LEAGUES.some((league) => league.id === '4829'));
+  assert.ok(!THESPORTSDB_FOLLOWED_LEAGUES.some((league) => league.id === '4830'));
+  assert.ok(urls.some((url) => url.endsWith('/eventsround.php?id=4829&r=6&s=2026-2027')));
+  assert.ok(urls.some((url) => url.endsWith('/eventsnextleague.php?id=4829')));
+  assert.ok(urls.some((url) => url.endsWith('/eventspastleague.php?id=4829')));
+  assert.ok(urls.some((url) => url.includes('eventsday.php?d=2026-10-12&s=Soccer')));
+  assert.ok(urls.every((url) => /\/api\/v1\/json\/[^/]+\//.test(url)));
+  assert.ok(urls.every((url) => !url.includes('id=4830')));
 });
 
-test('Sync bookkeeping: last attempt, last success and failure outcome are recorded and described honestly', () => {
+test('Sync bookkeeping: attempt, last success, and failure are reported honestly', () => {
   recordMatchesSyncAttempt({
     ok: true,
     trigger: 'test',
@@ -212,7 +307,7 @@ test('Sync bookkeeping: last attempt, last success and failure outcome are recor
     sourcesFailed: ['sportscore', 'thesportsdb'],
   });
   meta = getGatewayDatabase().meta;
-  assert.equal(meta.lastSuccessfulMatchesSyncAt, successAt, 'failure does not overwrite last success');
+  assert.equal(meta.lastSuccessfulMatchesSyncAt, successAt);
   assert.equal(meta.lastMatchesSyncResult?.ok, false);
   assert.match(describeMatchesFreshness(meta) || '', /تعذر تحديث المباريات/);
 });
