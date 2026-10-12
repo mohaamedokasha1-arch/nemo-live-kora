@@ -2,8 +2,8 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/sync?mode=daily",
-      "schedule": "0 3 * * *"
+      "path": "/api/cron/update-matches",
+      "schedule": "0 * * * *"
     }
   ]
 }

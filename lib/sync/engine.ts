@@ -252,3 +252,107 @@ export async function runGatewaySync(
   recordSyncExecution(logEntry, errors, sourceUpdates);
   return logEntry;
 }
+
+export interface MatchesUpdateSourceSummary {
+  sourceId: SourceId;
+  status: string;
+  matchesFetched: number;
+  standingsFetched: number;
+  newsFetched: number;
+  usedCachedSnapshot: boolean;
+  messageAr: string;
+}
+
+export interface MatchesUpdatePipelineResult {
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  mode: 'live' | 'daily' | 'standings' | 'manual';
+  /** عدد المباريات التي تغيّرت فعليًا في قاعدة البيانات = الجديدة + المعدّلة */
+  matchesUpdated: number;
+  /** مباريات لم تكن موجودة وأُضيفت حديثًا */
+  matchesAdded: number;
+  /** مباريات كانت موجودة وتغيّرت بياناتها (نتيجة/حالة/موعد…) */
+  matchesChanged: number;
+  /** عدد المباريات التي دخلت خط الأنابيب من المصادر قبل الدمج */
+  matchesProcessed: number;
+  totalMatchesInStore: number;
+  standingsUpdated: number;
+  newsUpdated: number;
+  sources: MatchesUpdateSourceSummary[];
+  log: SyncLogEntry;
+}
+
+/**
+ * Database Pipeline used by the cron endpoint `/api/cron/update-matches`.
+ *
+ * Wraps `runGatewaySync` with a before/after fingerprint of every match record so the
+ * endpoint can report an honest "how many matches were updated" number
+ * (newly inserted + actually modified) instead of the raw fetch count.
+ */
+export async function runMatchesUpdatePipeline(
+  options: RunGatewaySyncOptions = {}
+): Promise<MatchesUpdatePipelineResult> {
+  const mode = options.mode || 'live';
+  const beforeDb = getGatewayDatabase();
+  const beforeMatches = new Map<string, string>();
+  for (const match of beforeDb.matches) {
+    beforeMatches.set(match.id, JSON.stringify(match));
+  }
+  const beforeStandingsCount = Object.keys(beforeDb.standings).length;
+  const beforeNewsCount = beforeDb.news.length;
+
+  const log = await runGatewaySync({
+    ...options,
+    mode,
+    trigger: options.trigger || 'Cron: /api/cron/update-matches',
+  });
+
+  const afterDb = getGatewayDatabase();
+  let matchesAdded = 0;
+  let matchesChanged = 0;
+  for (const match of afterDb.matches) {
+    const fingerprint = JSON.stringify(match);
+    const previous = beforeMatches.get(match.id);
+    if (previous === undefined) {
+      matchesAdded += 1;
+    } else if (previous !== fingerprint) {
+      matchesChanged += 1;
+    }
+  }
+
+  const matchesProcessed = log.sourceResults.reduce(
+    (total, source) => total + (source.matchesFetched || 0),
+    0
+  );
+  const standingsUpdated = Math.max(
+    0,
+    Object.keys(afterDb.standings).length - beforeStandingsCount
+  );
+  const newsUpdated = Math.max(0, afterDb.news.length - beforeNewsCount);
+
+  return {
+    startedAt: log.startedAt,
+    finishedAt: log.finishedAt,
+    durationMs:
+      new Date(log.finishedAt).getTime() - new Date(log.startedAt).getTime(),
+    mode,
+    matchesUpdated: matchesAdded + matchesChanged,
+    matchesAdded,
+    matchesChanged,
+    matchesProcessed,
+    totalMatchesInStore: afterDb.matches.length,
+    standingsUpdated,
+    newsUpdated,
+    sources: log.sourceResults.map((source) => ({
+      sourceId: source.sourceId,
+      status: source.status,
+      matchesFetched: source.matchesFetched,
+      standingsFetched: source.standingsFetched,
+      newsFetched: source.newsFetched,
+      usedCachedSnapshot: source.usedCachedSnapshot,
+      messageAr: source.messageAr,
+    })),
+    log,
+  };
+}
