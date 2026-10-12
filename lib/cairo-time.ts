@@ -4,11 +4,12 @@ export const CAIRO_TIMEZONE = 'Africa/Cairo';
 
 /**
  * Formats an ISO UTC timestamp or Date into YYYY-MM-DD in Africa/Cairo timezone.
+ * Returns an empty string for invalid timestamps rather than inventing today's date.
  */
 export function toCairoDateString(input: string | Date): string {
   const date = typeof input === 'string' ? new Date(input) : input;
   if (Number.isNaN(date.getTime())) {
-    return getTodayCairoDate();
+    return '';
   }
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: CAIRO_TIMEZONE,
@@ -31,19 +32,23 @@ export function getTodayCairoDate(referenceDate?: Date): string {
  */
 export function shiftDateString(dateStr: string, offsetDays: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const utcNoon = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 12, 0, 0));
+  const utcNoon = new Date(0);
+  utcNoon.setUTCFullYear(y, (m || 1) - 1, d || 1);
+  utcNoon.setUTCHours(12, 0, 0, 0);
   utcNoon.setUTCDate(utcNoon.getUTCDate() + offsetDays);
   return utcNoon.toISOString().slice(0, 10);
 }
 
 /**
- * Validates that a string is a valid YYYY-MM-DD calendar date.
+ * Validates that a string is a real YYYY-MM-DD calendar date without an arbitrary year window.
  */
 export function isValidDateParam(dateStr: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   const [y, m, d] = dateStr.split('-').map(Number);
-  if (y < 2020 || y > 2035 || m < 1 || m > 12 || d < 1 || d > 31) return false;
-  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (y < 1 || y > 9999 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(0);
+  dt.setUTCFullYear(y, m - 1, d);
+  dt.setUTCHours(0, 0, 0, 0);
   return (
     dt.getUTCFullYear() === y &&
     dt.getUTCMonth() === m - 1 &&
@@ -82,10 +87,17 @@ export function toCairoTimeArabic(isoUtc: string): string {
 /**
  * Formats a YYYY-MM-DD date string into a rich Arabic date label (e.g. "الاثنين 12 أكتوبر 2026").
  */
+function utcNoonFromDateString(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const utcNoon = new Date(0);
+  utcNoon.setUTCFullYear(y, m - 1, d);
+  utcNoon.setUTCHours(12, 0, 0, 0);
+  return utcNoon;
+}
+
 export function formatArabicFullDate(dateStr: string): string {
   if (!isValidDateParam(dateStr)) return dateStr;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const utcNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const utcNoon = utcNoonFromDateString(dateStr);
   return new Intl.DateTimeFormat('ar-EG', {
     timeZone: 'UTC',
     weekday: 'long',
@@ -100,8 +112,7 @@ export function formatArabicFullDate(dateStr: string): string {
  */
 export function formatArabicShortDate(dateStr: string): string {
   if (!isValidDateParam(dateStr)) return dateStr;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const utcNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const utcNoon = utcNoonFromDateString(dateStr);
   return new Intl.DateTimeFormat('ar-EG', {
     timeZone: 'UTC',
     weekday: 'short',
@@ -184,6 +195,37 @@ export function normalizeMatchStatus(
     norm === 'BT' ||
     norm === 'P'
   ) {
+    if (utcKickoff) {
+      const kickoffMs = new Date(utcKickoff).getTime();
+      if (!Number.isNaN(kickoffMs)) {
+        const elapsedMs = now.getTime() - kickoffMs;
+        const maxEarlyLiveMs = 15 * 60 * 1000;
+        const maxLiveAgeMs = 6 * 60 * 60 * 1000;
+        if (elapsedMs < -maxEarlyLiveMs || elapsedMs > maxLiveAgeMs) {
+          return {
+            status: 'unconfirmed',
+            statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+            statusNoteAr:
+              elapsedMs > maxLiveAgeMs
+                ? 'المصدر يصفها بالمباشرة رغم تجاوز مدة المباراة المعتادة؛ لا نعرضها كمباراة جارية.'
+                : 'المصدر يصفها بالمباشرة قبل موعد بدايتها المتوقع؛ الحالة تحتاج إلى تحقق.',
+          };
+        }
+      } else {
+        return {
+          status: 'unconfirmed',
+          statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+          statusNoteAr: 'تعذر التحقق من موعد المباراة للتحقق من حالة البث المباشر.',
+        };
+      }
+    } else {
+      return {
+        status: 'unconfirmed',
+        statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+        statusNoteAr: 'لا يتوفر موعد بداية موثوق للتحقق من حالة المباراة المباشرة.',
+      };
+    }
+
     let note: string | null = null;
     if (norm === 'HT' || textNorm === 'HT' || textNorm === 'HALFTIME') {
       note = 'استراحة بين الشوطين';

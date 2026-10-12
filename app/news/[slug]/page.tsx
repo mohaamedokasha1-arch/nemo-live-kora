@@ -4,19 +4,20 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getGatewayDatabase } from '@/lib/db/store';
 import { findNewsBySlug, getRelatedPublishedNews } from '@/lib/news/query';
+import { isIndexableNewsArticle } from '@/lib/news/validate';
+import { GATEWAY_SITE_URL } from '@/lib/site-url';
+import { serializeJsonLd } from '@/lib/seo/match-structured-data';
 
 export const dynamic = 'force-dynamic';
-
-const GATEWAY_URL =
-  process.env.NEXT_PUBLIC_GATEWAY_URL || 'https://nemo-live-kora.vercel.app';
 
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const { slug } = await params;
   const db = getGatewayDatabase();
-  const item = findNewsBySlug(db.news, params.slug);
+  const item = findNewsBySlug(db.news, slug);
   if (!item) {
     return {
       title: 'الخبر غير موجود',
@@ -37,20 +38,21 @@ export async function generateMetadata({
       locale: item.language === 'en' ? 'en_US' : 'ar_EG',
       title: item.title,
       description,
-      url: `${GATEWAY_URL}/news/${item.slug}`,
+      url: `${GATEWAY_SITE_URL}/news/${item.slug}`,
       siteName: 'نيمو كورة لايف — NEMO Sports',
     },
-    robots: { index: true, follow: true },
+    robots: { index: isIndexableNewsArticle(item), follow: true },
   };
 }
 
 export default async function NewsArticlePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
+  const { slug } = await params;
   const db = getGatewayDatabase();
-  const item = findNewsBySlug(db.news, params.slug);
+  const item = findNewsBySlug(db.news, slug);
   if (!item) notFound();
 
   const related = getRelatedPublishedNews(db.news, item, 4);
@@ -60,7 +62,7 @@ export default async function NewsArticlePage({
     '@type': 'NewsArticle',
     headline: item.title,
     inLanguage: item.language === 'en' ? 'en' : 'ar',
-    mainEntityOfPage: `${GATEWAY_URL}/news/${item.slug}`,
+    mainEntityOfPage: `${GATEWAY_SITE_URL}/news/${item.slug}`,
     author: {
       '@type': 'Organization',
       name: item.publisherName,
@@ -69,10 +71,10 @@ export default async function NewsArticlePage({
     publisher: {
       '@type': 'Organization',
       name: 'نيمو كورة لايف',
-      url: GATEWAY_URL,
+      url: GATEWAY_SITE_URL,
     },
     description: item.excerpt || item.title,
-    url: `${GATEWAY_URL}/news/${item.slug}`,
+    url: `${GATEWAY_SITE_URL}/news/${item.slug}`,
   };
   if (item.publishedAtKnown && item.publishedAt) {
     jsonLd.datePublished = item.publishedAt;
@@ -83,10 +85,12 @@ export default async function NewsArticlePage({
 
   return (
     <article className="kl-news-article">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {isIndexableNewsArticle(item) ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+        />
+      ) : null}
       <header className="kl-section-head">
         <p className="kl-breadcrumb">
           <Link href="/">الرئيسية</Link>

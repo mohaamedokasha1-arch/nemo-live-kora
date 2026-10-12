@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AdminNewsPage() {
+export default async function AdminNewsPage() {
   if (!hasConfiguredAdminSecret()) {
     return (
       <div className="kl-news-page">
@@ -25,7 +25,8 @@ export default function AdminNewsPage() {
     );
   }
 
-  const token = cookies().get(ADMIN_COOKIE)?.value || '';
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ADMIN_COOKIE)?.value || '';
   if (!isValidAdminSecret(token)) {
     return (
       <div className="kl-news-page">

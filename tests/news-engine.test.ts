@@ -2,9 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseGoogleNewsRssXml } from '../lib/sources/google-news-rss';
+import {
+  parseGoogleNewsRssXml,
+  resolveGoogleNewsArticleUrl,
+} from '../lib/sources/google-news-rss';
 import { processNewsBatch } from '../lib/news/ingest';
-import { validateNewsCandidate } from '../lib/news/validate';
+import {
+  isIndexableNewsArticle,
+  validateNewsCandidate,
+} from '../lib/news/validate';
 import { migrateNewsItem } from '../lib/news/migrate';
 import { getLatestNews, getPublishedNews, findNewsBySlug } from '../lib/news/query';
 import { SOURCE_CAPABILITIES } from '../lib/news/capabilities';
@@ -39,8 +45,8 @@ function candidate(overrides: Partial<RawNewsCandidate> = {}): RawNewsCandidate 
     sourceId: 'google-news-rss',
     sourceItemId: 'src-1',
     title: 'الأهلي يفوز على الزمالك في قمة الدوري المصري',
-    link: 'https://news.google.com/rss/articles/abc123',
-    originalUrl: 'https://news.google.com/rss/articles/abc123',
+    link: 'https://www.almasryalyoum.com/sports/news/abc123',
+    originalUrl: 'https://www.almasryalyoum.com/sports/news/abc123',
     publishedAt: '2026-10-11T16:11:00.000Z',
     publishedAtKnown: true,
     updatedAt: null,
@@ -73,6 +79,52 @@ test('News parser extracts real RSS items without inventing today as publishedAt
   assert.equal(parsed[0].publishedAt, '2026-10-11T16:11:00.000Z');
   assert.equal(parsed[0].fetchedAt, fetchedAt);
   assert.notEqual(parsed[0].publishedAt, fetchedAt);
+  assert.equal(validateNewsCandidate(parsed[0]).ok, false);
+  assert.equal(validateNewsCandidate(parsed[0]).code, 'invalid_url');
+});
+
+test('Google News redirects resolve only to the RSS item’s named publisher', async () => {
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (_input, init) => {
+    calls += 1;
+    assert.equal(new URL(String(_input)).hostname, 'news.google.com');
+    assert.equal(init?.redirect, 'manual');
+    return new Response(null, {
+      status: 302,
+      headers: { location: 'https://www.almasryalyoum.com/sports/news/abc123' },
+    });
+  };
+
+  try {
+    const directUrl = await resolveGoogleNewsArticleUrl(
+      candidate({
+        link: 'https://news.google.com/rss/articles/abc123',
+        originalUrl: 'https://news.google.com/rss/articles/abc123',
+      })
+    );
+    assert.equal(directUrl, 'https://www.almasryalyoum.com/sports/news/abc123');
+    assert.equal(calls, 1);
+
+    calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return new Response(null, {
+        status: 302,
+        headers: { location: 'https://www.yallakora.com/sports/news/other' },
+      });
+    };
+    const mismatched = await resolveGoogleNewsArticleUrl(
+      candidate({
+        link: 'https://news.google.com/rss/articles/abc123',
+        originalUrl: 'https://news.google.com/rss/articles/abc123',
+      })
+    );
+    assert.equal(mismatched, null);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test('Missing pubDate is marked unknown and never replaced with fetch time', () => {
@@ -96,6 +148,31 @@ test('Invalid URL, empty response, and error-like titles are rejected', () => {
   );
   assert.equal(invalidUrl.ok, false);
   assert.equal(invalidUrl.code, 'invalid_url');
+
+  const googleRelay = validateNewsCandidate(
+    candidate({
+      link: 'https://news.google.com/rss/articles/abc123',
+      originalUrl: 'https://news.google.com/rss/articles/abc123',
+    })
+  );
+  assert.equal(googleRelay.ok, false);
+  assert.equal(googleRelay.code, 'invalid_url');
+
+  const mismatchedPublisher = validateNewsCandidate(
+    candidate({ publisherUrl: 'https://www.yallakora.com/' })
+  );
+  assert.equal(mismatchedPublisher.ok, false);
+  assert.equal(mismatchedPublisher.code, 'invalid_url');
+
+  const publicSuffixPublisher = validateNewsCandidate(
+    candidate({
+      link: 'https://attacker.com/sports/news/story',
+      originalUrl: 'https://attacker.com/sports/news/story',
+      publisherUrl: 'https://com/',
+    })
+  );
+  assert.equal(publicSuffixPublisher.ok, false);
+  assert.equal(publicSuffixPublisher.code, 'invalid_url');
 
   const emptyTitle = validateNewsCandidate(candidate({ title: '  ' }));
   assert.equal(emptyTitle.ok, false);
@@ -140,8 +217,8 @@ test('Same publisher similar titles are duplicates; different publishers can bot
     [
       candidate({
         sourceItemId: 'src-2',
-        link: 'https://news.google.com/rss/articles/other',
-        originalUrl: 'https://news.google.com/rss/articles/other',
+        link: 'https://www.almasryalyoum.com/sports/news/other',
+        originalUrl: 'https://www.almasryalyoum.com/sports/news/other',
         title: 'الأهلي يفوز على الزمالك في قمة الدوري المصري اليوم',
       }),
     ],
@@ -156,9 +233,10 @@ test('Same publisher similar titles are duplicates; different publishers can bot
     [
       candidate({
         sourceItemId: 'src-3',
-        link: 'https://news.google.com/rss/articles/filgoal',
-        originalUrl: 'https://news.google.com/rss/articles/filgoal',
+        link: 'https://www.filgoal.com/sports/news/filgoal',
+        originalUrl: 'https://www.filgoal.com/sports/news/filgoal',
         publisherName: 'FilGoal',
+        publisherUrl: 'https://www.filgoal.com/',
         title: 'موعد مباراة بيراميدز وسيراميكا كليوباترا في الدوري',
       }),
     ],
@@ -189,6 +267,22 @@ test('Rejected news never appears in latest or public slug lookup', () => {
   assert.equal(findNewsBySlug(result.news, rejected.slug), undefined);
 });
 
+test('News detail is indexable only with a dated, direct publisher URL and a substantive excerpt', () => {
+  const longExcerpt =
+    'تفاصيل موثقة من المصدر الأصلي حول المباراة وتطوراتها وأسماء الفرق والبطولة، مع سياق واضح يساعد القارئ على فهم الخبر دون نسخ نص المقال كاملًا. '.repeat(2);
+  const valid = processNewsBatch(
+    [],
+    [candidate({ excerpt: longExcerpt })],
+    emptyContext
+  ).news[0];
+  assert.equal(isIndexableNewsArticle(valid), true);
+  assert.equal(
+    isIndexableNewsArticle({ ...valid, originalUrl: 'https://news.google.com/rss/articles/abc123' }),
+    false
+  );
+  assert.equal(isIndexableNewsArticle({ ...valid, excerpt: 'عنوان فقط' }), false);
+});
+
 test('News without a known publish date is excluded from the latest section', () => {
   const result = processNewsBatch(
     [],
@@ -205,16 +299,16 @@ test('Sorting uses original publish dates, not fetch time', () => {
   const older = candidate({
     sourceItemId: 'old',
     publishedAt: '2026-10-10T12:00:00.000Z',
-    link: 'https://news.google.com/rss/articles/old',
-    originalUrl: 'https://news.google.com/rss/articles/old',
+    link: 'https://www.almasryalyoum.com/sports/news/old',
+    originalUrl: 'https://www.almasryalyoum.com/sports/news/old',
     title: 'خبر أقدم عن المصري البورسعيدي',
     fetchedAt: '2026-10-12T09:00:00.000Z',
   });
   const newer = candidate({
     sourceItemId: 'new',
     publishedAt: '2026-10-11T20:00:00.000Z',
-    link: 'https://news.google.com/rss/articles/new',
-    originalUrl: 'https://news.google.com/rss/articles/new',
+    link: 'https://www.almasryalyoum.com/sports/news/new',
+    originalUrl: 'https://www.almasryalyoum.com/sports/news/new',
     title: 'خبر أحدث عن بيراميدز',
     fetchedAt: '2026-10-12T08:00:00.000Z',
   });
@@ -300,8 +394,9 @@ test('News pages, canonical paths, sitemap, and robots include news routes', () 
   const sitemap = fs.readFileSync(path.join(root, 'app/sitemap.ts'), 'utf-8');
   assert.match(sitemap, /\/news\/\$\{item\.slug\}/);
   const robots = fs.readFileSync(path.join(root, 'app/robots.ts'), 'utf-8');
-  assert.match(robots, /\/news/);
+  assert.match(robots, /sitemap/);
   assert.match(robots, /\/admin/);
+  assert.doesNotMatch(robots, /disallow:.*\/news/i);
 });
 
 test('Existing match gateway files remain in place', () => {

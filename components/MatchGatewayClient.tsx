@@ -2,8 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { formatArabicFullDate, shiftDateString } from '@/lib/cairo-time';
-import { NEMO_SPORTS_BASE_URL } from '@/lib/catalog';
+import { useRouter } from 'next/navigation';
+import { formatArabicFullDate, isValidDateParam, shiftDateString } from '@/lib/cairo-time';
 import { MatchRecord } from '@/lib/types';
 import MatchCard from './MatchCard';
 
@@ -18,6 +18,7 @@ export default function MatchGatewayClient({
   todayCairo,
   allMatchesOnDate,
 }: GatewayClientProps) {
+  const router = useRouter();
   const yesterdayDate = shiftDateString(todayCairo, -1);
   const tomorrowDate = shiftDateString(todayCairo, 1);
   const readableDate = formatArabicFullDate(selectedDate);
@@ -27,8 +28,12 @@ export default function MatchGatewayClient({
       {/* Unified Header Box with Title + Date Badge + 3 Clean Day Buttons */}
       <div className="kl-schedule-header">
         <div className="kl-schedule-top-row">
-          <h1 className="kl-section-title">أهم المباريات</h1>
-          <span className="kl-date-pill">{readableDate}</span>
+          <h1 className="kl-section-title">
+            {selectedDate === todayCairo ? 'مباريات اليوم' : `مباريات ${readableDate}`}
+          </h1>
+          <span className="kl-date-pill">
+            {selectedDate === todayCairo ? `${readableDate} · توقيت القاهرة` : 'توقيت القاهرة'}
+          </span>
         </div>
 
         <div className="kl-day-switcher" role="navigation" aria-label="التنقل بين الأيام">
@@ -53,6 +58,20 @@ export default function MatchGatewayClient({
             مباريات الغد
           </Link>
         </div>
+
+        <div className="kl-date-picker-row">
+          <label htmlFor="match-date-picker">اختر تاريخًا لعرض المباريات</label>
+          <input
+            id="match-date-picker"
+            type="date"
+            value={selectedDate}
+            onChange={(event) => {
+              const nextDate = event.currentTarget.value;
+              if (!isValidDateParam(nextDate)) return;
+              router.push(nextDate === todayCairo ? '/' : `/matches/${nextDate}`);
+            }}
+          />
+        </div>
       </div>
 
       {/* Stack of Clean White Match Cards */}
@@ -69,14 +88,6 @@ export default function MatchGatewayClient({
             <Link href="/" className="kl-day-btn kl-day-btn-active">
               مباريات اليوم
             </Link>
-            <a
-              href={`${NEMO_SPORTS_BASE_URL}/matches?date=${selectedDate}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="kl-day-btn"
-            >
-              جدول NEMO Sports
-            </a>
           </div>
         </div>
       )}

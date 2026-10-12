@@ -1,33 +1,48 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { formatArabicFullDate, formatArabicTimestamp, getTodayCairoDate } from '@/lib/cairo-time';
+import { notFound, redirect } from 'next/navigation';
+import {
+  formatArabicFullDate,
+  formatArabicTimestamp,
+  getTodayCairoDate,
+  isValidDateParam,
+} from '@/lib/cairo-time';
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
 import { getLatestNews } from '@/lib/news/query';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
+import {
+  createMatchScheduleStructuredData,
+  serializeJsonLd,
+} from '@/lib/seo/match-structured-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
 }: {
-  params: { date: string };
+  params: Promise<{ date: string }>;
 }): Promise<Metadata> {
-  const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(params.date)
-    ? params.date
-    : getTodayCairoDate();
-  const queryResult = queryGatewayMatches({ cairoDate: dateStr });
-  const readableDate = formatArabicFullDate(dateStr);
-  const hasMatches = queryResult.matches.length > 0;
+  const { date } = await params;
+  if (!isValidDateParam(date)) {
+    return {
+      title: 'تاريخ غير صالح',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const queryResult = queryGatewayMatches({ cairoDate: date });
+  const readableDate = formatArabicFullDate(date);
+  const isToday = date === getTodayCairoDate();
 
   return {
-    title: `مباريات ${readableDate} (${dateStr})`,
-    description: `جدول مباريات يوم ${readableDate} (${dateStr}) بتوقيت القاهرة — الدوري المصري والبطولات الأفريقية والأوروبية مع روابط مباشرة إلى NEMO Sports.`,
+    title: `مباريات ${readableDate}`,
+    description: `جدول مباريات يوم ${readableDate} بتوقيت القاهرة. المواعيد والنتائج وحالات المباريات بحسب بيانات المصادر الرياضية.`,
     alternates: {
-      canonical: `/matches/${dateStr}`,
+      canonical: isToday ? '/' : `/matches/${date}`,
     },
     robots: {
-      index: hasMatches,
+      index: queryResult.matches.length > 0,
       follow: true,
     },
   };
@@ -36,20 +51,28 @@ export async function generateMetadata({
 export default async function DateSchedulePage({
   params,
 }: {
-  params: { date: string };
+  params: Promise<{ date: string }>;
 }) {
+  const { date } = await params;
+  if (!isValidDateParam(date)) notFound();
+
   const todayCairo = getTodayCairoDate();
-  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(params.date)
-    ? params.date
-    : todayCairo;
+  if (date === todayCairo) redirect('/');
 
   const store = getGatewayDatabase();
-  const queryResult = queryGatewayMatches({ cairoDate: selectedDate });
+  const queryResult = queryGatewayMatches({ cairoDate: date });
+  const jsonLd = createMatchScheduleStructuredData(date, queryResult.matches);
 
   return (
     <>
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+        />
+      ) : null}
       <MatchGatewayClient
-        selectedDate={selectedDate}
+        selectedDate={date}
         todayCairo={todayCairo}
         allMatchesOnDate={queryResult.matches}
       />

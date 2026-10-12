@@ -10,6 +10,7 @@ import {
   translateTeamNameAr,
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
+import { getStableMatchId } from '../match-identity';
 import { MatchRecord, SourceHealthStatus } from '../types';
 import { fetchWithProtection } from './http-client';
 
@@ -179,7 +180,18 @@ export async function fetchApiFootballSync(cairoDate: string): Promise<{
       item.fixture.status.long,
       item.fixture.date
     );
-    const canonicalId = `match-${comp.code.toLowerCase()}-${mCairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+    const externalIds = {
+      apiFootballFixtureId: String(item.fixture.id),
+    };
+    const fallbackId = `match-${comp.code.toLowerCase()}-${mCairoDate}-${homeId.replace('team-', '')}-${awayId.replace('team-', '')}`;
+    const canonicalId = getStableMatchId({
+      externalIds,
+      competitionCode: comp.code,
+      homeTeamId: homeId,
+      awayTeamId: awayId,
+      cairoDate: mCairoDate,
+      fallbackId,
+    });
 
     return {
       id: canonicalId,
@@ -224,14 +236,11 @@ export async function fetchApiFootballSync(cairoDate: string): Promise<{
       venue: item.fixture.venue?.name || null,
       primarySource: 'api-football',
       contributingSources: ['api-football'],
-      externalIds: {
-        apiFootballFixtureId: String(item.fixture.id),
-      },
+      externalIds,
       nemoLink: resolveNemoSportsLink({
         canonicalMatchId: canonicalId,
-        apiFootballFixtureId: String(item.fixture.id),
+        apiFootballFixtureId: externalIds.apiFootballFixtureId,
         competitionCode: comp.code,
-        nemoCompetitionSlug: comp.nemoCompetitionSlug,
         homeTeamId: homeId,
         awayTeamId: awayId,
         cairoDate: mCairoDate,

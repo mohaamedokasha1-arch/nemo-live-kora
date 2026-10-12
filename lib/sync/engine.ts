@@ -143,9 +143,9 @@ export async function ensureFreshNews(
   maxAgeMs = 15 * 60 * 1000
 ): Promise<NewsSourceSyncRecord | null> {
   const db = getGatewayDatabase();
-  const lastOk = db.meta.lastSuccessfulNewsSyncAt;
-  if (lastOk) {
-    const age = Date.now() - new Date(lastOk).getTime();
+  const lastAttempt = db.meta.lastNewsSyncAt || db.meta.lastSuccessfulNewsSyncAt;
+  if (lastAttempt) {
+    const age = Date.now() - new Date(lastAttempt).getTime();
     if (Number.isFinite(age) && age >= 0 && age < maxAgeMs) {
       return null;
     }

@@ -3,7 +3,8 @@ import {
   EGYPTIAN_TEAMS_CATALOG,
   NEMO_SPORTS_BASE_URL,
 } from '../catalog';
-import { VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
+import { resolveNemoSportsLink, VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
+import { getStableMatchId } from '../match-identity';
 import {
    SportScoreRawMatch,
   mapSportScoreMatchToRecord,
@@ -584,8 +585,9 @@ export const VERIFIED_THESPORTSDB_EVENTS: TheSportsDBRawEvent[] = [
 ];
 
 /**
- * Raw verified matches captured directly from SportScore API (/matches & /match) on 2026-10-12
- * Every single one of these matches has a verified direct page on https://nemo-sports.vercel.app/matches/[slug]!
+ * Raw fixture snapshots captured from SportScore API (/matches & /match) on 2026-10-12.
+ * These source records do not by themselves prove that NEMO Sports has a matching page;
+ * direct destinations are controlled separately by VERIFIED_NEMO_MAPPING_TABLE.
  */
 export const VERIFIED_SPORTSCORE_MATCHES: Array<{
   raw: SportScoreRawMatch;
@@ -1191,6 +1193,25 @@ export function buildInitialVerifiedDatabase(): GatewayDatabase {
     if (item.apiFootballFixtureId) {
       rec.externalIds.apiFootballFixtureId = item.apiFootballFixtureId;
     }
+    rec.id = getStableMatchId({
+      externalIds: rec.externalIds,
+      competitionCode: rec.competitionCode,
+      homeTeamId: rec.homeTeam.id,
+      awayTeamId: rec.awayTeam.id,
+      cairoDate: rec.cairoDate,
+      fallbackId: rec.id,
+    });
+    rec.nemoLink = resolveNemoSportsLink({
+      canonicalMatchId: rec.id,
+      sportscoreSlug: rec.externalIds.sportscoreSlug,
+      sportscoreTrackerId: rec.externalIds.sportscoreTrackerId,
+      thesportsdbEventId: rec.externalIds.thesportsdbEventId,
+      apiFootballFixtureId: rec.externalIds.apiFootballFixtureId,
+      competitionCode: rec.competitionCode,
+      homeTeamId: rec.homeTeam.id,
+      awayTeamId: rec.awayTeam.id,
+      cairoDate: rec.cairoDate,
+    });
     return rec;
   });
 
@@ -1217,7 +1238,7 @@ export function buildInitialVerifiedDatabase(): GatewayDatabase {
 
   return {
     meta: {
-      schemaVersion: '1.1.0',
+      schemaVersion: '1.2.0',
       gatewayName: 'بوابة مباريات NEMO Sports',
       mainSiteUrl: NEMO_SPORTS_BASE_URL,
       timezone: 'Africa/Cairo',
@@ -1349,13 +1370,16 @@ export function mergeMatchRecords(
   };
 
   const preferredNemoLink =
-    existing.nemoLink.linkType === 'direct_match'
+    existing.nemoLink.linkType === 'direct_match' && existing.nemoLink.verified
       ? existing.nemoLink
-      : incoming.nemoLink.linkType === 'direct_match'
+      : incoming.nemoLink.linkType === 'direct_match' && incoming.nemoLink.verified
       ? incoming.nemoLink
-      : incoming.nemoLink.linkType === 'competition_fallback'
-      ? incoming.nemoLink
-      : existing.nemoLink;
+      : incoming.nemoLink;
+  const externalIds = Object.fromEntries(
+    Object.entries({ ...existing.externalIds, ...incoming.externalIds }).filter(
+      ([, value]) => value !== undefined && value !== null && value !== ''
+    )
+  ) as typeof existing.externalIds;
 
   return {
     ...existing,
@@ -1365,6 +1389,15 @@ export function mergeMatchRecords(
     statusLabelAr: useIncomingStatus ? incoming.statusLabelAr : existing.statusLabelAr,
     statusNoteAr: useIncomingStatus ? incoming.statusNoteAr : existing.statusNoteAr,
     liveMinute: incoming.liveMinute ?? existing.liveMinute,
+    utcKickoff: Number.isFinite(Date.parse(incoming.utcKickoff))
+      ? incoming.utcKickoff
+      : existing.utcKickoff,
+    cairoDate: Number.isFinite(Date.parse(incoming.utcKickoff))
+      ? incoming.cairoDate
+      : existing.cairoDate,
+    cairoTime: Number.isFinite(Date.parse(incoming.utcKickoff))
+      ? incoming.cairoTime
+      : existing.cairoTime,
     score: mergedScore,
     incidents:
       existing.incidents && existing.incidents.length > 0
@@ -1373,10 +1406,7 @@ export function mergeMatchRecords(
     contributingSources: Array.from(
       new Set([...existing.contributingSources, ...incoming.contributingSources])
     ),
-    externalIds: {
-      ...existing.externalIds,
-      ...incoming.externalIds,
-    },
+    externalIds,
     nemoLink: preferredNemoLink,
     lastUpdatedAt: new Date().toISOString(),
   };

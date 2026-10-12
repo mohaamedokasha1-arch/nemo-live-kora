@@ -15,6 +15,7 @@ import {
   SyncLogEntry,
 } from '../types';
 import { processNewsBatch } from '../news/ingest';
+import { isValidDateParam } from '../cairo-time';
 import { migrateGatewayDatabase } from '../news/migrate';
 import {
   getArchiveNews,
@@ -301,9 +302,10 @@ export function queryGatewayMatches(params: {
   const targetDate = params.cairoDate;
 
   // Step 1: Filter by date first to compute real available competitions & countries on that date
+  const matchesWithValidDate = db.matches.filter((match) => isValidDateParam(match.cairoDate));
   const matchesOnDate = targetDate
-    ? db.matches.filter((m) => m.cairoDate === targetDate)
-    : db.matches;
+    ? matchesWithValidDate.filter((match) => match.cairoDate === targetDate)
+    : matchesWithValidDate;
 
   // Compute filter options ONLY from competitions and countries that actually have matches on this date
   const competitionCounts = new Map<

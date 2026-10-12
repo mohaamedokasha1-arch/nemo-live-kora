@@ -1,4 +1,4 @@
-import { CompetitionRecord, CompetitionRegion, TeamRecord } from './types';
+import { CompetitionRecord, CompetitionRegion, SourceId, TeamRecord } from './types';
 
 export const NEMO_SPORTS_BASE_URL =
   process.env.NEXT_PUBLIC_NEMO_SPORTS_URL || 'https://nemo-sports.vercel.app';
@@ -1194,5 +1194,23 @@ export function getCompetitionChannelAr(competitionCode: string, region: Competi
     return 'StarzPlay';
   }
   return 'NEMO Sports';
+}
+
+/** Accurate provenance for a fixture; broadcast rights are not inferred from competition alone. */
+export function getMatchSourceLabelAr(sourceId: SourceId): string {
+  switch (sourceId) {
+    case 'sportscore':
+      return 'SportScore';
+    case 'thesportsdb':
+      return 'TheSportsDB';
+    case 'api-football':
+      return 'API-Football';
+    case 'football-data':
+      return 'Football-Data.org';
+    case 'google-news-rss':
+      return 'Google News RSS';
+    default:
+      return 'غير متاح';
+  }
 }
 

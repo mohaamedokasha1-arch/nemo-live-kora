@@ -1,4 +1,3 @@
-import { NEMO_SPORTS_BASE_URL } from '../catalog';
 import {
   CompetitionRecord,
   MatchRecord,
@@ -82,28 +81,6 @@ export function linkNewsToMatches(
       relatedCompetitionCodes,
       nemoRelatedUrl: anyMatch.nemoLink.url,
       nemoRelatedLabelAr: `تفاصيل ${anyMatch.homeTeam.nameAr} ضد ${anyMatch.awayTeam.nameAr} على NEMO Sports`,
-    };
-  }
-
-  const teamWithUrl = relatedTeams.find((team) => team.nemoTeamUrl);
-  if (teamWithUrl?.nemoTeamUrl) {
-    return {
-      relatedMatchIds: relatedMatches.map((match) => match.id),
-      relatedTeamIds,
-      relatedCompetitionCodes,
-      nemoRelatedUrl: teamWithUrl.nemoTeamUrl,
-      nemoRelatedLabelAr: `صفحة ${teamWithUrl.nameAr} على NEMO Sports`,
-    };
-  }
-
-  const competitionWithSlug = relatedCompetitions.find((comp) => comp.nemoCompetitionSlug);
-  if (competitionWithSlug?.nemoCompetitionSlug) {
-    return {
-      relatedMatchIds: relatedMatches.map((match) => match.id),
-      relatedTeamIds,
-      relatedCompetitionCodes,
-      nemoRelatedUrl: `${NEMO_SPORTS_BASE_URL}/competitions/${competitionWithSlug.nemoCompetitionSlug}`,
-      nemoRelatedLabelAr: `صفحة ${competitionWithSlug.nameAr} على NEMO Sports`,
     };
   }
 

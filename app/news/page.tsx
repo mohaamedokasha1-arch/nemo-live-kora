@@ -4,17 +4,23 @@ import Link from 'next/link';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import { getGatewayDatabase } from '@/lib/db/store';
 import { getArchiveNews, getLatestNews } from '@/lib/news/query';
+import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { ensureFreshNews } from '@/lib/sync/engine';
 import NewsSection from '@/components/NewsSection';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'الأخبار الرياضية',
-  description:
-    'عناوين رياضية محققة من المصادر المعتمدة، مع نسبتها للناشر الأصلي وتاريخ النشر الحقيقي وربطها بصفحات NEMO Sports عند وجود مطابقة.',
-  alternates: { canonical: '/news' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const db = getGatewayDatabase();
+  const hasIndexableCurrentNews = getLatestNews(db.news, 24).some(isIndexableNewsArticle);
+  return {
+    title: 'الأخبار الرياضية',
+    description:
+      'عناوين رياضية من مصدر النشر الأصلي مع تاريخ النشر الحقيقي، ولا تظهر إلا بعد اجتياز روابطها وفحوص الجودة.',
+    alternates: { canonical: '/news' },
+    robots: { index: hasIndexableCurrentNews, follow: true },
+  };
+}
 
 export default async function NewsIndexPage() {
   await ensureFreshNews();

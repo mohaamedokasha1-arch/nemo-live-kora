@@ -297,6 +297,33 @@ a {
   box-shadow: 0 3px 10px rgba(139, 94, 52, 0.25);
 }
 
+.kl-date-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 12px;
+  color: var(--kl-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.kl-date-picker-row input {
+  min-height: 38px;
+  padding: 5px 10px;
+  border: 1px solid var(--kl-border);
+  border-radius: 9px;
+  background: var(--kl-bg);
+  color: var(--kl-text);
+  font: inherit;
+}
+
+.kl-date-picker-row input:focus-visible {
+  outline: 2px solid var(--kl-accent-primary);
+  outline-offset: 2px;
+}
+
 /* Clean Match Cards Stack */
 .kl-cards-list {
   display: flex;
@@ -318,6 +345,16 @@ a {
   transform: translateY(-2px);
   box-shadow: var(--kl-shadow-hover);
   border-color: var(--kl-accent-primary);
+}
+
+.kl-match-card-unlinked {
+  cursor: default;
+}
+
+.kl-match-card-unlinked:hover {
+  transform: none;
+  box-shadow: var(--kl-shadow);
+  border-color: var(--kl-border);
 }
 
 .kl-match-card-live {
