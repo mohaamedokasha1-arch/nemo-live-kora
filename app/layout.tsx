@@ -35,6 +35,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ar" dir="rtl" data-theme="light" suppressHydrationWarning>
+      <head>
+        <meta
+          name="google-site-verification"
+          content="6nwKbe3UwHbbzzDg0S8a6TRE_rEEIAdyGgIJD6q6ua4"
+        />
+      </head>
       <body className="kl-page-shell">
         <Header />
         <main id="main-content" className="kl-container kl-main">
