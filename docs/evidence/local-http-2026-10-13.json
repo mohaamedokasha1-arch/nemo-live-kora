@@ -1,0 +1,165 @@
+{
+  "testedAt": "2026-10-13T23:41:05.438294+00:00",
+  "environment": "local production build, persistence off, no cron secret configured",
+  "results": [
+    {
+      "path": "/",
+      "httpStatus": 200,
+      "h1": [
+        "مباريات اليوم"
+      ],
+      "canonical": [
+        "https://nemo-live-kora.vercel.app"
+      ],
+      "robots": [
+        "index, follow"
+      ],
+      "bodyBytes": 33322,
+      "hasDetails": null
+    },
+    {
+      "path": "/matches/2026-10-12",
+      "httpStatus": 200,
+      "h1": [
+        "مباريات الاثنين، ١٢ أكتوبر ٢٠٢٦"
+      ],
+      "canonical": [
+        "https://nemo-live-kora.vercel.app/matches/2026-10-12"
+      ],
+      "robots": [
+        "index, follow"
+      ],
+      "bodyBytes": 77660,
+      "hasDetails": null
+    },
+    {
+      "path": "/matches/match-api-football-1612251",
+      "httpStatus": 200,
+      "h1": [
+        "المقاولون العرب<!-- --> ضد <!-- -->زد إف سي"
+      ],
+      "canonical": [
+        "https://nemo-live-kora.vercel.app/matches/match-api-football-1612251"
+      ],
+      "robots": [
+        "index, follow"
+      ],
+      "bodyBytes": 21583,
+      "hasDetails": true
+    },
+    {
+      "path": "/matches/not-a-match",
+      "httpStatus": 404,
+      "h1": [],
+      "canonical": [],
+      "robots": [
+        "noindex",
+        "noindex, nofollow"
+      ],
+      "bodyBytes": 13407,
+      "hasDetails": null
+    },
+    {
+      "path": "/news",
+      "httpStatus": 200,
+      "h1": [
+        "الأخبار الرياضية"
+      ],
+      "canonical": [
+        "https://nemo-live-kora.vercel.app/news"
+      ],
+      "robots": [
+        "noindex, follow"
+      ],
+      "bodyBytes": 19617,
+      "hasDetails": null
+    },
+    {
+      "path": "/news/archive",
+      "httpStatus": 200,
+      "h1": [
+        "أرشيف الأخبار"
+      ],
+      "canonical": [
+        "https://nemo-live-kora.vercel.app/news/archive"
+      ],
+      "robots": [
+        "noindex, follow"
+      ],
+      "bodyBytes": 18038,
+      "hasDetails": null
+    },
+    {
+      "path": "/news/not-a-news",
+      "httpStatus": 404,
+      "h1": [],
+      "canonical": [],
+      "robots": [
+        "noindex",
+        "noindex, nofollow"
+      ],
+      "bodyBytes": 13233,
+      "hasDetails": null
+    },
+    {
+      "path": "/sources",
+      "httpStatus": 200,
+      "h1": [
+        "حالة المصادر الخمسة المعتمدة"
+      ],
+      "canonical": [
+        "https://nemo-live-kora.vercel.app/sources"
+      ],
+      "robots": [
+        "noindex, follow"
+      ],
+      "bodyBytes": 43856,
+      "hasDetails": null
+    },
+    {
+      "path": "/robots.txt",
+      "httpStatus": 200,
+      "h1": [],
+      "canonical": [],
+      "robots": [],
+      "bodyBytes": 170,
+      "hasDetails": null
+    },
+    {
+      "path": "/sitemap.xml",
+      "httpStatus": 200,
+      "h1": [],
+      "canonical": [],
+      "robots": [],
+      "bodyBytes": 4352,
+      "hasDetails": null
+    },
+    {
+      "path": "/api/cron/update-matches",
+      "httpStatus": 500,
+      "h1": [],
+      "canonical": [],
+      "robots": [],
+      "bodyBytes": 234,
+      "hasDetails": null
+    },
+    {
+      "path": "/api/cron/sync",
+      "httpStatus": 500,
+      "h1": [],
+      "canonical": [],
+      "robots": [],
+      "bodyBytes": 234,
+      "hasDetails": null
+    },
+    {
+      "path": "/api/cron/sync-news",
+      "httpStatus": 500,
+      "h1": [],
+      "canonical": [],
+      "robots": [],
+      "bodyBytes": 234,
+      "hasDetails": null
+    }
+  ]
+}

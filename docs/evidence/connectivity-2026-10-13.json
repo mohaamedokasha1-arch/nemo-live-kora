@@ -1,0 +1,57 @@
+{
+  "testedAt": "2026-10-13T23:40:25.800Z",
+  "environment": "Arena sandbox; restricted egress; not production",
+  "persisted": 0,
+  "results": [
+    {
+      "source": "sportscore",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 63,
+      "matches": 0,
+      "competitions": 0,
+      "news": 0,
+      "error": "fetch failed"
+    },
+    {
+      "source": "thesportsdb",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 185,
+      "matches": 0,
+      "competitions": 0,
+      "news": 0,
+      "error": "fetch failed"
+    },
+    {
+      "source": "football-data",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 506,
+      "matches": 0,
+      "competitions": 0,
+      "news": 0,
+      "error": "fetch failed"
+    },
+    {
+      "source": "api-football",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 89,
+      "matches": 0,
+      "competitions": 0,
+      "news": 0,
+      "error": "MISSING_API_FOOTBALL_KEY"
+    },
+    {
+      "source": "google-news-rss",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 90,
+      "matches": 0,
+      "competitions": 0,
+      "news": 0,
+      "error": "fetch failed"
+    }
+  ]
+}

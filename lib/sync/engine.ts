@@ -9,6 +9,7 @@ import {
   recordSyncExecution,
   upsertMatchesInStoreWithStats,
   upsertSeasonsInStore,
+  upsertCompetitionsInStore,
   upsertStandingsInStore,
 } from '../db/store';
 import { fetchApiFootballSync } from '../sources/api-football';
@@ -83,7 +84,15 @@ export const THESPORTSDB_QUICK_BUDGET_MS = 8000;
  * If an external API is unreachable (e.g., restricted outbound network or temporary timeout),
  * existing verified data in the store is preserved and `usedCachedSnapshot: true` is recorded.
  */
-export async function runNewsSync(
+let newsInFlight: Promise<NewsSourceSyncRecord> | null = null;
+export function runNewsSync(trigger = 'مزامنة أخبار', errors: SourceErrorEntry[] = [],
+  options?: { timeoutMs?: number; retries?: number; limitFeeds?: number }): Promise<NewsSourceSyncRecord> {
+  if (newsInFlight) return newsInFlight;
+  newsInFlight = executeNewsSync(trigger, errors, options).finally(() => { newsInFlight = null; });
+  return newsInFlight;
+}
+
+async function executeNewsSync(
   trigger = 'مزامنة أخبار',
   errors: SourceErrorEntry[] = [],
   fetchOptions?: { timeoutMs?: number; retries?: number; limitFeeds?: number }
@@ -135,7 +144,7 @@ export async function runNewsSync(
     sourceId: 'google-news-rss',
     startedAt,
     finishedAt,
-    ok: true,
+    ok: ingest.published > 0 || ingest.duplicates > 0,
     httpStatus: gnRes.httpStatus,
     latencyMs: gnRes.latencyMs,
     fetchedCount: gnRes.news.length,
@@ -210,7 +219,15 @@ export async function ensureFreshMatches(
   return matchesRefreshInFlight;
 }
 
-export async function runGatewaySync(
+// One process-wide writer; a distributed lease still requires durable production storage.
+let gatewayInFlight: Promise<SyncLogEntry> | null = null;
+export function runGatewaySync(options: RunGatewaySyncOptions = {}): Promise<SyncLogEntry> {
+  if (gatewayInFlight) return gatewayInFlight;
+  gatewayInFlight = executeGatewaySync(options).finally(() => { gatewayInFlight = null; });
+  return gatewayInFlight;
+}
+
+async function executeGatewaySync(
   options: RunGatewaySyncOptions = {}
 ): Promise<SyncLogEntry> {
   const mode = options.mode || 'daily';
@@ -226,7 +243,9 @@ export async function runGatewaySync(
     Record<SourceId, Partial<ReturnType<typeof getGatewayDatabase>['sources'][SourceId]>>
   > = {};
   const writeTotals: MatchUpsertStats & { recordsSkipped: number } = { ...EMPTY_WRITE, recordsSkipped: 0 };
-  const addWrite = (w: MatchUpsertStats) => {
+  const writesBySource = new Map<SourceId, MatchUpsertStats>();
+  const addWrite = (w: MatchUpsertStats, source: SourceId) => {
+    writesBySource.set(source, w);
     writeTotals.processed += w.processed;
     writeTotals.inserted += w.inserted;
     writeTotals.updated += w.updated;
@@ -268,7 +287,7 @@ export async function runGatewaySync(
   }
 
   if (ssRes.ok && ssRes.matches.length > 0) {
-    addWrite(upsertMatchesInStoreWithStats(ssRes.matches));
+    addWrite(upsertMatchesInStoreWithStats(ssRes.matches), 'sportscore');
     sourceResults.push({
       sourceId: 'sportscore',
       status: 'active',
@@ -336,7 +355,7 @@ export async function runGatewaySync(
   );
   writeTotals.recordsSkipped += tsdbRes.skippedRecords || 0;
   if (tsdbRes.ok) {
-    if (tsdbRes.matches.length > 0) addWrite(upsertMatchesInStoreWithStats(tsdbRes.matches));
+    if (tsdbRes.matches.length > 0) addWrite(upsertMatchesInStoreWithStats(tsdbRes.matches), 'thesportsdb');
     const egyptianCount = tsdbRes.matches.filter((m) => m.competitionCode === 'EGY').length;
     const failedEndpoints = tsdbRes.endpoints.filter((e) => !e.ok).length;
     sourceResults.push({
@@ -394,17 +413,21 @@ export async function runGatewaySync(
       httpStatus: null,
       latencyMs: 0,
       hasApiKey: false,
+      competitions: [],
       seasons: [],
       matches: [],
       messageAr: 'تعذر الاتصال بـ Football-Data.org.',
     },
     errors
   );
+  if (fdRes) {
+    upsertCompetitionsInStore(fdRes.competitions);
+    upsertSeasonsInStore(fdRes.seasons);
+  }
   if (!fdRes) {
     // skipped in quick mode (no key => no matches from this source)
   } else if (fdRes.ok) {
-    if (fdRes.seasons.length > 0) upsertSeasonsInStore(fdRes.seasons);
-    if (fdRes.matches.length > 0) addWrite(upsertMatchesInStoreWithStats(fdRes.matches));
+    if (fdRes.matches.length > 0) addWrite(upsertMatchesInStoreWithStats(fdRes.matches), 'football-data');
     sourceResults.push({
       sourceId: 'football-data',
       status: fdRes.status,
@@ -454,7 +477,7 @@ export async function runGatewaySync(
   );
   if (apifRes) {
     if (apifRes.ok && apifRes.matches.length > 0) {
-      addWrite(upsertMatchesInStoreWithStats(apifRes.matches));
+      addWrite(upsertMatchesInStoreWithStats(apifRes.matches), 'api-football');
     }
     sourceResults.push({
       sourceId: 'api-football',
@@ -475,9 +498,16 @@ export async function runGatewaySync(
     };
   }
 
+  for (const result of sourceResults) {
+    const writes = writesBySource.get(result.sourceId);
+    result.matchesInserted = writes?.inserted || 0;
+    result.matchesUpdated = writes?.updated || 0;
+    result.matchesUnchanged = writes?.unchanged || 0;
+  }
+
   // Record the outcome of this matches fetch (success or failure) before news.
   const matchSources = sourceResults.filter((r) => r.sourceId !== 'google-news-rss');
-  const sourcesOk = matchSources.filter((r) => r.matchesFetched > 0 || (!r.usedCachedSnapshot && r.status !== 'degraded')).map((r) => r.sourceId);
+  const sourcesOk = matchSources.filter((r) => r.matchesFetched > 0).map((r) => r.sourceId);
   const sourcesFailed = matchSources.filter((r) => r.usedCachedSnapshot || r.status === 'degraded').map((r) => r.sourceId);
   const matchesFetchedTotal = matchSources.reduce((t, r) => t + (r.matchesFetched || 0), 0);
   const matchesOk = matchSources.some((r) => r.matchesFetched > 0);

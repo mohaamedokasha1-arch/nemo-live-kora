@@ -1,46 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireCronAuth } from '@/lib/auth/cron-auth';
+import { getGatewayDatabase, getPersistenceState } from '@/lib/db/store';
 import { ensureFreshMatches } from '@/lib/sync/engine';
-
-/**
- * مسار تحديث المباريات: /api/cron/update-matches
- *
- * - أول ما يتم زيارة الرابط (GET) — أو استدعاؤه بـ POST من مجدول خارجي —
- *   يُشغِّل تحديث المباريات من المصادر عبر `ensureFreshMatches`.
- * - تمرير `maxAgeMs = 0` يعني أن كل زيارة تُشغِّل تحديثًا فعليًا، لكن
- *   الزيارات المتزامنة تتشارك نفس عملية التحديث الجارية بدل تكرارها.
- * - فشل أي مصدر لا يُسقط الطلب: المحرك يعزل أعطال المصادر ويحتفظ
- *   بالبيانات السابقة، لذا تظل الاستجابة دائمًا `{"status": "ok"}`.
- */
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-async function updateMatches() {
-  console.log('[cron:update-matches] ▶ بدء تحديث المباريات');
-
+async function updateMatches(request: NextRequest) {
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
   try {
-    await ensureFreshMatches(0, 'API /api/cron/update-matches (live)');
-    console.log('[cron:update-matches] ✅ انتهى تحديث المباريات');
-  } catch (error) {
-    // أعطال المصادر معزولة داخل محرك المزامنة والبيانات السابقة محفوظة،
-    // فلا نجعل زيارة الرابط تفشل بسبب مصدر خارجي متعطل مؤقتًا.
-    console.error(
-      `[cron:update-matches] ✖ تعذر تحديث المباريات — ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+    const log = await ensureFreshMatches(0, 'API /api/cron/update-matches (live)');
+    const result = getGatewayDatabase().meta.lastMatchesSyncResult;
+    const persistence = getPersistenceState();
+    // A lambda-local file/memory update is not durable, shared production storage.
+    const stored = persistence.ok && !process.env.VERCEL;
+    const ok = Boolean(result?.ok && stored);
+    console.info('[cron:update-matches]', JSON.stringify({ runId: log?.id, ok, result, persistence }));
+    return NextResponse.json({ status: ok ? 'ok' : 'degraded', ok, runId: log?.id,
+      startedAt: log?.startedAt, finishedAt: log?.finishedAt, result, persistence,
+      durableStorageRequired: Boolean(process.env.VERCEL) }, { status: ok ? 200 : 503 });
+  } catch {
+    console.error('[cron:update-matches] sync_execution_failed');
+    return NextResponse.json({ ok: false, error: 'sync_execution_failed' }, { status: 500 });
   }
-
-  return NextResponse.json({ status: 'ok' });
 }
-
-/** GET: زيارة الرابط في المتصفح أو من Vercel Cron تُحدِّث المباريات. */
-export async function GET() {
-  return updateMatches();
-}
-
-/** POST: متاح للمجدولات الخارجية التي تفضّل POST على GET. */
-export async function POST() {
-  return updateMatches();
-}
+export const GET = updateMatches;
+export const POST = updateMatches;

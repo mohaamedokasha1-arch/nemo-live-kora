@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import { getGatewayDatabase } from '@/lib/db/store';
-import { getArchiveNews, getLatestNews } from '@/lib/news/query';
+import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { ensureFreshNews } from '@/lib/sync/engine';
 import NewsSection from '@/components/NewsSection';
@@ -26,6 +26,8 @@ export default async function NewsIndexPage() {
   await ensureFreshNews();
   const db = getGatewayDatabase();
   const latest = getLatestNews(db.news, 24);
+  const displayed = latest.length ? latest : getPublishedNews(db.news).slice(0, 24);
+  const attempt = db.newsSourceSyncs?.[0];
   const archiveCount = getArchiveNews(db.news).length;
   const lastOk = db.meta.lastSuccessfulNewsSyncAt;
 
@@ -45,8 +47,10 @@ export default async function NewsIndexPage() {
           {lastOk ? `آخر مزامنة ناجحة: ${formatArabicTimestamp(lastOk)}` : 'لم تكتمل مزامنة أخبار ناجحة بعد'}
         </p>
       </header>
+      {attempt && !attempt.ok && <p role="status">تعذر تحديث الأخبار في آخر محاولة ({formatArabicTimestamp(attempt.finishedAt)}). {attempt.messageAr}</p>}
+      {!latest.length && displayed.length > 0 && <p>آخر أخبار صالحة محفوظة — ليست أخبارًا جديدة، راجع تاريخ النشر.</p>}
       <NewsSection
-        news={latest}
+        news={displayed}
         lastUpdatedLabel={lastOk ? formatArabicTimestamp(lastOk) : null}
       />
       {archiveCount > 0 ? (

@@ -34,6 +34,11 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const STORE_FILE = path.join(DATA_DIR, 'gateway-store.json');
 
 let memoryStore: GatewayDatabase | null = null;
+let persistenceState: { mode: 'memory' | 'file'; ok: boolean; error: string | null } = {
+  mode: 'memory', ok: false, error: 'not_written',
+};
+export function getPersistenceState() { return { ...persistenceState }; }
+
 
 /**
  * Disk persistence is off when NEMO_GATEWAY_STORE_PERSIST=off. `npm test` sets it so a test run
@@ -76,14 +81,21 @@ export function getGatewayDatabase(): GatewayDatabase {
  */
 export function persistGatewayDatabase(db: GatewayDatabase): void {
   memoryStore = db;
-  if (!isStorePersistenceEnabled()) return;
+  if (!isStorePersistenceEnabled()) {
+    persistenceState = { mode: 'memory', ok: false, error: 'persistence_disabled' };
+    return;
+  }
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(STORE_FILE, JSON.stringify(db, null, 2), 'utf-8');
+    const temporary = `${STORE_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(db, null, 2), 'utf-8');
+    fs.renameSync(temporary, STORE_FILE);
+    persistenceState = { mode: 'file', ok: true, error: null };
   } catch {
-    // In read-only serverless environments (like Vercel lambda runtime), memoryStore remains active
+    persistenceState = { mode: 'memory', ok: false, error: 'store_write_failed' };
+    console.error('[store] store_write_failed: updates are memory-only');
   }
 }
 
@@ -148,7 +160,8 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
     const existing = existingId ? byId.get(existingId) : undefined;
     stats.processed++;
     if (!existing) {
-      byId.set(inc.id, inc);
+      const fieldProvenance = Object.fromEntries(Object.entries(inc).filter(([key, value]) => value != null && !['nemoLink', 'fieldProvenance'].includes(key)).map(([key]) => [key, { source: inc.primarySource, observedAt: inc.lastUpdatedAt }]));
+      byId.set(inc.id, { ...inc, fieldProvenance: inc.fieldProvenance || fieldProvenance });
       idByDedupKey.set(dedupKey, inc.id);
       stats.inserted++;
     } else {
@@ -383,6 +396,16 @@ export function recordSyncExecution(
     }
   }
 
+  for (const result of log.sourceResults) {
+    const source = db.sources[result.sourceId];
+    if (!source) continue;
+    const hasData = result.matchesFetched > 0 || (result.newsPublished || 0) > 0 || result.standingsFetched > 0;
+    source.lastSyncAt = log.finishedAt;
+    source.lastHttpStatus = result.httpStatus;
+    source.status = result.status;
+    if (hasData && !result.usedCachedSnapshot) source.lastSuccessfulDataAt = log.finishedAt;
+    else source.lastFailedDataAt = log.finishedAt;
+  }
   db.syncLogs = [log, ...db.syncLogs].slice(0, 30);
   if (errors.length > 0) {
     db.sourceErrors = [...errors, ...db.sourceErrors].slice(0, 50);
@@ -610,4 +633,14 @@ export function queryGatewayMatches(params: {
     lastSuccessfulMatchesSyncAt: db.meta.lastSuccessfulMatchesSyncAt ?? null,
     lastMatchesSyncResult: db.meta.lastMatchesSyncResult ?? null,
   };
+}
+
+/** Persist newly observed provider competitions; discovery does not imply fixture entitlement. */
+export function upsertCompetitionsInStore(records: GatewayDatabase['competitions']): void {
+  if (!records.length) return;
+  const db = getGatewayDatabase();
+  const byId = new Map(db.competitions.map((c) => [c.id, c]));
+  for (const record of records) byId.set(record.id, record);
+  db.competitions = [...byId.values()];
+  persistGatewayDatabase(db);
 }

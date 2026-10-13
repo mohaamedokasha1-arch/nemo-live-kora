@@ -105,7 +105,7 @@ test('Match resolver only allows exact, date-matched source identities in the ve
   assert.equal(otherwiseMappedButUnverified.url, null);
 });
 
-test('MatchCard links only verified fixtures; other cards are non-clickable and hide unconfirmed times', () => {
+test('MatchCard preserves verified broadcast routing and adds data-only details links', () => {
   const verifiedMatch = mapTheSportsDBEventToRecord({
     idEvent: '2561121',
     idAPIfootball: '1612250',
@@ -164,7 +164,8 @@ test('MatchCard links only verified fixtures; other cards are non-clickable and 
   const unmatchedHtml = renderToStaticMarkup(MatchCard({ match: unmatched }));
   assert.match(unmatchedHtml, /^<article [^>]*kl-match-card-unlinked/);
   assert.ok(unmatchedHtml.includes(UNVERIFIED_MATCH_LINK_LABEL_AR));
-  assert.ok(!unmatchedHtml.includes('href='));
+  assert.ok(unmatchedHtml.includes(`href="/matches/${unmatched.id}"`));
+  assert.ok(!unmatchedHtml.includes('href="https://nemo-sports'));
   assert.ok(!unmatchedHtml.includes('nemo-sports.vercel.app'));
   assert.ok(unmatchedHtml.includes(toCairoTimeArabic(unmatched.utcKickoff)));
 
@@ -185,7 +186,8 @@ test('MatchCard links only verified fixtures; other cards are non-clickable and 
   assert.ok(!noSourceTimeHtml.includes('16:00'));
   assert.ok(!noSourceTimeHtml.includes('4:00'));
   assert.ok(!noSourceTimeHtml.includes('<time'));
-  assert.ok(!noSourceTimeHtml.includes('href='));
+  assert.ok(noSourceTimeHtml.includes(`href="/matches/${noSourceTime.id}"`));
+  assert.ok(!noSourceTimeHtml.includes('href="https://nemo-sports'));
 });
 
 test('Legacy kickoff migration preserves only evidence-backed times and guards unsupported status', () => {

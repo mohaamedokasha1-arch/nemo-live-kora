@@ -41,6 +41,8 @@ export type NemoMatchCriterion =
   | 'mapping_table';
 
 export interface SourceDefinition {
+  lastSuccessfulDataAt?: string | null;
+  lastFailedDataAt?: string | null;
   id: SourceId;
   name: string;
   nameAr: string;
@@ -156,6 +158,7 @@ export interface MatchIncidentSummary {
 }
 
 export interface MatchRecord {
+  fieldProvenance?: Record<string, { source: SourceId; observedAt: string }>;
   id: string;
   competitionId: string;
   competitionCode: string;
@@ -342,6 +345,9 @@ export interface NemoMappingEntry {
 }
 
 export interface SourceSyncResult {
+  matchesInserted?: number;
+  matchesUpdated?: number;
+  matchesUnchanged?: number;
   sourceId: SourceId;
   status: SourceHealthStatus;
   httpStatus: number | null;

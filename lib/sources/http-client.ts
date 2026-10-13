@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 export interface FetchWithProtectionOptions {
   timeoutMs?: number;
   retries?: number;
@@ -37,8 +38,9 @@ export async function fetchWithProtection<T = unknown>(
   const retries = options.retries ?? 1;
   const cacheTtlMs = options.cacheTtlMs ?? 60_000;
 
+  const cacheKey = createHash('sha256').update(JSON.stringify([url, parser, options.headers || {}])).digest('hex');
   const now = Date.now();
-  const cached = memoryCache.get(url);
+  const cached = memoryCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     try {
       const parsed = parser === 'json' ? (JSON.parse(cached.rawText) as T) : (cached.rawText as unknown as T);
@@ -51,7 +53,7 @@ export async function fetchWithProtection<T = unknown>(
         fromCache: true,
       };
     } catch {
-      memoryCache.delete(url);
+      memoryCache.delete(cacheKey);
     }
   }
 
@@ -88,19 +90,19 @@ export async function fetchWithProtection<T = unknown>(
         signal: controller.signal,
         cache: 'no-store',
       });
-      clearTimeout(timer);
-
       lastHttpStatus = response.status;
       const rawText = await response.text();
+      clearTimeout(timer);
       const latencyMs = Date.now() - startMs;
 
-      if (response.status === 429 && attempt < retries) {
+      if ((response.status === 429 || response.status >= 500) && attempt < retries) {
         await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
         continue;
       }
 
-      if (response.ok && cacheTtlMs > 0) {
-        memoryCache.set(url, {
+      if (response.ok && cacheTtlMs > 0 && (parser === 'text' || (() => { try { JSON.parse(rawText); return true; } catch { return false; } })())) {
+        if (memoryCache.size >= 500) memoryCache.delete(memoryCache.keys().next().value!);
+        memoryCache.set(cacheKey, {
           expiresAt: Date.now() + cacheTtlMs,
           httpStatus: response.status,
           rawText,

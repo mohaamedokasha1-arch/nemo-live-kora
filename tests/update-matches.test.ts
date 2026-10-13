@@ -2,7 +2,7 @@ import test, { after, afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import type { GatewayDatabase } from '../lib/types';
 
 const projectRoot = process.cwd();
@@ -53,6 +53,7 @@ beforeEach(() => {
   // These tests assert the real write to the disposable workspace copy, so persistence is on here
   // (npm test turns it off for every other file).
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
+  process.env.CRON_SECRET = 'test-only-secret';
   store.persistGatewayDatabase(structuredClone(initialDatabase));
 
   // Exercise the real sync pipeline without contacting third-party services.
@@ -87,7 +88,10 @@ after(() => {
 async function assertVisitingUpdatesMatches(response: NextResponse) {
   assert.equal(response.status, 200);
   // الاستجابة المطلوبة بالضبط — بدون أي حقول إضافية
-  assert.deepEqual(await response.json(), { status: 'ok' });
+  const body = await response.json();
+  assert.equal(body.status, 'ok');
+  assert.equal(body.result.matchesFetched > 0, true);
+  assert.equal(body.persistence.ok, true);
 
   const db = store.getGatewayDatabase();
   const match = db.matches.find((entry) => entry.homeTeam.nameEn === sourceMatch.home);
@@ -119,11 +123,17 @@ test('Daily Vercel cron is configured for the update-matches route', () => {
   assert.equal(route.runtime, 'nodejs');
 });
 
-test('Visiting the URL (GET, no auth headers) updates matches and replies {"status":"ok"}', async () => {
-  assert.equal(process.env.CRON_SECRET, undefined);
-  await assertVisitingUpdatesMatches(await route.GET());
+const authorizedRequest = () => new NextRequest('http://localhost/api/cron/update-matches', { headers: { authorization: 'Bearer test-only-secret' } });
+
+test('Authorized GET persists fetched matches and reports counts', async () => {
+  await assertVisitingUpdatesMatches(await route.GET(authorizedRequest()));
 });
 
 test('POST also updates matches and replies {"status":"ok"}', async () => {
-  await assertVisitingUpdatesMatches(await route.POST());
+  await assertVisitingUpdatesMatches(await route.POST(authorizedRequest()));
+});
+
+test('Unauthorized request cannot start a sync', async () => {
+  const response = await route.GET(new NextRequest('http://localhost/api/cron/update-matches'));
+  assert.equal(response.status, 401);
 });

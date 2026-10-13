@@ -1,3 +1,4 @@
+import { isIndexableNewsArticle } from '@/lib/news/validate';
 import React from 'react';
 import Link from 'next/link';
 import { NewsItemRecord } from '@/lib/types';
@@ -39,7 +40,7 @@ export default function NewsSection({
                 <span className="kl-news-date">{item.cairoTimeLabel}</span>
               </div>
               <h3 className="kl-news-title" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
-                <Link href={`/news/${item.slug}`}>{item.title}</Link>
+                <a href={isIndexableNewsArticle(item) ? `/news/${item.slug}` : item.originalUrl || item.link}>{item.title}</a>
               </h3>
               {item.excerpt ? (
                 <p className="kl-news-excerpt" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
@@ -47,7 +48,7 @@ export default function NewsSection({
                 </p>
               ) : null}
               <div className="kl-news-card-links">
-                <Link href={`/news/${item.slug}`}>تفاصيل الخبر</Link>
+                <a href={isIndexableNewsArticle(item) ? `/news/${item.slug}` : item.originalUrl || item.link}>{isIndexableNewsArticle(item) ? 'تفاصيل الخبر' : 'اقرأ لدى المصدر الأصلي'}</a>
                 {item.nemoRelatedUrl ? (
                   <a href={item.nemoRelatedUrl} target="_blank" rel="noopener noreferrer">
                     NEMO Sports

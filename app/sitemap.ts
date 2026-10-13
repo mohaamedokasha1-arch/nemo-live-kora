@@ -1,3 +1,4 @@
+import { findCatalogEntryForMatch } from '@/lib/matches/match-links';
 import { MetadataRoute } from 'next';
 import {
   getTodayCairoDate,
@@ -150,5 +151,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...matchRoutes, ...dateRoutes, ...newsRoutes];
+  const sourceRoutes: MetadataRoute.Sitemap = db.matches.filter((m) => !findCatalogEntryForMatch(m) && m.kickoffConfirmed === true && m.cairoDate >= startDate && m.cairoDate <= endDate && parseDate(m.lastUpdatedAt)).map((m) => ({ url: `${GATEWAY_SITE_URL}/matches/${m.id}`, lastModified: new Date(m.lastUpdatedAt), changeFrequency: 'daily', priority: 0.6 }));
+  return [...staticRoutes, ...matchRoutes, ...sourceRoutes, ...dateRoutes, ...newsRoutes];
 }
