@@ -403,7 +403,7 @@ test('Existing match gateway files remain in place', () => {
   const root = repoRoot;
   for (const rel of [
     'app/page.tsx',
-    'app/matches/[date]/page.tsx',
+    'app/matches/[id]/page.tsx',
     'components/MatchCard.tsx',
     'lib/nemo-resolver.ts',
   ]) {

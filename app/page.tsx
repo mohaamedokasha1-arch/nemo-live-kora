@@ -6,6 +6,7 @@ import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
 import { describeMatchesFreshness } from '@/lib/freshness';
 import { getLatestNews } from '@/lib/news/query';
 import { ensureFreshMatches } from '@/lib/sync/engine';
+import FeaturedMatches from '@/components/FeaturedMatches';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
 import {
@@ -60,6 +61,7 @@ export default async function HomePage({
         allMatchesOnDate={queryResult.matches}
         freshnessNote={describeMatchesFreshness(store.meta)}
       />
+      <FeaturedMatches limit={4} />
       <NewsSection
         news={latestNews}
         lastUpdatedLabel={
