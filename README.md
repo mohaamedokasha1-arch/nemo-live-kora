@@ -46,7 +46,7 @@
 ├── app/
 │   ├── api/
 │   │   ├── cron/sync/route.ts      # نقطة المزامنة الخلفية اليدوية أو المجدولة خارجيًا
-│   │   ├── cron/update-matches/route.ts # API تحديث المباريات المحمي بـ CRON_SECRET (GET/POST)
+│   │   ├── cron/update-matches/route.ts # زيارته (GET/POST) تُحدِّث المباريات وترد {"status": "ok"}
 │   │   ├── matches/route.ts        # واجهة JSON للمباريات والتصفية حسب التاريخ والبطولة
 │   │   └── sources/route.ts        # واجهة JSON لحالة المصادر الخمسة وسجل المزامنة
 │   ├── news/page.tsx               # قائمة الأخبار المحققة
@@ -191,56 +191,31 @@ npm run dev
 | العنصر | التفاصيل |
 | --- | --- |
 | الطريقة | `GET` و `POST` للتشغيل اليدوي أو عبر مجدول خارجي |
-| الحماية | `Authorization: Bearer ${process.env.CRON_SECRET}` |
-| عند غياب ترويسة التفويض أو إرسال سر غير صحيح | `401 Unauthorized` |
-| عند عدم ضبط `CRON_SECRET` على الخادم | `500` (خطأ إعدادات؛ يظل المسار مغلقًا) |
-| وظيفة التحديث | `runMatchesUpdatePipeline()` في `lib/sync/engine.ts` (Database Pipeline) |
-| الأنماط | `live` (الافتراضي)، `daily`، `standings`، `manual`؛ عبر `?mode=` أو جسم JSON في `POST` |
+| الحماية | لا شيء — زيارة الرابط وحدها تكفي لتشغيل التحديث |
+| وظيفة التحديث | `ensureFreshMatches(0, ...)` في `lib/sync/engine.ts` — كل زيارة تُشغِّل تحديثًا فعليًا، والزيارات المتزامنة تتشارك نفس العملية الجارية |
+| الاستجابة | دائمًا `{"status": "ok"}` — فشل أي مصدر خارجي لا يُسقط الطلب وتُحفظ البيانات السابقة |
 | الجدولة | Cron يومي على Vercel (`0 5 * * *`) بالإضافة إلى الاستدعاء اليدوي أو من مجدول خارجي |
 
-مثال استجابة ناجحة:
+الاستجابة:
 
 ```json
-{
-  "ok": true,
-  "success": true,
-  "messageAr": "تم تحديث المباريات بنجاح — 24 مباراة محدَّثة.",
-  "updatedMatches": 24,
-  "matchesAdded": 3,
-  "matchesChanged": 21,
-  "matchesProcessed": 38,
-  "totalMatches": 512,
-  "standingsUpdated": 0,
-  "newsUpdated": 6,
-  "mode": "live",
-  "durationMs": 8420
-}
+{ "status": "ok" }
 ```
 
 ### تشغيله يدويًا
 
+افتح الرابط في المتصفح أو نفّذ:
+
 ```bash
-curl --fail-with-body -X GET "https://<your-project>.vercel.app/api/cron/update-matches" \
-  -H "Authorization: Bearer $CRON_SECRET"
-
-# أو مع تحديد نمط التحديث: live (الافتراضي) | daily | standings | manual
-curl --fail-with-body -X POST "https://<your-project>.vercel.app/api/cron/update-matches?mode=daily" \
-  -H "Authorization: Bearer $CRON_SECRET"
-
-# أو تحديد النمط في جسم JSON
-curl --fail-with-body -X POST "https://<your-project>.vercel.app/api/cron/update-matches" \
-  -H "Authorization: Bearer $CRON_SECRET" \
-  -H "Content-Type: application/json" \
-  --data '{"mode":"daily"}'
+curl "https://<your-project>.vercel.app/api/cron/update-matches"
 ```
 
-اضبط `CRON_SECRET` في بيئة الطرف الذي ينفذ `curl` بنفس قيمة السر على الخادم، واستبدل `<your-project>` باسم مشروعك.
+واستبدل `<your-project>` باسم مشروعك.
 
 ### الاستدعاء من مجدول خارجي لاحقًا
 
-- استخدم الرابط نفسه مع `GET` أو `POST`، وأضف الترويسة `Authorization: Bearer <CRON_SECRET>` صراحةً؛ لا تضيفها Vercel تلقائيًا للطلبات الخارجية.
-- احفظ السر في مخزن الأسرار الخاص بالمجدول (مثل GitHub Actions Secrets)، وليس في ملف داخل المستودع أو ضمن رابط الطلب.
-- اختر وتيرة مناسبة لحدود استدعاء الوظائف ومصادر البيانات. خطة Hobby تسمح بمهمة Cron واحدة يوميًا.
-- مسار `/api/cron/sync-news` يزامن الأخبار فقط وهو محمي بنفس السر. لوحة `/admin/news` تعرض حالة المصادر والأخبار للمصرّح لهم.
+- استخدم الرابط نفسه مع `GET` أو `POST` — بدون أي ترويسات.
+- ⚠️ بما أن المسار مفتوح، أي شخص يعرف الرابط يستطيع تشغيل تحديث؛ الزيارات المتزامنة تُدمج في عملية واحدة، لكن لا تستدعِه بوتيرة عالية احترامًا لحدود استدعاء الوظائف ومصادر البيانات. خطة Hobby تسمح بمهمة Cron واحدة يوميًا.
+- مسار `/api/cron/sync-news` يزامن الأخبار فقط وهو ما زال محميًا بـ `CRON_SECRET`. لوحة `/admin/news` تعرض حالة المصادر والأخبار للمصرّح لهم.
 
 > **ملاحظة التخزين:** يستخدم المشروع حاليًا ملف JSON مع ذاكرة مؤقتة. على Vercel، كتابة الملف ليست تخزينًا دائمًا، وقد لا تكون التحديثات مشتركة بين مثيلات الوظائف. صفحات الأخبار تحاول الجلب الحي عند الحاجة إذا تجاوز عمر آخر نجاح 15 دقيقة. للتحديثات الدائمة في الإنتاج يُفضَّل مخزن بيانات خارجي.
