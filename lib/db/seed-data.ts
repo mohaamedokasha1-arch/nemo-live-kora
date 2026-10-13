@@ -1343,29 +1343,23 @@ export function mergeMatchRecords(
   existing: ReturnType<typeof mapSportScoreMatchToRecord>,
   incoming: ReturnType<typeof mapSportScoreMatchToRecord>
 ) {
-  const statusRank: Record<string, number> = {
-    live: 5,
-    finished: 4,
-    suspended: 3,
-    postponed: 3,
-    cancelled: 3,
-    not_started: 2,
-    unconfirmed: 1,
-  };
-
-  const useIncomingStatus =
-    (statusRank[incoming.status] || 0) >= (statusRank[existing.status] || 0);
+  // Fresh observations replace older ones; unknown observations never erase confirmed data.
+  const incomingIsNewer = Date.parse(incoming.lastUpdatedAt) >= Date.parse(existing.lastUpdatedAt);
+  const useIncomingStatus = incomingIsNewer && incoming.status !== 'unconfirmed' &&
+    !(existing.status === 'finished' && ['live', 'not_started'].includes(incoming.status));
+  const scoreInput = incomingIsNewer && !(existing.status === 'finished' && incoming.status !== 'finished')
+    ? incoming.score : existing.score;
 
   const mergedScore = {
-    home: incoming.score.home !== null ? incoming.score.home : existing.score.home,
-    away: incoming.score.away !== null ? incoming.score.away : existing.score.away,
+    home: scoreInput.home !== null ? scoreInput.home : existing.score.home,
+    away: scoreInput.away !== null ? scoreInput.away : existing.score.away,
     halfTimeHome:
-      incoming.score.halfTimeHome !== undefined && incoming.score.halfTimeHome !== null
-        ? incoming.score.halfTimeHome
+      scoreInput.halfTimeHome !== undefined && scoreInput.halfTimeHome !== null
+        ? scoreInput.halfTimeHome
         : existing.score.halfTimeHome,
     halfTimeAway:
-      incoming.score.halfTimeAway !== undefined && incoming.score.halfTimeAway !== null
-        ? incoming.score.halfTimeAway
+      scoreInput.halfTimeAway !== undefined && scoreInput.halfTimeAway !== null
+        ? scoreInput.halfTimeAway
         : existing.score.halfTimeAway,
   };
 
@@ -1378,21 +1372,21 @@ export function mergeMatchRecords(
   const incomingKickoffConfirmed = incoming.kickoffConfirmed === true;
   const existingKickoffConfirmed = existing.kickoffConfirmed === true;
   const useIncomingKickoff =
-    incomingKickoffValid && (incomingKickoffConfirmed || !existingKickoffConfirmed);
+    incomingIsNewer && incomingKickoffValid && (incomingKickoffConfirmed || !existingKickoffConfirmed);
   const externalIds = Object.fromEntries(
     Object.entries({ ...existing.externalIds, ...incoming.externalIds }).filter(
       ([, value]) => value !== undefined && value !== null && value !== ''
     )
   ) as typeof existing.externalIds;
 
-  return {
+  const merged = {
     ...existing,
     roundLabelAr: existing.roundLabelAr || incoming.roundLabelAr,
     venue: existing.venue || incoming.venue,
     status: useIncomingStatus ? incoming.status : existing.status,
     statusLabelAr: useIncomingStatus ? incoming.statusLabelAr : existing.statusLabelAr,
     statusNoteAr: useIncomingStatus ? incoming.statusNoteAr : existing.statusNoteAr,
-    liveMinute: incoming.liveMinute ?? existing.liveMinute,
+    liveMinute: useIncomingStatus ? incoming.liveMinute : existing.liveMinute,
     utcKickoff: useIncomingKickoff ? incoming.utcKickoff : existing.utcKickoff,
     kickoffConfirmed: useIncomingKickoff ? incomingKickoffConfirmed : existingKickoffConfirmed,
     cairoDate: useIncomingKickoff ? incoming.cairoDate : existing.cairoDate,
@@ -1407,6 +1401,15 @@ export function mergeMatchRecords(
     ),
     externalIds,
     nemoLink: preferredNemoLink,
-    lastUpdatedAt: new Date().toISOString(),
+    lastUpdatedAt: incomingIsNewer ? incoming.lastUpdatedAt : existing.lastUpdatedAt,
   };
+
+  const fieldProvenance = { ...existing.fieldProvenance };
+  for (const [key, value] of Object.entries(merged)) {
+    if (['nemoLink', 'fieldProvenance', 'lastUpdatedAt'].includes(key) || value == null) continue;
+    if (JSON.stringify(value) !== JSON.stringify(existing[key as keyof typeof existing])) {
+      fieldProvenance[key] = { source: incoming.primarySource, observedAt: incoming.lastUpdatedAt };
+    }
+  }
+  return { ...merged, fieldProvenance };
 }

@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({
-    ok: true,
+    ok: log.sourceResults.some((source) => !source.usedCachedSnapshot && (source.matchesFetched > 0 || (source.newsPublished || 0) > 0 || source.standingsFetched > 0)),
     syncLog: log,
-  });
+  }, { status: log.sourceResults.some((s) => !s.usedCachedSnapshot && (s.matchesFetched > 0 || (s.newsPublished || 0) > 0 || s.standingsFetched > 0)) ? 200 : 503 });
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({
-    ok: true,
+    ok: log.sourceResults.some((source) => !source.usedCachedSnapshot && (source.matchesFetched > 0 || (source.newsPublished || 0) > 0 || source.standingsFetched > 0)),
     syncLog: log,
-  });
+  }, { status: log.sourceResults.some((s) => !s.usedCachedSnapshot && (s.matchesFetched > 0 || (s.newsPublished || 0) > 0 || s.standingsFetched > 0)) ? 200 : 503 });
 }

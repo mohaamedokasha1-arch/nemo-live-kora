@@ -1085,11 +1085,11 @@ export function resolveCompetitionByMeta(params: {
   if (normName.includes('usl championship')) return CANONICAL_COMPETITIONS[19];
 
   // Dynamic fallback competition record for global competitions from SportScore / TheSportsDB
-  const slug = (sportscoreSlug || normName.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'global');
+  const slug = (sportscoreSlug || (thesportsdbId ? `tsdb-${thesportsdbId}` : footballDataCode ? `fd-${footballDataCode}` : apiFootballId ? `apif-${apiFootballId}` : '') || normName.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'global');
   const translatedComp = translateGlobalCompetitionAr(nameEn || 'بطولة عالمية', countryEn);
   return {
     id: `comp-${slug}`,
-    code: slug.toUpperCase().slice(0, 12),
+    code: slug.toUpperCase(),
     nameAr: translatedComp.nameAr,
     nameEn: nameEn || 'Global Competition',
     countryAr: translatedComp.countryAr,
@@ -1099,7 +1099,7 @@ export function resolveCompetitionByMeta(params: {
     isEgyptianPriority: translatedComp.region === 'egypt',
     logoUrl: null,
     nemoCompetitionSlug: null,
-    currentSeason: '2026',
+    currentSeason: '',
     sourceIds: {
       sportscoreSlug,
       thesportsdbId,

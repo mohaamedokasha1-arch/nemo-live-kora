@@ -107,12 +107,12 @@ export async function fetchApiFootballSync(cairoDate: string): Promise<{
     return {
       ok: false,
       status: 'requires_api_key',
-      httpStatus: statusProbe.httpStatus ?? 200,
+      httpStatus: statusProbe.httpStatus,
       latencyMs: statusProbe.latencyMs,
       hasApiKey: false,
       matches: [],
       errorCode: 'MISSING_API_FOOTBALL_KEY',
-      messageAr: `محول API-Football جاهز ومختبر (${tokenErr}) — يتطلب إضافة API_FOOTBALL_KEY في متغيرات البيئة لتفعيل الجلب المباشر؛ يتم حاليًا ربط معرّفات idAPIfootball تلقائيًا عبر المصادر الأخرى.`,
+      messageAr: `جلب API-Football غير مفعّل (${tokenErr}) — يتطلب إضافة API_FOOTBALL_KEY في متغيرات البيئة لتفعيل الجلب المباشر؛ يتم حاليًا ربط معرّفات idAPIfootball تلقائيًا عبر المصادر الأخرى.`,
     };
   }
 

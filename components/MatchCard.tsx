@@ -223,6 +223,7 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       aria-label={`${actionLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
     >
       {cardContent}
+      <Link href={buildMatchLandingPath(match.id)}>تفاصيل المباراة</Link>
     </article>
   );
 }

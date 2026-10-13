@@ -23,7 +23,7 @@ async function handle(request: NextRequest) {
     newsUpdated: sync.updatedCount,
     startedAt: sync.startedAt,
     finishedAt: sync.finishedAt,
-  });
+  }, { status: sync.ok ? 200 : 503 });
 }
 
 export async function GET(request: NextRequest) {

@@ -50,6 +50,7 @@ export function unauthorizedJson(messageAr: string, status = 401) {
 
 export function requireCronAuth(request: NextRequest): NextResponse | null {
   if (!hasConfiguredAdminSecret()) {
+    console.error('[auth] sync_auth_not_configured');
     return unauthorizedJson(
       'المتغير البيئي CRON_SECRET أو NEMO_INGEST_TOKEN غير مضبوط على الخادم. أضفه في بيئة الاستضافة ثم أعد النشر.',
       500
@@ -64,6 +65,7 @@ export function requireCronAuth(request: NextRequest): NextResponse | null {
 
 export function requireAdminRequest(request: NextRequest): NextResponse | null {
   if (!hasConfiguredAdminSecret()) {
+    console.error('[auth] sync_auth_not_configured');
     return unauthorizedJson(
       'لوحة الأخبار محمية. اضبط CRON_SECRET أو NEMO_INGEST_TOKEN في بيئة الاستضافة.',
       500

@@ -12,7 +12,8 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint .",
     "test": "NEMO_GATEWAY_STORE_PERSIST=off node --import tsx --test tests/*.test.ts",
-    "sync": "node --import tsx scripts/run-sync.ts"
+    "sync": "node --import tsx scripts/run-sync.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",

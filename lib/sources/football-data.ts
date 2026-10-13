@@ -11,7 +11,7 @@ import {
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
 import { getStableMatchId } from '../match-identity';
-import { MatchRecord, SeasonRecord, SourceHealthStatus } from '../types';
+import { CompetitionRecord, MatchRecord, SeasonRecord, SourceHealthStatus } from '../types';
 import { fetchWithProtection } from './http-client';
 
 const FOOTBALL_DATA_BASE_URL =
@@ -91,6 +91,7 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
   status: SourceHealthStatus;
   httpStatus: number | null;
   latencyMs: number;
+  competitions: CompetitionRecord[];
   seasons: SeasonRecord[];
   matches: MatchRecord[];
   hasApiKey: boolean;
@@ -114,15 +115,18 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
     }
   );
 
+  const competitions: CompetitionRecord[] = [];
   const seasons: SeasonRecord[] = [];
   if (compRes.ok && compRes.data?.competitions) {
     for (const c of compRes.data.competitions) {
-      if (!c.code || !c.currentSeason) continue;
+      if (!c.code) continue;
       const comp = resolveCompetitionByMeta({
         nameEn: c.name,
         footballDataCode: c.code,
         countryEn: c.area?.name,
       });
+      competitions.push({ ...comp, logoUrl: c.emblem || comp.logoUrl, currentSeason: c.currentSeason ? `${c.currentSeason.startDate.slice(0, 4)}/${c.currentSeason.endDate.slice(0, 4)}` : '' });
+      if (!c.currentSeason) continue;
       seasons.push({
         id: `season-fd-${c.code}-${c.currentSeason.id}`,
         competitionId: comp.id,
@@ -137,6 +141,7 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
   }
 
   const matches: MatchRecord[] = [];
+  let matchFailure: { httpStatus: number | null; latencyMs: number; error: string } | null = null;
   if (hasApiKey && dateFrom && dateTo) {
     const matchUrl = `${FOOTBALL_DATA_BASE_URL}/matches?dateFrom=${encodeURIComponent(
       dateFrom
@@ -148,6 +153,7 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
       headers,
     });
 
+    if (!matchRes.ok || !Array.isArray(matchRes.data?.matches)) matchFailure = { httpStatus: matchRes.httpStatus, latencyMs: matchRes.latencyMs, error: matchRes.error || 'invalid_matches_payload' };
     if (matchRes.ok && Array.isArray(matchRes.data?.matches)) {
       for (const m of matchRes.data.matches) {
         const comp = resolveCompetitionByMeta({
@@ -232,12 +238,15 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
     }
   }
 
+  if (matchFailure) return { ok: false, status: 'degraded', ...matchFailure, competitions, seasons, matches, hasApiKey, messageAr: 'فشل مسار مباريات Football-Data؛ نجاح فهرس البطولات لا يثبت جلب المباريات.' };
+
   if (!compRes.ok) {
     return {
       ok: false,
       status: 'error',
       httpStatus: compRes.httpStatus,
       latencyMs: compRes.latencyMs,
+      competitions: [],
       seasons: [],
       matches: [],
       hasApiKey,
@@ -251,6 +260,7 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
     status: hasApiKey ? 'active' : 'partial_keyless',
     httpStatus: compRes.httpStatus,
     latencyMs: compRes.latencyMs,
+    competitions,
     seasons,
     matches,
     hasApiKey,

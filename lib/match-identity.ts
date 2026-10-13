@@ -58,10 +58,7 @@ function isCatalogTeamId(teamId: string): boolean {
 
 function normalizeTeamKey(team: MatchRecord['homeTeam']): string {
   if (isCatalogTeamId(team.id)) return team.id;
-  return `name:${team.nameEn
-    .toLowerCase()
-    .replace(/\b(fc|sc|cf|ac|club)\b/g, '')
-    .replace(/[^a-z0-9]+/g, '')}`;
+  return `name:${team.nameEn.normalize('NFKC').toLowerCase().trim().replace(/\s+/g, ' ')}`;
 }
 
 /**
@@ -73,7 +70,8 @@ function normalizeTeamKey(team: MatchRecord['homeTeam']): string {
 export function buildMatchDedupKey(match: MatchRecord): string {
   return [
     match.competitionCode,
-    match.cairoDate,
+    match.kickoffConfirmed === true && Number.isFinite(Date.parse(match.utcKickoff)) ? new Date(match.utcKickoff).toISOString() : `unknown:${match.id}`,
+    match.seasonLabel,
     normalizeTeamKey(match.homeTeam),
     normalizeTeamKey(match.awayTeam),
   ].join('|');
