@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import MatchCard, {
+  MATCH_PAGE_LINK_LABEL_AR,
   UNVERIFIED_MATCH_LINK_LABEL_AR,
   VERIFIED_MATCH_LINK_LABEL_AR,
 } from '../components/MatchCard';
@@ -119,11 +120,34 @@ test('MatchCard links only verified fixtures; other cards are non-clickable and 
     intHomeScore: 0,
     intAwayScore: 2,
   });
+  // المباريات التي لها صفحة هبوط داخلية على البوابة تُربط بها أولًا (بوابة المشاهدة الرسمية)،
+  // ورابط NEMO Sports المُتحقَّق منه يظهر داخل صفحة الهبوط نفسها.
   const verifiedHtml = renderToStaticMarkup(MatchCard({ match: verifiedMatch }));
-  assert.ok(verifiedHtml.includes(`href="${EXACT_MATCH_URL}"`));
-  assert.ok(verifiedHtml.includes('انتهت المباراة — لا يوجد بث موثّق حاليًا'));
-  assert.ok(verifiedHtml.includes(VERIFIED_MATCH_LINK_LABEL_AR) === false);
+  assert.ok(verifiedHtml.includes('href="/matches/zamalek-vs-al-ahly-2026-10-11"'));
+  assert.ok(verifiedHtml.includes('النتيجة والملخص — صفحة المباراة'));
+  assert.ok(verifiedHtml.includes(MATCH_PAGE_LINK_LABEL_AR) === false);
   assert.ok(verifiedHtml.includes(toCairoTimeArabic(verifiedMatch.utcKickoff)));
+  assert.ok(verifiedHtml.includes('kl-match-card-linked'));
+
+  // مباراة مُتحقَّقة但没有 صفحة داخلية بعد: تبقى البطاقة تربط مباشرة بالصفحة المطابقة على NEMO.
+  const verifiedWithoutLanding = mapTheSportsDBEventToRecord({
+    idEvent: '2561120',
+    idAPIfootball: '1612249',
+    strEvent: 'Olympic El Qanal vs Al Masry',
+    idLeague: '4829',
+    strLeague: 'Egyptian Premier League',
+    strHomeTeam: 'Olympic El Qanal',
+    strAwayTeam: 'Al Masry',
+    strTimestamp: '2026-10-11T14:00:00Z',
+    dateEvent: '2026-10-11',
+    strStatus: 'FT',
+    intHomeScore: 1,
+    intAwayScore: 1,
+  });
+  const verifiedOnlyHtml = renderToStaticMarkup(MatchCard({ match: verifiedWithoutLanding }));
+  assert.ok(verifiedOnlyHtml.includes('href="https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry#live-stream"'));
+  assert.ok(verifiedOnlyHtml.includes('انتهت المباراة — لا يوجد بث موثّق حاليًا'));
+  assert.ok(verifiedOnlyHtml.includes(VERIFIED_MATCH_LINK_LABEL_AR) === false);
 
   const unmatched = mapTheSportsDBEventToRecord({
     idEvent: '2561124',

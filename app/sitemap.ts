@@ -5,10 +5,17 @@ import {
   shiftDateString,
 } from '@/lib/cairo-time';
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { getCatalogSitemapItems } from '@/lib/matches/match-catalog';
 import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 
+/**
+ * sitemap.xml ديناميكي:
+ *  • الصفحة الرئيسية + جداول التواريخ النشطة + صفحات الأخبار المفهرسة.
+ *  • صفحات هبوط كل مباراة في `data/matches.ts` — تُضاف **فورًا** ومعهد توقيت آخر تحديث،
+ *    وترتفع أولويتها تلقائيًا للمباريات المباشرة والقريبة.
+ */
 export const dynamic = 'force-dynamic';
 
 function parseDate(value: string | null | undefined): Date | null {
@@ -35,12 +42,44 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const archiveNews = getArchiveNews(db.news);
   const indexableNews = getPublishedNews(db.news).filter(isIndexableNewsArticle);
 
+  // ── صفحات هبوط المباريات (Automated Match Engine) ──
+  const matchRoutes: MetadataRoute.Sitemap = getCatalogSitemapItems(now).map((item) => ({
+    url: `${GATEWAY_SITE_URL}${item.path}`,
+    lastModified: item.lastModified,
+    changeFrequency: item.changeFrequency,
+    priority: item.priority,
+  }));
+
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: `${GATEWAY_SITE_URL}/`,
       lastModified: parseDate(db.meta.lastLiveSyncAt) || now,
       changeFrequency: 'hourly',
       priority: 1.0,
+    },
+    {
+      url: `${GATEWAY_SITE_URL}/about`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+    {
+      url: `${GATEWAY_SITE_URL}/contact`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+    {
+      url: `${GATEWAY_SITE_URL}/privacy-policy`,
+      lastModified: now,
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    {
+      url: `${GATEWAY_SITE_URL}/terms`,
+      lastModified: now,
+      changeFrequency: 'yearly',
+      priority: 0.3,
     },
   ];
 
@@ -111,5 +150,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...dateRoutes, ...newsRoutes];
+  return [...staticRoutes, ...matchRoutes, ...dateRoutes, ...newsRoutes];
 }

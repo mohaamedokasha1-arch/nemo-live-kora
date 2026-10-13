@@ -36,7 +36,7 @@ test('1. Root Repository Structure: core files exist directly at repository root
     '.env.example',
     'app/page.tsx',
     'app/layout.tsx',
-    'app/matches/[date]/page.tsx',
+    'app/matches/[id]/page.tsx',
     'components/MatchCard.tsx',
     'lib/nemo-resolver.ts',
   ];

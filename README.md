@@ -53,7 +53,13 @@
 │   ├── news/[slug]/page.tsx        # تفاصيل خبر؛ تُفهرس فقط مع رابط ناشر ومقتطف كافيين
 │   ├── news/archive/page.tsx       # أرشيف الأخبار السابقة
 │   ├── admin/news/page.tsx         # لوحة مراقبة الأخبار المحمية
-│   ├── matches/[date]/page.tsx     # صفحة جدول مباريات تاريخ محدد (/matches/YYYY-MM-DD)
+│   ├── matches/[id]/page.tsx       # مسار موحّد: جدول تاريخ (/matches/YYYY-MM-DD) أو صفحة هبوط مباراة (/matches/[id])
+│   ├── live/[matchId]/page.tsx     # صفحة البث الداخلية المحوَّل إليها من صفحة الهبوط (noindex, follow)
+│   ├── ads.txt/route.ts            # ملف ads.txt الديناميكي لأكواد الناشرين
+│   ├── about/page.tsx              # من نحن (متطلبات قبول الإعلانات)
+│   ├── contact/page.tsx            # اتصل بنا
+│   ├── privacy-policy/page.tsx     # سياسة الخصوصية (كوكيز وإعلانات الطرف الثالث)
+│   ├── terms/page.tsx              # شروط الاستخدام
 │   ├── sources/page.tsx            # لوحة الشفافية لحالة المصادر الخمسة وجدول الربط
 │   ├── globals.css                 # تنسيقات RTL الفاتحة/الكلاسيكية والوضع الداكن
 │   ├── layout.tsx                  # التخطيط العام والبيانات الوصفية العربية
@@ -61,6 +67,13 @@
 │   ├── robots.ts                   # ملف robots.txt الديناميكي
 │   └── sitemap.ts                  # ملف sitemap.xml الديناميكي للتواريخ غير الفارغة
 ├── components/
+│   ├── AdSlot.tsx                  # مساحات إعلانية جاهزة بحجز ارتفاع ثابت (بدون CLS)
+│   ├── FeaturedMatches.tsx         # بوابة المباريات في الصفحة الرئيسية
+│   ├── LiveBroadcastView.tsx       # واجهة صفحة البث الداخلية
+│   ├── MatchLandingView.tsx        # واجهة صفحة هبوط المباراة + زر التحويل للبث
+│   ├── SportsEventJsonLd.tsx       # مكوّن JSON-LD المخصص لـ SportsEvent
+│   ├── StreamCta.tsx               # زر التحويل الأساسي إلى /live/[match-id]
+│   ├── TeamCrest.tsx               # شعار الفريق + بديل SVG موحّد
 │   ├── Footer.tsx
 │   ├── Header.tsx
 │   ├── MatchCard.tsx
@@ -68,8 +81,17 @@
 │   ├── NewsSection.tsx
 │   └── StandingsSection.tsx
 ├── data/
+│   ├── matches.ts                  # ⭐ ملف المباريات المركزي (Automated Match Engine): أضف مباراة ← تُنتج كل شيء
 │   └── gateway-store.json          # قاعدة البيانات الموحدة الموثقة من المصادر الخمسة
 ├── lib/
+│   ├── matches/
+│   │   ├── types.ts                # أنواع سجل المباراة والرؤية المدمجة
+│   │   ├── match-links.ts          # مسارات صفحة الهبوط/البث وربط البطاقات (client-safe)
+│   │   └── match-catalog.ts        # دمج الكتالوج مع المصادر + التحقق + مدخلات sitemap
+│   ├── seo/
+│   │   ├── sports-event.ts         # مولّد SportsEvent كامل الحقول + BreadcrumbList
+│   │   ├── metadata.ts             # الوسوم المعيارية ووسوم المشاركة لكل نوع صفحة
+│   │   └── match-structured-data.ts# ItemList لصفحات الجداول
 │   ├── db/
 │   │   ├── seed-data.ts
 │   │   └── store.ts
@@ -99,7 +121,33 @@
 
 ---
 
-## 4. التشغيل المحلي والاختبار والبناء
+## 4. محرّك المباريات التلقائي والبيانات المنظمة و SEO والإعلانات
+
+كل مباراة تُضاف إلى ملف واحد فقط — `data/matches.ts` — ينتج عنها تلقائيًا:
+
+| المخرج | المسار |
+| --- | --- |
+| صفحة هبوط كاملة (تفاصيل + كلمات مفتاحية + زر المشاهدة) | `/matches/[id]` |
+| صفحة بث داخلية (بوابة المشاهدة + مساحات إعلانية) | `/live/[id]` |
+| بيانات `SportsEvent` منظمة كاملة الحقول | داخل صفحة الهبوط |
+| رابط في خريطة الموقع مع توقيت آخر تحديث | `/sitemap.xml` |
+| بطاقة وروابط داخلية في الصفحة الرئيسية والجداول | `/` و`/matches/YYYY-MM-DD` |
+
+- **البيانات المنظمة:** `location` (Place/VirtualLocation) • `description` ديناميكي فريد •
+  `performer` (الفريقان) • `organizer` (البطولة) • `startDate`/`endDate` بصيغة ISO 8601 مع إزاحة
+  القاهرة • `offers` (سعر `0` + `InStock` + رابط المشاهدة) • `eventStatus` بقيم Schema.org المعتمدة.
+- **قاعدة صريحة:** لا يُنشر أي رابط بث قبل التحقق منه (`broadcast.status = verified_*`)،
+  والحالة لا تدّعي «جارية الآن» بدون سجل مصدر — والاختبارات تفرض ذلك.
+- **الوسوم المعيارية:** canonical لكل صفحة على حدة (لا canonical عام في التخطيط)،
+  وصفحات البث `noindex, follow` لتجنّب تكرار المحتوى.
+- **الإعلانات:** `app/ads.txt/route.ts` يُبنى تلقائيًا من `NEXT_PUBLIC_ADSENSE_CLIENT`،
+  و`components/AdSlot.tsx` مساحات بحجز ارتفاع ثابت، والصفحات القانونية الأربع جاهزة
+  (`/privacy-policy`, `/terms`, `/about`, `/contact`) ومربوطة في التذييل.
+
+📘 التفاصيل الكاملة، وجدول الحقول، وخطوات التحقق قبل النشر في
+[`docs/MATCH-ENGINE-AND-SEO.md`](docs/MATCH-ENGINE-AND-SEO.md).
+
+## 5. التشغيل المحلي والاختبار والبناء
 
 ```bash
 # 1. تثبيت الحزم
@@ -120,7 +168,7 @@ npm run dev
 
 ---
 
-## 5. إعدادات النشر على Vercel
+## 6. إعدادات النشر على Vercel
 
 - **Framework Preset**: `Next.js`
 - **Root Directory**: `./` (الجذر مباشرة)
@@ -136,7 +184,7 @@ npm run dev
 
 ---
 
-## 6. API تحديث المباريات يدويًا أو عبر مجدول خارجي
+## 7. API تحديث المباريات يدويًا أو عبر مجدول خارجي
 
 **الملف:** `app/api/cron/update-matches/route.ts` — **المسار:** `/api/cron/update-matches`
 

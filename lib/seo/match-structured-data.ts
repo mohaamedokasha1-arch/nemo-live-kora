@@ -1,20 +1,21 @@
-import { MatchRecord } from '../types';
+import { buildMatchLandingPath, findCatalogEntryForMatch } from '../matches/match-links';
+import { GATEWAY_SITE_URL } from '../site-url';
+import type { MatchRecord } from '../types';
 
-function eventStatusUrl(status: MatchRecord['status']): string | null {
-  switch (status) {
-    case 'not_started':
-      return 'https://schema.org/EventScheduled';
-    case 'postponed':
-      return 'https://schema.org/EventPostponed';
-    case 'cancelled':
-      return 'https://schema.org/EventCancelled';
-    default:
-      // Schema.org has no equivalent useful state here; do not label a live or finished
-      // fixture as scheduled or invent a non-standard EventStatusType.
-      return null;
-  }
-}
+export { serializeJsonLd } from './json-ld';
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  بيانات صفحات الجداول (ItemList) — وليست صفحات الأحداث
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  سياسة Google لأحداث الرياضة: «حدث واحد = صفحة فريدة واحدة»، وصفحات القوائم
+ *  لا تتأهل للنتائج المُنسّقة للأحداث. لذلك:
+ *   • صفحات اليوم/التاريخ تُخرج `ItemList` يربط كل مباراة بصفحة الهبوط الرسمية لها
+ *     (/matches/[id]) عندما تكون هذه الصفحة موجودة — بدون تكرار عقدة SportsEvent
+ *     ناقصة الحقول (وهو ما كان يُنتج أخطاء «حقل مفقود» في Search Console).
+ *   • البيانات المنظمة الكاملة (SportsEvent كامل الحقول) توجد فقط في صفحة الهبوط
+ *     الخاصة بالمباراة، وهي الصفحة المعيارية (canonical) للحدث.
+ */
 export function createMatchScheduleStructuredData(
   date: string,
   matches: MatchRecord[]
@@ -28,48 +29,17 @@ export function createMatchScheduleStructuredData(
     itemListOrder: 'https://schema.org/ItemListOrderAscending',
     numberOfItems: matches.length,
     itemListElement: matches.slice(0, 20).map((match, index) => {
-      const eventStatus = eventStatusUrl(match.status);
-      const startDate = Number.isFinite(Date.parse(match.utcKickoff))
-        ? match.utcKickoff
-        : null;
+      const entry = findCatalogEntryForMatch(match);
       const item: Record<string, unknown> = {
-        '@type': 'SportsEvent',
-        name: `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`,
-        sport: 'Association football',
-        homeTeam: {
-          '@type': 'SportsTeam',
-          name: match.homeTeam.nameAr,
-        },
-        awayTeam: {
-          '@type': 'SportsTeam',
-          name: match.awayTeam.nameAr,
-        },
-      };
-
-      if (startDate) item.startDate = startDate;
-      if (eventStatus) item.eventStatus = eventStatus;
-      if (match.venue) {
-        item.location = {
-          '@type': 'Place',
-          name: match.venue,
-        };
-      }
-      // Deliberately omit `url`: this page describes the fixture list, not a canonical event
-      // detail page on the gateway. Third-party NEMO destinations are not event URLs here.
-
-      return {
         '@type': 'ListItem',
         position: index + 1,
-        item,
+        name: `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`,
       };
+      if (entry) {
+        // الرابط المعياري لصفحة الحدث الكاملة على البوابة (لا رابط خارجي هنا).
+        item.url = `${GATEWAY_SITE_URL}${buildMatchLandingPath(entry.id)}`;
+      }
+      return item;
     }),
   };
-}
-
-/** JSON-LD is embedded in a script element; escape HTML-significant characters. */
-export function serializeJsonLd(value: unknown): string {
-  return JSON.stringify(value)
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026');
 }

@@ -348,3 +348,63 @@ export function formatScoreDisplay(score: MatchScore, status: MatchStatusCode): 
     summaryText: status === 'not_started' ? 'لم تبدأ بعد' : 'النتيجة غير متاحة من المصدر',
   };
 }
+
+/**
+ * Resolves the exact UTC offset (in minutes) that Africa/Cairo was observing at `date`.
+ * Egypt re-introduced DST, so a hardcoded +02:00 would be wrong for half the season.
+ */
+export function getCairoOffsetMinutes(date: Date): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: CAIRO_TIMEZONE,
+      timeZoneName: 'longOffset',
+    }).formatToParts(date);
+    const zoneName = parts.find((part) => part.type === 'timeZoneName')?.value ?? '';
+    if (zoneName === 'GMT' || zoneName === 'UTC') return 0;
+    const match = /^(?:GMT|UTC)([+-])(\d{1,2})(?::(\d{2}))?$/.exec(zoneName.trim());
+    if (!match) return 0;
+    const sign = match[1] === '-' ? -1 : 1;
+    return sign * (Number(match[2]) * 60 + Number(match[3] ?? '0'));
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Converts a UTC ISO timestamp into ISO 8601 **with the Africa/Cairo offset**
+ * (e.g. "2026-10-20T20:00:00+03:00"), which is what Google's Event / SportsEvent structured-data
+ * guidance asks for ("ISO 8601 with the time zone offset").
+ *
+ * Returns null when the input is not a valid timestamp. Falls back to the UTC (`Z`) form if the
+ * runtime cannot report a named offset — still a valid ISO 8601 timestamp with a timezone.
+ */
+export function toCairoIsoWithOffset(isoUtcOrDate: string | Date): string | null {
+  const date = typeof isoUtcOrDate === 'string' ? new Date(isoUtcOrDate) : isoUtcOrDate;
+  if (Number.isNaN(date.getTime())) return null;
+
+  const offsetMinutes = getCairoOffsetMinutes(date);
+  const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
+
+  const pad = (value: number, size = 2) => String(value).padStart(size, '0');
+  const datePart = `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(
+    shifted.getUTCDate()
+  )}`;
+  const timePart = `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(
+    shifted.getUTCSeconds()
+  )}`;
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const absoluteOffset = Math.abs(offsetMinutes);
+  const offsetPart = `${sign}${pad(Math.floor(absoluteOffset / 60))}:${pad(absoluteOffset % 60)}`;
+
+  return `${datePart}T${timePart}${offsetPart}`;
+}
+
+/**
+ * Adds a duration in minutes to a UTC timestamp and returns the resulting UTC ISO string,
+ * or null when the input timestamp is invalid.
+ */
+export function addMinutesToIso(isoUtc: string, minutes: number): string | null {
+  const date = new Date(isoUtc);
+  if (Number.isNaN(date.getTime()) || !Number.isFinite(minutes)) return null;
+  return new Date(date.getTime() + minutes * 60_000).toISOString();
+}

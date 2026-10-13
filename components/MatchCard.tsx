@@ -1,94 +1,50 @@
 'use client';
 
-import React, { useState } from 'react';
-import Image from 'next/image';
+import React from 'react';
+import Link from 'next/link';
 import { formatScoreDisplay, toCairoTimeArabic } from '@/lib/cairo-time';
 import { getMatchSourceLabelAr } from '@/lib/catalog';
+import { buildMatchLandingPath, findCatalogEntryForMatch } from '@/lib/matches/match-links';
 import { MatchRecord } from '@/lib/types';
+import TeamCrest from './TeamCrest';
 
 export const UNVERIFIED_MATCH_LINK_LABEL_AR = 'لا يوجد رابط بث مطابق موثّق';
 export const VERIFIED_MATCH_LINK_LABEL_AR = 'قسم البث للمباراة المطابقة على NEMO Sports';
-
-/**
- * Professional Club Crest pedestal component with high-res PNG support
- * and a bespoke vector SVG football shield emblem fallback (never plain text!).
- */
-function TeamCrest({
-  nameAr,
-  logoUrl,
-  isEgyptian,
-}: {
-  nameAr: string;
-  logoUrl: string | null;
-  isEgyptian?: boolean;
-}) {
-  const [imgError, setImgError] = useState(false);
-
-  return (
-    <div className="kl-team-logo-wrap">
-      {!logoUrl || imgError ? (
-        <svg
-          viewBox="0 0 48 48"
-          className="kl-team-shield-svg"
-          aria-label={nameAr}
-          role="img"
-        >
-          <defs>
-            <linearGradient
-              id={isEgyptian ? 'shieldEg' : 'shieldGlobal'}
-              x1="0"
-              y1="0"
-              x2="48"
-              y2="48"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0%" stopColor={isEgyptian ? '#991B1B' : '#1E3A8A'} />
-              <stop offset="100%" stopColor={isEgyptian ? '#7F1D1D' : '#172554'} />
-            </linearGradient>
-          </defs>
-          <path
-            d="M24 4L8 10.5V22.5C8 33.4 14.82 42.8 24 45.5C33.18 42.8 40 33.4 40 22.5V10.5L24 4Z"
-            fill={`url(#${isEgyptian ? 'shieldEg' : 'shieldGlobal'})`}
-            stroke="#D99B52"
-            strokeWidth="2"
-          />
-          <path
-            d="M24 9L13 13.5V22.2C13 30.2 17.68 37.2 24 39.5C30.32 37.2 35 30.2 35 22.2V13.5L24 9Z"
-            fill="rgba(255,255,255,0.08)"
-          />
-          <circle cx="24" cy="23" r="6.5" fill="none" stroke="#FDE68A" strokeWidth="1.6" />
-          <circle cx="24" cy="23" r="2.2" fill="#FDE68A" />
-        </svg>
-      ) : (
-        <Image
-          src={logoUrl}
-          alt={nameAr}
-          width={48}
-          height={48}
-          unoptimized
-          className="kl-team-logo-img"
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          onError={() => setImgError(true)}
-        />
-      )}
-    </div>
-  );
-}
+/** البطاقة التي لها صفحة هبوط داخلية على البوابة (المسار الموصى به للزائر). */
+export const MATCH_PAGE_LINK_LABEL_AR = 'تفاصيل المباراة والمشاهدة المباشرة';
 
 export default function MatchCard({ match }: { match: MatchRecord }) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
   const sourceLabel = getMatchSourceLabelAr(match.primarySource);
   const kickoffConfirmed =
     match.kickoffConfirmed === true && Number.isFinite(Date.parse(match.utcKickoff));
+  // الأولوية للصفحة الداخلية (صفحة هبوط المباراة) لأنها بوابة المشاهدة الرسمية على الموقع،
+  // وإن لم توجد صفحة داخلية نستخدم رابط NEMO Sports المُتحقَّق منه فقط.
+  const catalogEntry = findCatalogEntryForMatch(match);
+  const landingPath = catalogEntry ? buildMatchLandingPath(catalogEntry.id) : null;
   const targetUrl = match.nemoLink.verified ? match.nemoLink.url : null;
+  const hasAction = Boolean(landingPath || targetUrl);
   const cardClass = [
     'kl-match-card',
     match.status === 'live' ? 'kl-match-card-live' : '',
-    targetUrl ? '' : 'kl-match-card-unlinked',
+    hasAction ? '' : 'kl-match-card-unlinked',
+    landingPath ? 'kl-match-card-linked' : '',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const finishedLabel = landingPath
+    ? 'النتيجة والملخص — صفحة المباراة'
+    : 'انتهت المباراة — لا يوجد بث موثّق حاليًا';
+  const actionLabel = landingPath
+    ? match.status === 'finished'
+      ? finishedLabel
+      : MATCH_PAGE_LINK_LABEL_AR
+    : targetUrl
+    ? match.status === 'finished'
+      ? finishedLabel
+      : VERIFIED_MATCH_LINK_LABEL_AR
+    : UNVERIFIED_MATCH_LINK_LABEL_AR;
 
   const statusText =
     match.status === 'not_started'
@@ -207,14 +163,8 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
         </div>
 
         <div className="kl-meta-item kl-meta-action" title={match.nemoLink.subLabelAr}>
-          <span>
-            {targetUrl && match.status === 'finished'
-              ? 'انتهت المباراة — لا يوجد بث موثّق حاليًا'
-              : targetUrl
-              ? VERIFIED_MATCH_LINK_LABEL_AR
-              : UNVERIFIED_MATCH_LINK_LABEL_AR}
-          </span>
-          {targetUrl ? (
+          <span>{actionLabel}</span>
+          {hasAction ? (
             <svg
               viewBox="0 0 16 16"
               width="13"
@@ -233,6 +183,19 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       </div>
     </>
   );
+
+  if (landingPath) {
+    return (
+      <Link
+        href={landingPath}
+        className={cardClass}
+        title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — صفحة المباراة على نيمو كورة لايف`}
+        aria-label={`${actionLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+      >
+        {cardContent}
+      </Link>
+    );
+  }
 
   if (targetUrl) {
     const label =
@@ -257,7 +220,7 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
     <article
       className={cardClass}
       title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.nemoLink.subLabelAr}`}
-      aria-label={`${UNVERIFIED_MATCH_LINK_LABEL_AR} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+      aria-label={`${actionLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
     >
       {cardContent}
     </article>
