@@ -31,13 +31,29 @@
 
 ## 2. المصادر الخمسة المعتمدة (`lib/sources/`)
 
-| # | المصدر | المحول البرمجي | نوع البيانات | الحالة |
+| # | المصدر | المحول البرمجي | نوع البيانات | المفتاح المطلوب |
 |---|---|---|---|---|
-| 1 | **SportScore** | `lib/sources/sportscore.ts` | المباريات الحية، النتائج، الأحداث، التشكيلات، وجداول الترتيب | مفعّل بالكامل بدون مفتاح (`200 OK`) |
-| 2 | **Football-Data.org v4** | `lib/sources/football-data.ts` | فهرس 190 بطولة والمواسم الحالية (ومباريات الدوريات الأوروبية عند ضبط `FOOTBALL_DATA_API_KEY`) | مفعّل بدون مفتاح لمسار `/v4/competitions` (`200 OK`) |
-| 3 | **TheSportsDB v1** | `lib/sources/thesportsdb.ts` | المباريات القادمة وآخر النتائج تلقائيًا (`eventsnextleague` / `eventspastleague`) للدوري المصري الممتاز (`4829`، عبر `eventsround` جولة بجولة)، كأس الرابطة (`5185`)، الكونفدرالية (`5057`) + قائمة اليوم (`eventsday`). كأس مصر (`4830`) مستبعد لأنه في TheSportsDB دوري بيسبول كوري (KBO) | المفتاح العام المجاني `3`؛ كل نقطة نهاية تُسجَّل بنتيجتها في سجل المزامنة |
-| 4 | **API-Football v3** | `lib/sources/api-football.ts` | ربط معرّفات `idAPIfootball` وإثراء النتائج المباشرة عند ضبط `API_FOOTBALL_KEY` | جاهز ومختبر على `/status` (`200 OK`) |
-| 5 | **Google News RSS** | `lib/sources/google-news-rss.ts` | **مصدر الأخبار الوحيد بين الخمسة**: عناوين RSS مع الناشر الأصلي وتاريخ النشر الحقيقي | يُنشر الخبر فقط بعد التحقق ومنع التكرار؛ لا تُعرض بيانات بذرية |
+| 1 | **SportScore** | `lib/sources/sportscore.ts` | المباريات الحية، النتائج، وجداول الترتيب (`/api/widget/matches/`، `/api/v1/matches/`، `/api/v1/fixtures/?date=`، `/api/widget/standings/`) | لا يحتاج (`SPORTSCORE_SRC` اختياري للتعريف بالنفس) |
+| 2 | **Football-Data.org v4** | `lib/sources/football-data.ts` | فهرس البطولات والمواسم، والمباريات والترتيب عند ضبط المفتاح | `FOOTBALL_DATA_API_KEY` (اختياري — بدونه `partial_keyless`) |
+| 3 | **TheSportsDB v1** | `lib/sources/thesportsdb.ts` | جولات الدوري المصري الممتاز (`4829`)، كأس الرابطة (`5185`)، الكونفدرالية (`5057`)، وقائمة اليوم. `4830` مستبعد لأنه دوري بيسبول (KBO) | `THESPORTSDB_API_KEY` — المجاني العام `123` (و`3` تاريخيًا). المفاتيح المدفوعة ترفض `eventsround.php` بـ 404، فيسقط الكود تلقائيًا إلى `123` ثم `3` |
+| 4 | **API-Football v3** | `lib/sources/api-football.ts` | fixtures + **الترتيب** + ربط معرّفات `idAPIfootball` | `API_FOOTBALL_KEY` (+ `API_FOOTBALL_HOST` لطريق RapidAPI). بدون مفتاح: `requires_api_key` |
+| 5 | **Google News RSS** | `lib/sources/google-news-rss.ts` | **مصدر الأخبار الوحيد**: عناوين وناشرون حقيقيون بعد فك الروابط الوسيطة | لا يحتاج |
+
+> **حالة الاتصال الحي لا تُدّعى هنا.** الحالة الفعلية لكل مصدر ومفتاح تُقرأ وقت التشغيل من `/api/health` وصفحة `/sources`،
+> أو من `node --import tsx scripts/audit-connectivity.ts`. لا تُعدّ أي قيمة `200 OK` مكتوبة في التوثيق دليلًا على اتصال حالي.
+
+### التخزين الدائم (`lib/storage/`)
+
+البيانات (المباريات، الترتيب، الأخبار) تُكتب في مخزن قابل للاستبدال يُختار تلقائيًا:
+
+1. `NEMO_STORAGE_DRIVER` إن ضُبط (`auto | turso | upstash | vercel-blob | file | memory`)
+2. أول زوج مفاتيح سحابي مضبوط: `TURSO_DATABASE_URL`+`TURSO_AUTH_TOKEN` ← `UPSTASH_REDIS_REST_URL`+`UPSTASH_REDIS_REST_TOKEN` ← `BLOB_READ_WRITE_TOKEN`
+3. الملف المحلي `data/gateway-store.json` (كتابة ذرّية عبر temporary + rename)
+
+على Vercel يُبلّغ الملف المحلي عن `durable: false` لأن قرص كل lambda مؤقت، ولذلك يعيد `/api/cron/update-matches`
+و`/api/health` الرمز **503** حتى يُضبط مخزن سحابي — لا يدّعي المسار نجاحًا لا يمكن قراءته.
+الترحيل: `node --import tsx scripts/storage-migrate.ts --dry-run` ثم بدونها؛ الترحيل يرفض الإنهاء إذا اختلفت
+أعداد القراءة عن الكتابة (`readback_mismatch`) أو وُجدت أخطاء سلامة روابط مباريات.
 
 ---
 
@@ -179,11 +195,11 @@ npm run dev
 - **Build Command**: `npm run build`
 - **Output Directory**: `.next` (الافتراضي لـ Next.js)
 - يوجد `vercel.json` بمهمة Cron واحدة يوميًا (`0 5 * * *`) تستدعي `/api/cron/update-matches`. خطة Hobby تسمح بمهمة واحدة يوميًا فقط؛ صفحة الأخبار تحاول التحديث عند الطلب إذا مرّ 15 دقيقة على آخر محاولة مزامنة، بما فيها المحاولة الفاشلة. الصفحة الرئيسية لا تنتظر مصدر الأخبار.
-- **المتغيرات البيئية الاختيارية** (انظر `.env.example`):
-  - `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`
-  - `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
-  - `FOOTBALL_DATA_API_KEY` (اختياري لتفعيل مسار المباريات في Football-Data.org)
-  - `API_FOOTBALL_KEY` (اختياري لتفعيل الجلب المباشر من API-Football)
+- **المتغيرات البيئية** (كلها موثّقة بالعربية في `.env.example`):
+  - **التخزين الدائم (مطلوب للإنتاج):** `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (أو `LIBSQL_URL` + `LIBSQL_AUTH_TOKEN`)
+  - بدائل التخزين: `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`، أو `KV_REST_API_URL` + `KV_REST_API_TOKEN`، أو `BLOB_READ_WRITE_TOKEN`
+  - **مفاتيح المصادر:** `API_FOOTBALL_KEY` (مطلوب لـ API-Football)، `FOOTBALL_DATA_API_KEY` (اختياري)، `THESPORTSDB_API_KEY` (افتراضيًا `123`)
+  - **الروابط:** `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`، `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app`
 - **`CRON_SECRET` مطلوب لتشغيل `/api/cron/update-matches`**، ويُستخدم أيضًا لحماية `/api/cron/sync`. اضبطه في متغيرات بيئة الاستضافة، ثم أعد النشر. احتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له.
 
 ---
@@ -196,16 +212,17 @@ npm run dev
 الاستجابة تتضمن `runId`, `startedAt`, `finishedAt`, `result`, `persistence` وعدّادات الجلب والإضافة والتعديل.
 الفشل الكامل أو التخزين غير الدائم يُرجع 503، وليس نجاحًا عامًا. نجاح HTTP محلي لا يثبت تنفيذ الجدولة أو الإنتاج.
 
-**عائق الإنتاج:** التخزين الحالي ملف JSON مع ذاكرة خاصة بكل عملية. على Vercel لا يُعد دائمًا أو مشتركًا؛
-يلزم مخزن خارجي مع معاملات وقفل موزع قبل اعتماد المزامنة الإنتاجية. لم يُنشأ حساب أو اشتراك ولم تتغير إعدادات الاستضافة.
-الجدولة القائمة لم تتغير وما زالت تستدعي تحديث المباريات فقط. الأخبار ليست مجدولة بهذا المسار.
+**التخزين:** طبقة `lib/storage/` تكتب في Turso/libSQL أو Upstash Redis أو Vercel Blob أو ملف محلي ذرّي.
+بدون مخزن سحابي على Vercel يعيد مسار الكرون 503 عن قصد. لم يُنشأ حساب أو اشتراك ولم تتغير إعدادات الاستضافة في هذا المستودع.
 
 ```bash
-npm run typecheck
-npm run lint
-npm test
+npm run verify        # lint + typecheck + test + build + npm audit --omit=dev
+npm run security      # بوابة الأمان دون شبكة (ثغرات معروفة، أسرار، حقن HTML)
+npm test              # 145 اختبارًا
 npm run build
-NEMO_GATEWAY_STORE_PERSIST=off node --import tsx scripts/audit-connectivity.ts
+node --import tsx scripts/audit-connectivity.ts --out=docs/evidence/connectivity.json
+node --import tsx scripts/storage-migrate.ts --dry-run
 ```
 
-آخر أمر فحص اتصال للقراءة فقط؛ لا يحفظ بيانات ولا يستدعي كرون الإنتاج.
+`scripts/audit-connectivity.ts` للقراءة فقط؛ لا يحفظ بيانات ولا يستدعي كرون الإنتاج، ويتطلب خادمًا يملك وصولًا للشبكة.
+التقرير التفصيلي للإصلاح في `docs/REPAIR-FINAL-2026-10-13.md`.

@@ -299,7 +299,7 @@ test('7. Time budget: an exhausted budget requests nothing and records every end
 // 8. Round window must only use this season's rounds. Last season's round 30 must not shift
 // the window for 2026-2027.
 // ---------------------------------------------------------------------------------------------
-test('8. Round window: scoped to the current Egyptian season', () => {
+test('8. Round window: scoped to the current Egyptian season', async () => {
   assert.equal(egyptianSeasonLabelFor('2026-10-12'), '2026-2027');
   assert.equal(egyptianSeasonLabelFor('2026-06-30'), '2025-2026');
   assert.equal(egyptianSeasonLabelFor('2026-07-01'), '2026-2027');
@@ -309,7 +309,7 @@ test('8. Round window: scoped to the current Egyptian season', () => {
   // Before any 2026-2027 data is stored: start from round 1.
   assert.deepEqual(getEgyptianRoundWindow('2026-10-12'), { season: '2026-2027', rounds: [1, 2] });
 
-  upsertMatchesInStore([
+  await upsertMatchesInStore([
     mapTheSportsDBEventToRecord({
       idEvent: '9700030',
       strEvent: 'Old Season A vs Old Season B',
@@ -326,7 +326,7 @@ test('8. Round window: scoped to the current Egyptian season', () => {
   ]);
   assert.deepEqual(getEgyptianRoundWindow('2026-10-12'), { season: '2026-2027', rounds: [1, 2] });
 
-  upsertMatchesInStore([mapTheSportsDBEventToRecord(ROUND6_BY_ID.get('2561122') as TheSportsDBRawEvent)]);
+  await upsertMatchesInStore([mapTheSportsDBEventToRecord(ROUND6_BY_ID.get('2561122') as TheSportsDBRawEvent)]);
   assert.deepEqual(getEgyptianRoundWindow('2026-10-12'), { season: '2026-2027', rounds: [5, 6, 7] });
 });
 
@@ -334,11 +334,11 @@ test('8. Round window: scoped to the current Egyptian season', () => {
 // 9. A test run rewrote the committed data/gateway-store.json. Fixed: npm test sets
 // NEMO_GATEWAY_STORE_PERSIST=off.
 // ---------------------------------------------------------------------------------------------
-test('9. Test runs do not rewrite the committed gateway store', () => {
+test('9. Test runs do not rewrite the committed gateway store', async () => {
   assert.equal(isStorePersistenceEnabled(), false, 'run through npm test (persistence off)');
   const storePath = path.join(process.cwd(), 'data/gateway-store.json');
   const before = fs.readFileSync(storePath, 'utf-8');
-  upsertMatchesInStore([mapTheSportsDBEventToRecord(ROUND6_BY_ID.get('2561120') as TheSportsDBRawEvent)]);
+  await upsertMatchesInStore([mapTheSportsDBEventToRecord(ROUND6_BY_ID.get('2561120') as TheSportsDBRawEvent)]);
   assert.equal(fs.readFileSync(storePath, 'utf-8'), before);
   assert.ok(getGatewayDatabase().matches.length > 0);
 });

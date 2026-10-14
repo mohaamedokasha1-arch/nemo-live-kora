@@ -48,13 +48,13 @@ before(async () => {
   initialDatabase = structuredClone(store.getGatewayDatabase());
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   for (const key of environmentKeys) delete process.env[key];
   // These tests assert the real write to the disposable workspace copy, so persistence is on here
   // (npm test turns it off for every other file).
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
   process.env.CRON_SECRET = 'test-only-secret';
-  store.persistGatewayDatabase(structuredClone(initialDatabase));
+  await store.persistGatewayDatabase(structuredClone(initialDatabase));
 
   // Exercise the real sync pipeline without contacting third-party services.
   mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0]) => {
@@ -62,8 +62,12 @@ beforeEach(() => {
     if (url.searchParams.has('ceid')) {
       return new Response('<rss><channel></channel></rss>');
     }
+    // Simulate SportScore by endpoint path (the gateway tries several documented routes and
+    // self-identifies with ?src=, which is not part of the contract).
+    const isMatchesEndpoint =
+      url.pathname.includes('/api/widget/matches') || url.pathname.includes('/api/v1/matches');
     return Response.json({
-      matches: url.searchParams.get('src') === 'nemo-sports' ? [sourceMatch] : [],
+      matches: isMatchesEndpoint ? [sourceMatch] : [],
       events: [],
       competitions: [],
       tables: [],
@@ -92,6 +96,9 @@ async function assertVisitingUpdatesMatches(response: NextResponse) {
   assert.equal(body.status, 'ok');
   assert.equal(body.result.matchesFetched > 0, true);
   assert.equal(body.persistence.ok, true);
+  // The write is verified by reading it back from the backend, not just asserted.
+  assert.equal(body.storageRoundTrip.ok, true);
+  assert.equal(body.storageRoundTrip.matchesReadBack > 0, true);
 
   const db = store.getGatewayDatabase();
   const match = db.matches.find((entry) => entry.homeTeam.nameEn === sourceMatch.home);

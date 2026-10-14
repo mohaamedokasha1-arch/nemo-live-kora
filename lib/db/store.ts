@@ -29,34 +29,68 @@ import {
 } from '../news/query';
 import { buildInitialVerifiedDatabase, mergeMatchRecords } from './seed-data';
 import type { TheSportsDBRoundWindow } from '../sources/thesportsdb';
+import { FileStorageDriver } from '../storage/file-driver';
+import { getStorageDriver } from '../storage';
+import type { StorageDriverKind } from '../storage/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STORE_FILE = path.join(DATA_DIR, 'gateway-store.json');
 
-let memoryStore: GatewayDatabase | null = null;
-let persistenceState: { mode: 'memory' | 'file'; ok: boolean; error: string | null } = {
-  mode: 'memory', ok: false, error: 'not_written',
-};
-export function getPersistenceState() { return { ...persistenceState }; }
+export interface PersistenceState {
+  /** Active backend kind, or 'memory' when persistence is switched off. */
+  mode: StorageDriverKind | 'memory';
+  /** True when the last write actually landed in the backend. */
+  ok: boolean;
+  /**
+   * True when that backend survives restarts AND is shared by every instance. A local file on a
+   * serverless host is deliberately false, so the sync endpoint cannot report fake durability.
+   */
+  durable: boolean;
+  error: string | null;
+  target: string | null;
+  bytes: number;
+  writtenAt: string | null;
+  lastWriteLatencyMs: number | null;
+  /** True once `hydrateStore()` has loaded the authoritative document for this process. */
+  hydrated: boolean;
+  mirror: { matches: number; news: number; standings: number };
+}
 
+const INITIAL_PERSISTENCE_STATE: PersistenceState = {
+  mode: 'memory',
+  ok: false,
+  durable: false,
+  error: 'not_written',
+  target: null,
+  bytes: 0,
+  writtenAt: null,
+  lastWriteLatencyMs: null,
+  hydrated: false,
+  mirror: { matches: 0, news: 0, standings: 0 },
+};
+
+let memoryStore: GatewayDatabase | null = null;
+let persistenceState: PersistenceState = { ...INITIAL_PERSISTENCE_STATE };
+let hydrationPromise: Promise<GatewayDatabase> | null = null;
+
+export function getPersistenceState(): PersistenceState {
+  return { ...persistenceState, mirror: { ...persistenceState.mirror } };
+}
 
 /**
- * Disk persistence is off when NEMO_GATEWAY_STORE_PERSIST=off. `npm test` sets it so a test run
- * never rewrites the committed data/gateway-store.json. Production and `npm run sync` persist.
+ * Persistence is off when NEMO_GATEWAY_STORE_PERSIST=off. `npm test` sets it so a test run never
+ * rewrites the committed data/gateway-store.json or writes to a real cloud database. Production
+ * and `npm run sync` persist.
  */
 export function isStorePersistenceEnabled(): boolean {
   return (process.env.NEMO_GATEWAY_STORE_PERSIST || '').trim().toLowerCase() !== 'off';
 }
 
 /**
- * Loads the unified GatewayDatabase from disk (data/gateway-store.json) or initializes it
- * with the verified real seed dataset if not yet written.
+ * Synchronous bootstrap used only when a caller reads before hydration completed. It prefers the
+ * local file (fast, always available) and never blocks a render on a network round-trip.
  */
-export function getGatewayDatabase(): GatewayDatabase {
-  if (memoryStore) {
-    return memoryStore;
-  }
-
+function bootstrapStoreSynchronously(): GatewayDatabase {
   try {
     if (fs.existsSync(STORE_FILE)) {
       const raw = fs.readFileSync(STORE_FILE, 'utf-8');
@@ -67,36 +101,227 @@ export function getGatewayDatabase(): GatewayDatabase {
       }
     }
   } catch {
-    // Fallback to initial verified database if file read fails
+    // Fall through to the verified seed dataset below.
   }
-
-  const initial = buildInitialVerifiedDatabase();
-  memoryStore = initial;
-  persistGatewayDatabase(initial);
-  return initial;
+  memoryStore = migrateGatewayDatabase(buildInitialVerifiedDatabase());
+  return memoryStore;
 }
 
 /**
- * Persists the GatewayDatabase to data/gateway-store.json safely (non-fatal on read-only serverless fs).
+ * Loads the authoritative GatewayDatabase from the configured storage backend.
+ *
+ * Every request entry point awaits this before reading, so a write performed by the cron job is
+ * what the next visitor sees — including after a cold start, a redeploy, or a scale-out to a new
+ * instance. When the cloud store is still empty (first deploy) it is seeded from the committed
+ * local snapshot and written back, so the very first run publishes data instead of nothing.
  */
-export function persistGatewayDatabase(db: GatewayDatabase): void {
+export function hydrateStore(options: { force?: boolean } = {}): Promise<GatewayDatabase> {
+  if (memoryStore && persistenceState.hydrated && !options.force) {
+    return Promise.resolve(memoryStore);
+  }
+  if (hydrationPromise) return hydrationPromise;
+
+  hydrationPromise = (async () => {
+    const driver = getStorageDriver();
+    const target = driver.describe().target;
+    const read = await driver.read().catch((error: unknown) => ({
+      ok: false as const,
+      database: null,
+      bytes: 0,
+      origin: target,
+      latencyMs: 0,
+      error: error instanceof Error ? error.message : String(error),
+    }));
+
+    if (read.ok && read.database) {
+      memoryStore = migrateGatewayDatabase(read.database);
+      persistenceState = {
+        ...persistenceState,
+        mode: driver.kind,
+        durable: driver.isDurable(),
+        target,
+        bytes: read.bytes,
+        ok: true,
+        error: null,
+        hydrated: true,
+      };
+      return memoryStore;
+    }
+
+    // Cold start against an empty cloud store: seed it from the committed snapshot.
+    const localDriver = new FileStorageDriver();
+    const localRead = await localDriver.read();
+    if (localRead.ok && localRead.database) {
+      memoryStore = migrateGatewayDatabase(localRead.database);
+      persistenceState = {
+        ...persistenceState,
+        mode: driver.kind,
+        durable: driver.isDurable(),
+        target,
+        bytes: localRead.bytes,
+        ok: false,
+        error: `cloud_store_empty:${read.error || 'empty'}; seeded from local snapshot`,
+        hydrated: true,
+      };
+      if (driver.kind !== 'file') {
+        await persistGatewayDatabase(memoryStore);
+      }
+      return memoryStore;
+    }
+
+    const initial = migrateGatewayDatabase(buildInitialVerifiedDatabase());
+    memoryStore = initial;
+    persistenceState = {
+      ...persistenceState,
+      mode: driver.kind,
+      durable: driver.isDurable(),
+      target,
+      ok: false,
+      error: `empty_store_seeded:${read.error || 'empty'}`,
+      hydrated: true,
+    };
+    await persistGatewayDatabase(initial);
+    return memoryStore;
+  })().finally(() => {
+    hydrationPromise = null;
+  });
+
+  return hydrationPromise;
+}
+
+/** True when this process has already loaded the authoritative document. */
+export function isStoreHydrated(): boolean {
+  return persistenceState.hydrated && memoryStore !== null;
+}
+
+/**
+ * Synchronous accessor for render paths. Await `hydrateStore()` first in every request entry
+ * point; this accessor then returns the hydrated document without another round-trip.
+ */
+export function getGatewayDatabase(): GatewayDatabase {
+  if (memoryStore) {
+    return memoryStore;
+  }
+  return bootstrapStoreSynchronously();
+}
+
+/**
+ * Writes the GatewayDatabase through the active storage driver and records exactly what
+ * happened, including whether that backend is actually durable. Callers that must not return
+ * before the data is safe await this.
+ */
+export async function persistGatewayDatabase(db: GatewayDatabase): Promise<PersistenceState> {
   memoryStore = db;
   if (!isStorePersistenceEnabled()) {
-    persistenceState = { mode: 'memory', ok: false, error: 'persistence_disabled' };
-    return;
+    persistenceState = {
+      ...persistenceState,
+      mode: 'memory',
+      ok: false,
+      durable: false,
+      error: 'persistence_disabled',
+      hydrated: persistenceState.hydrated,
+    };
+    return getPersistenceState();
   }
+
+  const driver = getStorageDriver();
+  const description = driver.describe();
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const result = await driver.write(db);
+    if (result.ok) {
+      persistenceState = {
+        mode: driver.kind,
+        ok: true,
+        durable: driver.isDurable(),
+        error: result.error ?? null,
+        target: description.target,
+        bytes: result.bytes,
+        writtenAt: result.writtenAt,
+        lastWriteLatencyMs: result.latencyMs,
+        hydrated: true,
+        mirror: result.mirror,
+      };
+    } else {
+      persistenceState = {
+        mode: driver.kind,
+        ok: false,
+        durable: driver.isDurable(),
+        error: result.error || 'store_write_failed',
+        target: description.target,
+        bytes: 0,
+        writtenAt: null,
+        lastWriteLatencyMs: result.latencyMs,
+        hydrated: true,
+        mirror: { matches: 0, news: 0, standings: 0 },
+      };
+      console.error(`[store] write_failed driver=${driver.kind} error=${result.error}`);
     }
-    const temporary = `${STORE_FILE}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify(db, null, 2), 'utf-8');
-    fs.renameSync(temporary, STORE_FILE);
-    persistenceState = { mode: 'file', ok: true, error: null };
-  } catch {
-    persistenceState = { mode: 'memory', ok: false, error: 'store_write_failed' };
-    console.error('[store] store_write_failed: updates are memory-only');
+  } catch (error) {
+    persistenceState = {
+      mode: driver.kind,
+      ok: false,
+      durable: driver.isDurable(),
+      error: error instanceof Error ? error.message : String(error),
+      target: description.target,
+      bytes: 0,
+      writtenAt: null,
+      lastWriteLatencyMs: null,
+      hydrated: true,
+      mirror: { matches: 0, news: 0, standings: 0 },
+    };
+    console.error(`[store] write_exception driver=${driver.kind} error=${persistenceState.error}`);
   }
+  return getPersistenceState();
+}
+
+/**
+ * Round-trip verification: writes the current document and reads it back from the backend.
+ * The cron endpoints use this to prove durability instead of asserting it.
+ */
+export async function verifyStorageRoundTrip(): Promise<{
+  ok: boolean;
+  durable: boolean;
+  driver: StorageDriverKind;
+  target: string | null;
+  matchesReadBack: number;
+  newsReadBack: number;
+  error: string | null;
+  latencyMs: number;
+}> {
+  const startedAt = Date.now();
+  const driver = getStorageDriver();
+  const db = getGatewayDatabase();
+  const write = await persistGatewayDatabase(db);
+  if (!write.ok) {
+    return {
+      ok: false,
+      durable: write.durable,
+      driver: write.mode === 'memory' ? 'memory' : driver.kind,
+      target: write.target,
+      matchesReadBack: 0,
+      newsReadBack: 0,
+      error: write.error,
+      latencyMs: Date.now() - startedAt,
+    };
+  }
+  const read = await driver.read();
+  return {
+    ok: read.ok === true && Array.isArray(read.database?.matches),
+    durable: driver.isDurable(),
+    driver: driver.kind,
+    target: driver.describe().target,
+    matchesReadBack: read.database?.matches?.length ?? 0,
+    newsReadBack: read.database?.news?.length ?? 0,
+    error: read.ok ? null : read.error ?? 'readback_failed',
+    latencyMs: Date.now() - startedAt,
+  };
+}
+
+/** Test hook: clears the in-memory document and the persistence bookkeeping. */
+export function resetStoreForTesting(): void {
+  memoryStore = null;
+  hydrationPromise = null;
+  persistenceState = { ...INITIAL_PERSISTENCE_STATE };
 }
 
 /** Recomputes the NEMO Sports link from the stored source identifiers. */
@@ -137,12 +362,12 @@ function matchContentFingerprint(match: MatchRecord): string {
   return JSON.stringify({ ...match, lastUpdatedAt: null });
 }
 
-export function upsertMatchesInStore(incomingMatches: MatchRecord[]): number {
-  return upsertMatchesInStoreWithStats(incomingMatches).processed;
+export async function upsertMatchesInStore(incomingMatches: MatchRecord[]): Promise<number> {
+  return (await upsertMatchesInStoreWithStats(incomingMatches)).processed;
 }
 
 /** Same as upsertMatchesInStore but reports how many records were inserted or changed. */
-export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): MatchUpsertStats {
+export async function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): Promise<MatchUpsertStats> {
   const stats: MatchUpsertStats = { processed: 0, inserted: 0, updated: 0, unchanged: 0 };
   if (!incomingMatches || incomingMatches.length === 0) return stats;
   const db = getGatewayDatabase();
@@ -183,7 +408,7 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
   });
 
   db.meta.lastLiveSyncAt = new Date().toISOString();
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
   return stats;
 }
 
@@ -213,19 +438,19 @@ export function getEgyptianRoundWindow(todayCairo: string): TheSportsDBRoundWind
 }
 
 /** Records the outcome (success or failure) of one matches fetch attempt. */
-export function recordMatchesSyncAttempt(result: NonNullable<GatewayDatabase['meta']['lastMatchesSyncResult']>): void {
+export async function recordMatchesSyncAttempt(result: NonNullable<GatewayDatabase['meta']['lastMatchesSyncResult']>): Promise<void> {
   const db = getGatewayDatabase();
   const now = new Date().toISOString();
   db.meta.lastMatchesSyncAttemptAt = now;
   db.meta.lastMatchesSyncResult = result;
   if (result.ok) db.meta.lastSuccessfulMatchesSyncAt = now;
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
 }
 
 /**
  * Idempotently upserts standings tables into the store.
  */
-export function upsertStandingsInStore(tables: CompetitionStandingTable[]): number {
+export async function upsertStandingsInStore(tables: CompetitionStandingTable[]): Promise<number> {
   if (!tables || tables.length === 0) return 0;
   const db = getGatewayDatabase();
   let count = 0;
@@ -235,21 +460,21 @@ export function upsertStandingsInStore(tables: CompetitionStandingTable[]): numb
       count++;
     }
   }
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
   return count;
 }
 
 /**
  * Idempotently upserts seasons metadata into the store.
  */
-export function upsertSeasonsInStore(seasons: SeasonRecord[]): number {
+export async function upsertSeasonsInStore(seasons: SeasonRecord[]): Promise<number> {
   if (!seasons || seasons.length === 0) return 0;
   const db = getGatewayDatabase();
   const byId = new Map<string, SeasonRecord>();
   for (const s of db.seasons) byId.set(s.id, s);
   for (const s of seasons) byId.set(s.id, s);
   db.seasons = Array.from(byId.values());
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
   return seasons.length;
 }
 
@@ -257,7 +482,7 @@ export function upsertSeasonsInStore(seasons: SeasonRecord[]): number {
  * Idempotently upserts already-processed news items. Prefer ingestNewsCandidatesInStore for live imports.
  * Empty input never deletes existing news.
  */
-export function upsertNewsInStore(newsItems: NewsItemRecord[]): number {
+export async function upsertNewsInStore(newsItems: NewsItemRecord[]): Promise<number> {
   if (!newsItems || newsItems.length === 0) return 0;
   const db = getGatewayDatabase();
   const result = processNewsBatch(
@@ -286,17 +511,17 @@ export function upsertNewsInStore(newsItems: NewsItemRecord[]): number {
     }
   );
   db.news = result.news;
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
   return result.stats.imported;
 }
 
-export function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): {
+export async function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): Promise<{
   imported: number;
   published: number;
   duplicates: number;
   rejected: number;
   updated: number;
-} {
+}> {
   if (!candidates || candidates.length === 0) {
     return { imported: 0, published: 0, duplicates: 0, rejected: 0, updated: 0 };
   }
@@ -309,7 +534,7 @@ export function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): {
   db.news = result.news;
   db.newsImportErrors = [...result.errors, ...db.newsImportErrors].slice(0, 80);
   db.newsDedupRecords = [...result.dedupRecords, ...db.newsDedupRecords].slice(0, 80);
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
   return {
     imported: result.stats.imported,
     published: result.stats.published,
@@ -319,7 +544,7 @@ export function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): {
   };
 }
 
-export function recordNewsSync(sync: NewsSourceSyncRecord, errors: NewsImportErrorRecord[] = [], dedup: NewsDedupRecord[] = []): void {
+export async function recordNewsSync(sync: NewsSourceSyncRecord, errors: NewsImportErrorRecord[] = [], dedup: NewsDedupRecord[] = []): Promise<void> {
   const db = getGatewayDatabase();
   db.newsSourceSyncs = [sync, ...db.newsSourceSyncs].slice(0, 40);
   if (errors.length > 0) {
@@ -353,7 +578,7 @@ export function recordNewsSync(sync: NewsSourceSyncRecord, errors: NewsImportErr
         'تعذر جلب الأخبار من المصدر — لم تُحذف الأخبار المنشورة سابقًا ولم يُعرض فشل HTTP باعتباره نجاحًا';
     }
   }
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
 }
 
 export function queryPublishedNews(limit = 12) {
@@ -379,11 +604,11 @@ export function queryNewsAdminStats() {
 /**
  * Records a sync log entry and optional source error entries.
  */
-export function recordSyncExecution(
+export async function recordSyncExecution(
   log: SyncLogEntry,
   errors: SourceErrorEntry[],
   sourceUpdates: Partial<Record<SourceId, Partial<GatewayDatabase['sources'][SourceId]>>>
-): void {
+): Promise<void> {
   const db = getGatewayDatabase();
   for (const [sId, patch] of Object.entries(sourceUpdates) as Array<
     [SourceId, Partial<GatewayDatabase['sources'][SourceId]>]
@@ -411,7 +636,7 @@ export function recordSyncExecution(
     db.sourceErrors = [...errors, ...db.sourceErrors].slice(0, 50);
   }
   db.meta.lastFullSyncAt = log.finishedAt;
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
 }
 
 /** A "live" status whose data has not been refreshed recently is not shown as live. */
@@ -636,11 +861,11 @@ export function queryGatewayMatches(params: {
 }
 
 /** Persist newly observed provider competitions; discovery does not imply fixture entitlement. */
-export function upsertCompetitionsInStore(records: GatewayDatabase['competitions']): void {
+export async function upsertCompetitionsInStore(records: GatewayDatabase['competitions']): Promise<void> {
   if (!records.length) return;
   const db = getGatewayDatabase();
   const byId = new Map(db.competitions.map((c) => [c.id, c]));
   for (const record of records) byId.set(record.id, record);
   db.competitions = [...byId.values()];
-  persistGatewayDatabase(db);
+  await persistGatewayDatabase(db);
 }

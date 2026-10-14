@@ -253,7 +253,7 @@ test('6) التحقق يمنع أي رابط بث غير مُتحقَّق منه
 });
 
 test('7) خريطة الموقع تضم كل مباراة فورًا + صفحة البث غير مفهرسة', async () => {
-  const entries = sitemap();
+  const entries = await sitemap();
   for (const item of getCatalogSitemapItems()) {
     const url = `${GATEWAY_SITE_URL}${item.path}`;
     const found = entries.find((entry) => entry.url === url);

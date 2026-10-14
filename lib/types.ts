@@ -68,6 +68,11 @@ export interface SourceDefinition {
   lastSuccessfulNewsSyncAt: string | null;
   newsImportedCount: number;
   newsPublishedCount: number;
+  /** Masked result of the last API-key probe round (TheSportsDB), for the sources dashboard. */
+  apiKeyProbes?: Array<{ key: string; ok: boolean; httpStatus: number | null; error?: string }>;
+  /** Structured storage backend in use, written by the sync endpoints. */
+  storageKind?: string;
+  storageDurable?: boolean;
 }
 
 export interface CompetitionRecord {
@@ -305,6 +310,14 @@ export interface NewsSourceSyncRecord {
   updatedCount: number;
   errorCount: number;
   messageAr: string;
+  /** How Google News relay links were resolved during this run (absent on older records). */
+  resolutionReport?: {
+    attempted: number;
+    resolved: number;
+    unresolved: number;
+    strategies: Record<string, number>;
+    errors: Record<string, number>;
+  };
 }
 
 export interface NewsImportErrorRecord {

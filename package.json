@@ -13,7 +13,11 @@
     "lint": "eslint .",
     "test": "NEMO_GATEWAY_STORE_PERSIST=off node --import tsx --test tests/*.test.ts",
     "sync": "node --import tsx scripts/run-sync.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audit:prod": "npm audit --omit=dev --audit-level=low",
+    "audit:all": "npm audit --audit-level=low",
+    "security": "npm run audit:prod && node --import tsx scripts/security-check.ts",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit:prod"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",
@@ -29,5 +33,10 @@
     "eslint-config-next": "^16.4.0",
     "tsx": "^4.19.1",
     "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "braces": "3.0.3",
+    "micromatch": "4.0.8",
+    "fast-glob": "3.3.1"
   }
 }

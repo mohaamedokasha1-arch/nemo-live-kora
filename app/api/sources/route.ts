@@ -1,16 +1,32 @@
 import { NextResponse } from 'next/server';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { getPersistenceState, hydrateStore } from '@/lib/db/store';
 import { getNewsAdminStats } from '@/lib/news/query';
+import { describeStorage } from '@/lib/storage';
+import { describeSourceConfiguration } from '@/lib/config/env';
+import { auditMatchLinkIntegrity, blockingLinkIssues } from '@/lib/match-identity';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const newsStats = getNewsAdminStats(db.news);
+
+  const integrity = auditMatchLinkIntegrity(db.matches);
+  const newsSync = db.newsSourceSyncs[0] ?? null;
 
   return NextResponse.json({
     ok: true,
+    storage: { ...describeStorage(), persistence: getPersistenceState() },
+    keys: describeSourceConfiguration(),
+    linkIntegrity: {
+      checked: integrity.checked,
+      linked: integrity.linked,
+      unlinked: integrity.unlinked,
+      warnings: integrity.issues.filter((issue) => issue.severity === 'warning').length,
+      errors: blockingLinkIssues(integrity).length,
+    },
+    newsResolution: newsSync?.resolutionReport ?? null,
     meta: {
       timezone: db.meta.timezone,
       lastFullSyncAt: db.meta.lastFullSyncAt,

@@ -26,6 +26,15 @@ const memoryCache = new Map<string, CacheBucket>();
 const lastRequestByHost = new Map<string, number>();
 
 /**
+ * Empties the response cache. Used by tests that need a guaranteed live round-trip; a cached
+ * response inside its TTL is otherwise (correctly) served without touching the network.
+ */
+export function clearHttpCache(): void {
+  memoryCache.clear();
+  lastRequestByHost.clear();
+}
+
+/**
  * Performs an HTTP GET with timeout, rate-limit spacing, retry with backoff, and TTL caching.
  * Never throws unhandled rejections; returns a structured ProtectedFetchResult.
  */

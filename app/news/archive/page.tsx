@@ -1,13 +1,14 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { getGatewayDatabase, hydrateStore } from '@/lib/db/store';
 import { getArchiveNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
+  await hydrateStore();
   const archive = getArchiveNews(getGatewayDatabase().news);
   return {
     title: 'أرشيف الأخبار الرياضية',
@@ -18,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewsArchivePage() {
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const archive = getArchiveNews(db.news);
 
   return (

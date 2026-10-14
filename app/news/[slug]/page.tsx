@@ -2,7 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { hydrateStore } from '@/lib/db/store';
 import { findNewsBySlug, getRelatedPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
@@ -16,7 +16,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const item = findNewsBySlug(db.news, slug);
   if (!item) {
     return {
@@ -51,7 +51,7 @@ export default async function NewsArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const item = findNewsBySlug(db.news, slug);
   if (!item) notFound();
 
