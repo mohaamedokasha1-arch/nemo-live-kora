@@ -1,7 +1,7 @@
 import test, { after, afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { clearHttpCache } from '../lib/sources/http-client';
@@ -10,12 +10,9 @@ import type { GatewayDatabase } from '../lib/types';
 const projectRoot = process.cwd();
 const environmentKeys = [
   'NEMO_GATEWAY_STORE_PERSIST',
-  'NEMO_DURABLE_STORE',
-  'NEMO_DURABLE_STORE_URL',
-  'NEMO_DURABLE_STORE_TOKEN',
-  'KV_REST_API_URL',
-  'KV_REST_API_TOKEN',
+  'NEMO_DATA_DIR',
   'CRON_SECRET',
+  'NEMO_INGEST_TOKEN',
   'FOOTBALL_DATA_API_KEY',
   'API_FOOTBALL_KEY',
   'VERCEL',
@@ -32,56 +29,17 @@ const sourceMatch = {
   competition: 'Egyptian Premier League',
 };
 
-/** Captured before any mock is installed: the snapshot server must be reachable for real. */
+/** Captured before any mock is installed. */
 const realFetch = globalThis.fetch;
 
-let workspace: string;
+let dataDir: string;
 let route: typeof import('../app/api/cron/update-matches/route');
 let store: typeof import('../lib/db/store');
 let initialDatabase: GatewayDatabase;
 
-/** A real snapshot endpoint (GET returns, PUT overwrites) standing in for shared storage. */
-let snapshot: { stored: string | null };
-let snapshotServer: http.Server;
-let snapshotUrl: string;
-
 before(async () => {
-  // Import the store after changing cwd so real pipeline writes stay in a disposable copy.
-  const cacheDirectory = path.join(projectRoot, '.cache');
-  fs.mkdirSync(cacheDirectory, { recursive: true });
-  workspace = fs.mkdtempSync(path.join(cacheDirectory, 'update-matches-test-'));
-  fs.mkdirSync(path.join(workspace, 'data'));
-  fs.copyFileSync(
-    path.join(projectRoot, 'data/gateway-store.json'),
-    path.join(workspace, 'data/gateway-store.json')
-  );
-  process.chdir(workspace);
-
-  snapshot = { stored: null };
-  snapshotServer = http.createServer((req, res) => {
-    if (req.method === 'GET') {
-      if (snapshot.stored === null) {
-        res.writeHead(404).end();
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end(snapshot.stored);
-      return;
-    }
-    if (req.method === 'PUT') {
-      const chunks: Buffer[] = [];
-      req.on('data', (chunk) => chunks.push(chunk as Buffer));
-      req.on('end', () => {
-        snapshot.stored = Buffer.concat(chunks).toString('utf-8');
-        res.writeHead(204).end();
-      });
-      return;
-    }
-    res.writeHead(405).end();
-  });
-  await new Promise<void>((resolve) => snapshotServer.listen(0, '127.0.0.1', resolve));
-  const address = snapshotServer.address();
-  snapshotUrl = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/snapshot`;
-
+  // The local store writes to NEMO_DATA_DIR, so the committed data/ snapshot is never touched.
+  dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nemo-update-matches-'));
   route = await import('../app/api/cron/update-matches/route');
   store = await import('../lib/db/store');
   initialDatabase = structuredClone(store.getGatewayDatabase());
@@ -89,14 +47,9 @@ before(async () => {
 
 beforeEach(async () => {
   for (const key of environmentKeys) delete process.env[key];
-  // The route only reports success once the snapshot reached shared storage, so every case here
-  // runs against the local snapshot endpoint. NEMO_GATEWAY_STORE_PERSIST stays at its npm test
-  // default (off) for the local file; the durable backend is what is under test.
-  process.env.NEMO_DURABLE_STORE = 'http';
-  process.env.NEMO_DURABLE_STORE_URL = snapshotUrl;
+  process.env.NEMO_DATA_DIR = dataDir;
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
   assert.equal(process.env.CRON_SECRET, undefined, 'the route is public and needs no cron secret');
-  snapshot.stored = null;
   store.resetStoreStateForTests();
   await store.hydrateGatewayDatabase();
   store.persistGatewayDatabase(structuredClone(initialDatabase));
@@ -128,10 +81,9 @@ afterEach(() => {
   }
 });
 
-after(async () => {
-  process.chdir(projectRoot);
-  if (workspace) fs.rmSync(workspace, { recursive: true, force: true });
-  await new Promise<void>((resolve) => snapshotServer.close(() => resolve()));
+after(() => {
+  fs.rmSync(dataDir, { recursive: true, force: true });
+  fs.rmSync(path.join(os.tmpdir(), 'nemo-gateway'), { recursive: true, force: true });
 });
 
 async function assertVisitingUpdatesMatches(response: NextResponse) {
@@ -139,12 +91,14 @@ async function assertVisitingUpdatesMatches(response: NextResponse) {
   const body = await response.json();
   assert.equal(body.status, 'ok');
   assert.equal(body.ok, true);
+  assert.equal(body.syncOk, true);
   assert.equal(body.result.matchesFetched > 0, true);
   assert.equal(body.persistence.ok, true);
   assert.equal(body.persistence.durable, true);
-  assert.equal(body.persistence.mode, 'http');
-  // The snapshot is in shared storage, so a cold instance can serve what this run wrote.
-  assert.ok(snapshot.stored, 'the sync reached shared storage');
+  assert.equal(body.persistence.mode, 'file');
+  assert.deepEqual(body.warnings, []);
+  // The snapshot reached the local document, so a cold instance can serve what this run wrote.
+  assert.ok(fs.existsSync(path.join(dataDir, 'gateway-store.json')), 'the sync reached the store file');
 
   const db = store.getGatewayDatabase();
   const match = db.matches.find((entry) => entry.homeTeam.nameEn === sourceMatch.home);
@@ -179,10 +133,9 @@ test('Unauthenticated POST also updates matches and replies {"status":"ok"}', as
   await assertVisitingUpdatesMatches(await route.POST());
 });
 
-test('a degraded sync is a 503, never a green cron log', async () => {
-  // No source returns matches: the route must not claim success. The cache must be emptied first,
-  // because an earlier test cached a successful SportScore response and the HTTP client would
-  // serve it from memory inside its TTL without ever calling the mock.
+test('a degraded sync is HTTP 200 with ok:true and an explicit degraded status', async () => {
+  // No source returns matches: the status must not claim success. The cache must be emptied first,
+  // because an earlier test cached a successful SportScore response.
   clearHttpCache();
   mock.restoreAll();
   mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -193,29 +146,31 @@ test('a degraded sync is a 503, never a green cron log', async () => {
   });
 
   const response = await route.GET();
-  assert.equal(response.status, 503);
+  assert.equal(response.status, 200);
   const body = await response.json();
-  assert.equal(body.ok, false);
+  assert.equal(body.ok, true);
   assert.equal(body.status, 'degraded');
+  assert.equal(body.syncOk, false);
   assert.equal(body.result.matchesFetched, 0);
+  assert.ok(body.warnings.length > 0);
   // Previous data is preserved rather than wiped by a failed fetch.
   const db = store.getGatewayDatabase();
   assert.equal(db.matches.length >= initialDatabase.matches.length, true);
 });
 
-test('a successful sync without shared storage is still a 503', async () => {
-  // Sources return matches, but nothing durable is configured: reporting success here would mean
-  // the data dies with this instance.
-  delete process.env.NEMO_DURABLE_STORE;
-  delete process.env.NEMO_DURABLE_STORE_URL;
+test('a successful sync on serverless is ok:true but says the storage is warm-instance only', async () => {
   process.env.VERCEL = '1';
   store.resetStoreStateForTests();
   clearHttpCache();
 
   const response = await route.GET();
   const body = await response.json();
-  assert.equal(response.status, 503);
-  assert.equal(body.ok, false);
-  assert.equal(body.persistence.durableConfigured, false);
-  assert.ok(body.storageReason, 'the response explains what to configure');
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.syncOk, true);
+  assert.equal(body.durable, false);
+  assert.ok(
+    body.warnings.some((warning: string) => warning.includes('/tmp')),
+    'the non-durable state is disclosed, not hidden'
+  );
 });

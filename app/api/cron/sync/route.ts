@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronAuth } from '@/lib/auth/cron-auth';
-import { flushDurableStore, isServerlessRuntime } from '@/lib/db/store';
+import { describeStorageWarnings, flushDurableStore } from '@/lib/db/store';
 import { runGatewaySync } from '@/lib/sync/engine';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+type SyncLog = Awaited<ReturnType<typeof runGatewaySync>>;
+
 function parseMode(raw: string | null | undefined): 'live' | 'daily' | 'standings' | 'manual' {
   return raw === 'live' || raw === 'standings' || raw === 'manual' ? raw : 'daily';
 }
 
-function sourcesOk(log: Awaited<ReturnType<typeof runGatewaySync>>): boolean {
+function sourcesOk(log: SyncLog): boolean {
   return log.sourceResults.some(
     (source) =>
       !source.usedCachedSnapshot &&
@@ -19,27 +21,35 @@ function sourcesOk(log: Awaited<ReturnType<typeof runGatewaySync>>): boolean {
   );
 }
 
-async function respond(log: Awaited<ReturnType<typeof runGatewaySync>>) {
-  // The sync only mutated memory + the local file; on serverless neither survives the instance.
-  // Wait for the shared snapshot write and report it, exactly like /api/cron/update-matches.
+/** Persists the snapshot and answers 200 with `ok: true`; the real state is in `status`/`syncOk`. */
+async function respond(log: SyncLog) {
   const persistence = await flushDurableStore({ force: true });
-  const stored = persistence.ok && persistence.durable;
-  const fetched = sourcesOk(log);
-  const ok = fetched && stored;
+  const syncOk = sourcesOk(log);
   return NextResponse.json(
     {
-      ok,
+      ok: true,
+      status: syncOk && persistence.ok ? 'ok' : 'degraded',
+      syncOk,
       syncLog: log,
       persistence,
-      durableStorageRequired: Boolean(isServerlessRuntime()),
-      ...(stored
-        ? {}
-        : {
-            storageReason:
-              'لم تُحفظ نتيجة المزامنة في تخزين دائم مشترك؛ اضبط أحد مخازن Turso/Upstash KV/Vercel Blob/HTTP ثم أعد المحاولة.',
-          }),
+      durable: persistence.durable,
+      warnings: describeStorageWarnings(persistence, syncOk),
     },
-    { status: ok ? 200 : 503, headers: { 'Cache-Control': 'no-store' } }
+    { status: 200, headers: { 'Cache-Control': 'no-store' } }
+  );
+}
+
+function failed() {
+  return NextResponse.json(
+    {
+      ok: true,
+      status: 'degraded',
+      syncOk: false,
+      durable: false,
+      error: 'sync_execution_failed',
+      warnings: ['تعذّر تنفيذ المزامنة في هذه المحاولة.'],
+    },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } }
   );
 }
 
@@ -47,33 +57,34 @@ export async function GET(request: NextRequest) {
   const denied = requireCronAuth(request);
   if (denied) return denied;
 
-  const mode = parseMode(new URL(request.url).searchParams.get('mode'));
-  const log = await runGatewaySync({
-    mode,
-    trigger: `Cron GET (${mode})`,
-  });
-
-  return respond(log);
+  try {
+    const mode = parseMode(new URL(request.url).searchParams.get('mode'));
+    const log = await runGatewaySync({ mode, trigger: `Cron GET (${mode})` });
+    return await respond(log);
+  } catch {
+    console.error('[cron:sync] sync_execution_failed');
+    return failed();
+  }
 }
 
 export async function POST(request: NextRequest) {
   const denied = requireCronAuth(request);
   if (denied) return denied;
 
-  let mode: 'live' | 'daily' | 'standings' | 'manual' = 'manual';
   try {
-    const body = await request.json();
-    if (body?.mode === 'live' || body?.mode === 'daily' || body?.mode === 'standings') {
-      mode = body.mode;
+    let mode: 'live' | 'daily' | 'standings' | 'manual' = 'manual';
+    try {
+      const body = await request.json();
+      if (body?.mode === 'live' || body?.mode === 'daily' || body?.mode === 'standings') {
+        mode = body.mode;
+      }
+    } catch {
+      // default to 'manual'
     }
+    const log = await runGatewaySync({ mode, trigger: `تحديث فوري (${mode})` });
+    return await respond(log);
   } catch {
-    // default to 'manual'
+    console.error('[cron:sync] sync_execution_failed');
+    return failed();
   }
-
-  const log = await runGatewaySync({
-    mode,
-    trigger: `تحديث فوري (${mode})`,
-  });
-
-  return respond(log);
 }

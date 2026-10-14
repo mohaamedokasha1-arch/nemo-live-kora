@@ -14,8 +14,9 @@ export const runtime = 'nodejs';
  *  2. Are the provider keys present (masked), and what did the last sync from each return?
  *  3. How much real data is in the store right now?
  *
- * HTTP 200 means the storage round-trip succeeded. A missing key is reported but does not fail
- * the probe, because the keyless sources can still serve a schedule.
+ * HTTP is always 200: the probe reports its state in `ok` and `checks`, so a monitor never mistakes
+ * a missing key or a warm-instance (non-durable) store for a dead service. A missing provider key
+ * is reported but does not fail the probe, because the keyless sources can still serve a schedule.
  */
 export async function GET() {
   await hydrateStore();
@@ -43,12 +44,13 @@ export async function GET() {
 
   const checks = {
     storageRoundTrip: roundTrip.ok,
+    // Informational: false on serverless warm-instance storage, which is expected, not a failure.
     storageDurable: roundTrip.durable,
     lastWritePersisted: persistence.ok,
     matchesPresent: db.matches.length > 0,
     newsPresent: publishedNews > 0,
   };
-  const ok = checks.storageRoundTrip && checks.storageDurable && checks.lastWritePersisted && checks.matchesPresent;
+  const ok = checks.storageRoundTrip && checks.lastWritePersisted && checks.matchesPresent;
 
   return NextResponse.json(
     {
@@ -78,6 +80,6 @@ export async function GET() {
         lastMatchesSyncResult: db.meta.lastMatchesSyncResult ?? null,
       },
     },
-    { status: ok ? 200 : 503 }
+    { status: 200, headers: { 'Cache-Control': 'no-store' } }
   );
 }

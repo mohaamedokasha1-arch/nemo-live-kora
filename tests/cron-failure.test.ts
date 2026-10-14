@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GET } from '../app/api/cron/update-matches/route';
 import { getGatewayDatabase } from '../lib/db/store';
 
-test('Unauthenticated cron reports 503 on total provider failure and retains stored matches', async () => {
+test('Unauthenticated cron answers 200 ok:true on total provider failure and retains stored matches', async () => {
   const previousCronSecret = process.env.CRON_SECRET;
   const previousIngestToken = process.env.NEMO_INGEST_TOKEN;
   delete process.env.CRON_SECRET;
@@ -12,9 +12,10 @@ test('Unauthenticated cron reports 503 on total provider failure and retains sto
   const stub = mock.method(globalThis, 'fetch', async () => new Response('Unavailable', { status: 503 }));
   try {
     const response = await GET();
-    assert.equal(response.status, 503);
+    assert.equal(response.status, 200);
     const result = await response.json();
-    assert.equal(result.ok, false);
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'degraded');
     assert.equal(result.result.matchesFetched, 0);
     assert.ok(result.runId);
     assert.ok(result.startedAt && result.finishedAt);

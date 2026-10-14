@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import {
   CompetitionStandingTable,
@@ -35,32 +34,21 @@ import {
   decodeStoredSnapshot,
   describeDurableBackend,
   encodeSnapshot,
+  isPersistenceDisabled,
+  isServerlessRuntime,
   resolveDurableBackend,
+  resolveLocalStoreFile,
   type DurableStoreErrorCode,
 } from './durable-store';
+import { writeFileAtomic } from './atomic-file';
+
+export { isServerlessRuntime, resolveLocalStoreFile };
 
 /**
- * Local structured-JSON file layout.
- *
- * Two different files matter and must never be confused:
- *  - the *bundled* snapshot (`<cwd>/data/gateway-store.json`) ships inside the deployment. On
- *    Vercel that directory is read-only, so it can only ever be a seed — writing to it is what
- *    produced `store_write_failed: updates are memory-only` in the production logs.
- *  - the *writable* snapshot is where `persistGatewayDatabase()` actually writes:
- *      · `NEMO_DATA_DIR/gateway-store.json` when an operator mounts a real data directory,
- *      · `<tmp>/nemo-gateway/gateway-store.json` on serverless runtimes (the only writable disk;
- *        a warm-instance cache, never claimed as durable shared storage),
- *      · `<cwd>/data/gateway-store.json` on a normal host, where the file genuinely persists.
- *
- * Paths are resolved on every call rather than frozen at import time, so `VERCEL`, `NEMO_DATA_DIR`
- * and the process working directory are honoured as they are at write time.
+ * Local structured-JSON layout. The writable snapshot is resolved by `durable-store.ts`
+ * (`<cwd>/data` on a normal host, `/tmp` on serverless, `NEMO_DATA_DIR` when set). The bundled
+ * snapshot shipped in the deployment is read-only on Vercel and only ever serves as a seed.
  */
-export function resolveLocalStoreFile(env: NodeJS.ProcessEnv = process.env): string {
-  const overrideDir = (env.NEMO_DATA_DIR || '').trim();
-  if (overrideDir) return path.join(overrideDir, 'gateway-store.json');
-  if (isServerlessRuntime(env)) return path.join(os.tmpdir(), 'nemo-gateway', 'gateway-store.json');
-  return path.join(process.cwd(), 'data', 'gateway-store.json');
-}
 
 /** The read-only snapshot bundled with the deployment; used only as a seed/fallback. */
 export function bundledStoreFile(): string {
@@ -69,12 +57,11 @@ export function bundledStoreFile(): string {
 
 /**
  * Where the snapshot can actually be read back from:
- *  - `turso` / `redis` / `blob` / `http` — an external store shared by every instance
- *    (see `durable-store.ts`).
- *  - `file` — the local structured JSON file, durable on a normal server or a mounted volume.
- *  - `memory` — process memory only; lost on the next cold start.
+ *  - `file` — the local structured JSON document (atomic writes). Durable on a normal server or a
+ *    mounted volume; on serverless it is the warm-instance `/tmp` copy and is reported as such.
+ *  - `memory` — process memory only (persistence explicitly disabled).
  */
-export type PersistenceMode = 'memory' | 'file' | 'redis' | 'http' | 'turso' | 'blob';
+export type PersistenceMode = 'memory' | 'file';
 
 export interface PersistenceState {
   mode: PersistenceMode;
@@ -90,7 +77,6 @@ export interface PersistenceState {
 }
 
 let memoryStore: GatewayDatabase | null = null;
-let localWriteState: { ok: boolean; error: string | null } = { ok: false, error: 'not_written' };
 let durableState: { ok: boolean; error: string | null; at: string | null } = {
   ok: false, error: 'not_flushed', at: null,
 };
@@ -103,30 +89,28 @@ let durableDirty = false;
 let hydratedFromDurable = false;
 let flushPromise: Promise<PersistenceState> | null = null;
 let afterCallbackPending = false;
-/** A local-file failure is an expected condition on serverless; log it once, never per mutation. */
+/** A local-file failure is logged once, never per mutation. */
 let localWriteFailureLogged = false;
 
 export function getPersistenceState(): PersistenceState {
-  const backend = resolveDurableBackend();
-  if (backend) {
+  if (resolveDurableBackend()) {
     return {
-      mode: backend.id,
+      mode: 'file',
       ok: durableState.ok,
-      durable: true,
+      // Survives cold starts and is visible to every instance only on a real disk (or a volume the
+      // operator declared durable). On serverless `/tmp` is per-instance: reported as not durable.
+      durable: durableState.ok && (!isServerlessRuntime() || isFileStorageDeclaredDurable()),
       durableConfigured: true,
       error: durableState.ok ? null : durableState.error,
       at: durableState.at,
     };
   }
-  const localOk = localWriteState.ok && isStorePersistenceEnabled();
   return {
-    mode: localOk ? 'file' : 'memory',
-    ok: localOk,
-    // A file written from inside a lambda is not shared storage, however successful the write was.
-    // An operator can still declare a mounted volume durable via NEMO_STORAGE_FILE_DURABLE=true.
-    durable: localOk && (!isServerlessRuntime() || isFileStorageDeclaredDurable()),
+    mode: 'memory',
+    ok: false,
+    durable: false,
     durableConfigured: false,
-    error: localWriteState.error,
+    error: 'persistence_disabled',
     at: null,
   };
 }
@@ -150,26 +134,11 @@ export function getDurableStoreStatus() {
 }
 
 /**
- * True on runtimes whose filesystem is ephemeral (Vercel/Lambda/Netlify/Workers). Detected instead
- * of assumed: a self-hosted Node server writes a genuinely persistent `data/gateway-store.json`.
- */
-export function isServerlessRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(
-    env.VERCEL ||
-      env.VERCEL_ENV ||
-      env.AWS_LAMBDA_FUNCTION_NAME ||
-      env.NETLIFY ||
-      env.CF_PAGES ||
-      env.FUNCTIONS_WORKER_RUNTIME
-  );
-}
-
-/**
  * Disk persistence is off when NEMO_GATEWAY_STORE_PERSIST=off. `npm test` sets it so a test run
  * never rewrites the committed data/gateway-store.json. Production and `npm run sync` persist.
  */
 export function isStorePersistenceEnabled(): boolean {
-  return (process.env.NEMO_GATEWAY_STORE_PERSIST || '').trim().toLowerCase() !== 'off';
+  return !isPersistenceDisabled();
 }
 
 /**
@@ -285,7 +254,6 @@ export function resetStoreStateForTests(): void {
   hydratedFromDurable = false;
   flushPromise = null;
   afterCallbackPending = false;
-  localWriteState = { ok: false, error: 'not_written' };
   durableState = { ok: false, error: 'not_flushed', at: null };
 }
 
@@ -362,32 +330,24 @@ export function getGatewayDatabase(): GatewayDatabase {
 export function persistGatewayDatabase(db: GatewayDatabase): void {
   memoryStore = db;
   durableDirty = true;
-  if (!isStorePersistenceEnabled()) {
-    localWriteState = { ok: false, error: 'persistence_disabled' };
-  } else {
+  if (isStorePersistenceEnabled()) {
     const file = resolveLocalStoreFile();
     try {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      const temporary = `${file}.${process.pid}.tmp`;
-      fs.writeFileSync(temporary, JSON.stringify(db, null, 2), 'utf-8');
-      fs.renameSync(temporary, file);
-      localWriteState = { ok: true, error: null };
+      writeFileAtomic(file, encodeSnapshot(db));
     } catch (error) {
-      localWriteState = { ok: false, error: 'store_write_failed' };
       if (!localWriteFailureLogged) {
         localWriteFailureLogged = true;
         console.warn(
           '[store] local_file_write_failed',
           JSON.stringify({
             file,
-            durableConfigured: Boolean(resolveDurableBackend()),
             message: error instanceof Error ? error.message : 'unknown_error',
           })
         );
       }
     }
   }
-  // Serverless instances cannot rely on the file write; the configured backend must confirm it.
+  // The debounced flush re-writes the snapshot and records its outcome in the persistence state.
   scheduleDurableFlush();
 }
 
@@ -969,12 +929,9 @@ export interface StorageRoundTripResult {
 }
 
 /**
- * Proves the snapshot can be read back from wherever it was written, and that what comes back is
- * the data we hold — not a bundled or stale copy. A cron that reports success without this is
+ * Proves the snapshot can be read back from the local document, and that what comes back is the
+ * data we hold — not a bundled or stale copy. A sync that reports success without this would be
  * reporting a write nobody can read.
- *
- * Without a configured durable backend there is nothing shared to read back, so `durable` is false
- * and `ok` is false: that is the honest answer, not an error to hide.
  */
 export async function verifyStorageRoundTrip(): Promise<StorageRoundTripResult> {
   const startedAt = Date.now();
@@ -983,35 +940,11 @@ export async function verifyStorageRoundTrip(): Promise<StorageRoundTripResult> 
   const base = {
     durable: state.durable,
     driver: state.mode,
-    target: backend?.target ?? describeDurableBackend().target ?? state.mode,
+    target: backend?.target ?? resolveLocalStoreFile(),
     latencyMs: 0,
   };
 
   if (!backend) {
-    // No shared backend. On a host where the local JSON file is itself the durable store (real
-    // disk or a declared volume) and a write was already confirmed in this process, prove the
-    // round-trip against that file instead of declaring the deployment broken.
-    if (state.mode === 'file' && state.durable && state.ok) {
-      const local = readLocalStoreFile(resolveLocalStoreFile());
-      const latencyMs = Date.now() - startedAt;
-      if (!local) {
-        return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'store_empty', latencyMs };
-      }
-      const expected = getGatewayDatabase();
-      const ok =
-        local.matches.length === expected.matches.length &&
-        local.news.length === expected.news.length &&
-        Object.keys(local.standings).length === Object.keys(expected.standings).length;
-      return {
-        ...base,
-        target: resolveLocalStoreFile(),
-        ok,
-        matchesReadBack: local.matches.length,
-        newsReadBack: local.news.length,
-        error: ok ? null : 'store_readback_mismatch',
-        latencyMs,
-      };
-    }
     return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'no_durable_backend', latencyMs: Date.now() - startedAt };
   }
 
@@ -1049,4 +982,24 @@ export async function verifyStorageRoundTrip(): Promise<StorageRoundTripResult> 
       latencyMs: Date.now() - startedAt,
     };
   }
+}
+
+/**
+ * Honest, operator-readable notes for the sync and cron responses. They never change the HTTP
+ * status: the endpoints answer 200 and expose the real state through `status`, `syncOk`, `durable`
+ * and this list, so a monitor can still see a degraded run.
+ */
+export function describeStorageWarnings(persistence: PersistenceState, syncOk: boolean): string[] {
+  const warnings: string[] = [];
+  if (!syncOk) {
+    warnings.push('لم تُجلب بيانات جديدة من المصادر في هذه المحاولة؛ بقيت آخر بيانات محفوظة كما هي.');
+  }
+  if (!persistence.ok) {
+    warnings.push(`تعذّر حفظ اللقطة في الملف المحلي (${persistence.error ?? 'unknown'}).`);
+  } else if (!persistence.durable) {
+    warnings.push(
+      'البيانات محفوظة في ذاكرة النسخة الحالية (/tmp على الاستضافة السحابية)؛ قد تُعاد تهيئتها عند البدء البارد، وهذا متوقع لهذه البيئة.'
+    );
+  }
+  return warnings;
 }
