@@ -29,16 +29,104 @@ import {
 } from '../news/query';
 import { buildInitialVerifiedDatabase, mergeMatchRecords } from './seed-data';
 import type { TheSportsDBRoundWindow } from '../sources/thesportsdb';
+import {
+  DurableStoreError,
+  decodeSnapshot,
+  describeDurableBackend,
+  encodeSnapshot,
+  resolveDurableBackend,
+  type DurableStoreErrorCode,
+} from './durable-store';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STORE_FILE = path.join(DATA_DIR, 'gateway-store.json');
 
-let memoryStore: GatewayDatabase | null = null;
-let persistenceState: { mode: 'memory' | 'file'; ok: boolean; error: string | null } = {
-  mode: 'memory', ok: false, error: 'not_written',
-};
-export function getPersistenceState() { return { ...persistenceState }; }
+/**
+ * Where the snapshot can actually be read back from:
+ *  - `redis` / `http` — an external store shared by every instance (see `durable-store.ts`).
+ *  - `file` — `data/gateway-store.json`, which is durable on a normal server or in local dev.
+ *  - `memory` — process memory only; lost on the next cold start.
+ */
+export type PersistenceMode = 'memory' | 'file' | 'redis' | 'http';
 
+export interface PersistenceState {
+  mode: PersistenceMode;
+  /** The last local/durable write attempt succeeded. */
+  ok: boolean;
+  /** `true` only when the snapshot survives restarts *and* is visible to other instances. */
+  durable: boolean;
+  /** Whether this environment resolves to an external store at all — the actionable root cause. */
+  durableConfigured: boolean;
+  error: string | null;
+  /** ISO timestamp of the last confirmed durable write/read. */
+  at: string | null;
+}
+
+let memoryStore: GatewayDatabase | null = null;
+let localWriteState: { ok: boolean; error: string | null } = { ok: false, error: 'not_written' };
+let durableState: { ok: boolean; error: string | null; at: string | null } = {
+  ok: false, error: 'not_flushed', at: null,
+};
+/** Set by every store mutation, cleared by a successful durable write. */
+let durableDirty = false;
+/**
+ * A snapshot may only be pushed upstream *after* the current remote state was read. Otherwise a
+ * freshly booted instance would overwrite newer production data with its bundled seed snapshot.
+ */
+let hydratedFromDurable = false;
+let flushPromise: Promise<PersistenceState> | null = null;
+let afterCallbackPending = false;
+
+export function getPersistenceState(): PersistenceState {
+  const backend = resolveDurableBackend();
+  if (backend) {
+    return {
+      mode: backend.id,
+      ok: durableState.ok,
+      durable: true,
+      durableConfigured: true,
+      error: durableState.ok ? null : durableState.error,
+      at: durableState.at,
+    };
+  }
+  const localOk = localWriteState.ok && isStorePersistenceEnabled();
+  return {
+    mode: localOk ? 'file' : 'memory',
+    ok: localOk,
+    // A file written from inside a lambda is not shared storage, however successful the write was.
+    durable: localOk && !isServerlessRuntime(),
+    durableConfigured: false,
+    error: localWriteState.error,
+    at: null,
+  };
+}
+
+export function getDurableStoreStatus() {
+  const backend = describeDurableBackend();
+  return {
+    ...backend,
+    hydrated: hydratedFromDurable,
+    dirty: durableDirty,
+    serverless: isServerlessRuntime(),
+    lastError: durableState.error,
+    lastSuccessAt: durableState.at,
+  };
+}
+
+/**
+ * True on runtimes whose filesystem is ephemeral (Vercel/Lambda/Netlify/Workers). Detected instead
+ * of assumed: a self-hosted Node server writes a genuinely persistent `data/gateway-store.json`.
+ */
+export function isServerlessRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(
+    env.VERCEL ||
+      env.VERCEL_ENV ||
+      env.AWS_LAMBDA_FUNCTION_NAME ||
+      env.NETLIFY ||
+      env.CF_PAGES ||
+      env.FUNCTIONS_WORKER_RUNTIME
+  );
+}
 
 /**
  * Disk persistence is off when NEMO_GATEWAY_STORE_PERSIST=off. `npm test` sets it so a test run
@@ -46,6 +134,129 @@ export function getPersistenceState() { return { ...persistenceState }; }
  */
 export function isStorePersistenceEnabled(): boolean {
   return (process.env.NEMO_GATEWAY_STORE_PERSIST || '').trim().toLowerCase() !== 'off';
+}
+
+/**
+ * Reads the newest snapshot from the configured durable backend into memory. Called once per
+ * process (see `instrumentation.ts`) before the app serves traffic. Without a configured backend,
+ * or when this instance already hydrated, it is a no-op. Failures never throw: the store keeps the
+ * bundled/on-disk snapshot and reports the error through `getPersistenceState()`.
+ */
+export async function hydrateGatewayDatabase(): Promise<PersistenceState> {
+  const backend = resolveDurableBackend();
+  if (!backend) {
+    hydratedFromDurable = false;
+    return getPersistenceState();
+  }
+  if (hydratedFromDurable) return getPersistenceState();
+
+  try {
+    const raw = await backend.read();
+    if (raw === null) {
+      // No snapshot stored yet: this instance is free to create the first one.
+      hydratedFromDurable = true;
+      durableState = { ok: true, error: null, at: new Date().toISOString() };
+    } else {
+      const { snapshot, savedAt } = decodeSnapshot(raw);
+      if (!isGatewayDatabaseShape(snapshot)) {
+        throw new DurableStoreError('store_snapshot_invalid', 'shape_mismatch');
+      }
+      memoryStore = migrateGatewayDatabase(snapshot);
+      hydratedFromDurable = true;
+      durableDirty = false;
+      durableState = { ok: true, error: null, at: savedAt || new Date().toISOString() };
+    }
+    console.info('[store] hydrated_from_durable', JSON.stringify({ backend: backend.id, at: durableState.at }));
+  } catch (error) {
+    hydratedFromDurable = false;
+    durableState = { ok: false, error: errorCode(error, 'store_read_failed'), at: null };
+    console.error('[store] hydrate_failed', durableState.error, error instanceof Error ? error.message : '');
+  }
+  return getPersistenceState();
+}
+
+/**
+ * Writes the in-memory snapshot to the durable backend when it changed. The cron endpoint awaits
+ * this so its response reflects real, shared storage rather than a lambda-local write.
+ */
+export function flushDurableStore(options: { force?: boolean } = {}): Promise<PersistenceState> {
+  const backend = resolveDurableBackend();
+  if (!backend) return Promise.resolve(getPersistenceState());
+  if (!options.force && !durableDirty) return Promise.resolve(getPersistenceState());
+  if (!hydratedFromDurable) {
+    durableState = { ok: false, error: 'store_not_hydrated', at: null };
+    console.error('[store] flush_refused_unhydrated_instance');
+    return Promise.resolve(getPersistenceState());
+  }
+  if (flushPromise) return flushPromise;
+
+  const payload = encodeSnapshot(memoryStore ?? getGatewayDatabase());
+  durableDirty = false;
+  flushPromise = (async () => {
+    try {
+      await backend.write(payload);
+      durableState = { ok: true, error: null, at: new Date().toISOString() };
+    } catch (error) {
+      durableDirty = true;
+      durableState = { ok: false, error: errorCode(error, 'store_write_failed'), at: null };
+      console.error('[store] durable_write_failed', durableState.error, error instanceof Error ? error.message : '');
+    } finally {
+      flushPromise = null;
+    }
+    // A mutation that raced with this write still needs to reach the backend.
+    if (durableDirty) scheduleDurableFlush();
+    return getPersistenceState();
+  })();
+  return flushPromise;
+}
+
+/**
+ * Best-effort flush for requests that are not the scheduled cron: registers a single post-response
+ * callback via `after()` (outside a Next request scope, e.g. in a CLI script, it flushes inline).
+ * Concurrent mutations coalesce into one write.
+ */
+export function scheduleDurableFlush(): void {
+  if (!resolveDurableBackend()) return;
+  if (afterCallbackPending) return;
+  afterCallbackPending = true;
+  void (async () => {
+    try {
+      const { after } = await import('next/server');
+      after(() => {
+        afterCallbackPending = false;
+        void flushDurableStore();
+      });
+    } catch {
+      afterCallbackPending = false;
+      await flushDurableStore();
+    }
+  })();
+}
+
+/** Test-only: clears module-level state so environment changes take effect between cases. */
+export function resetStoreStateForTests(): void {
+  memoryStore = null;
+  durableDirty = false;
+  hydratedFromDurable = false;
+  flushPromise = null;
+  afterCallbackPending = false;
+  localWriteState = { ok: false, error: 'not_written' };
+  durableState = { ok: false, error: 'not_flushed', at: null };
+}
+
+/** Compacts any thrown value into the short machine-readable code stored in the persistence state. */
+function errorCode(error: unknown, fallback: DurableStoreErrorCode): string {
+  if (error instanceof DurableStoreError) return error.code;
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    return `${fallback}_timeout`;
+  }
+  return fallback;
+}
+
+function isGatewayDatabaseShape(value: unknown): value is GatewayDatabase {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<GatewayDatabase>;
+  return Boolean(candidate.meta && Array.isArray(candidate.matches));
 }
 
 /**
@@ -77,26 +288,32 @@ export function getGatewayDatabase(): GatewayDatabase {
 }
 
 /**
- * Persists the GatewayDatabase to data/gateway-store.json safely (non-fatal on read-only serverless fs).
+ * Persists the GatewayDatabase: an atomic local write (data/gateway-store.json) plus a debounced
+ * push to the durable backend when one is configured. A read-only serverless filesystem is never
+ * fatal — the in-memory store stays authoritative for this process and `getPersistenceState()`
+ * reports exactly what happened.
  */
 export function persistGatewayDatabase(db: GatewayDatabase): void {
   memoryStore = db;
+  durableDirty = true;
   if (!isStorePersistenceEnabled()) {
-    persistenceState = { mode: 'memory', ok: false, error: 'persistence_disabled' };
-    return;
-  }
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    localWriteState = { ok: false, error: 'persistence_disabled' };
+  } else {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const temporary = `${STORE_FILE}.${process.pid}.tmp`;
+      fs.writeFileSync(temporary, JSON.stringify(db, null, 2), 'utf-8');
+      fs.renameSync(temporary, STORE_FILE);
+      localWriteState = { ok: true, error: null };
+    } catch {
+      localWriteState = { ok: false, error: 'store_write_failed' };
+      console.error('[store] store_write_failed: updates are memory-only');
     }
-    const temporary = `${STORE_FILE}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify(db, null, 2), 'utf-8');
-    fs.renameSync(temporary, STORE_FILE);
-    persistenceState = { mode: 'file', ok: true, error: null };
-  } catch {
-    persistenceState = { mode: 'memory', ok: false, error: 'store_write_failed' };
-    console.error('[store] store_write_failed: updates are memory-only');
   }
+  // Serverless instances cannot rely on the file write; the configured backend must confirm it.
+  scheduleDurableFlush();
 }
 
 /** Recomputes the NEMO Sports link from the stored source identifiers. */
