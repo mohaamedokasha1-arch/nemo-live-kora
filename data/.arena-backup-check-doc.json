@@ -1,9 +1,64 @@
 {
   "schemaVersion": "1.0.0",
-  "revision": 2,
-  "updatedAt": "2026-10-14T06:59:13.763Z",
+  "revision": 3,
+  "updatedAt": "2026-10-14T06:59:17.199Z",
   "updatedBy": "backup-check",
-  "matches": [],
+  "matches": [
+    {
+      "id": "ismaily-vs-al-masry-2026-11-05",
+      "status": "scheduled",
+      "kickoffUtc": "2026-11-05T17:00:00.000Z",
+      "kickoffConfirmed": true,
+      "timezone": "Africa/Cairo",
+      "cairoDate": "2026-11-05",
+      "homeTeam": {
+        "id": null,
+        "nameAr": "الإسماعيلي",
+        "nameEn": "Ismaily",
+        "logoUrl": null,
+        "countryAr": null
+      },
+      "awayTeam": {
+        "id": null,
+        "nameAr": "المصري البورسعيدي",
+        "nameEn": "Al Masry",
+        "logoUrl": null,
+        "countryAr": null
+      },
+      "competitionCode": "EGY",
+      "competitionNameAr": "الدوري المصري الممتاز",
+      "competitionNameEn": "Egyptian Premier League",
+      "competitionCountryAr": "مصر",
+      "region": "egypt",
+      "seasonLabel": "2026-2027",
+      "roundLabelAr": null,
+      "venue": null,
+      "cityAr": null,
+      "score": {
+        "home": null,
+        "away": null,
+        "halfTimeHome": null,
+        "halfTimeAway": null
+      },
+      "incidents": [],
+      "statusNoteAr": null,
+      "liveMinute": null,
+      "channelAr": null,
+      "broadcast": {
+        "status": "unverified",
+        "url": null,
+        "labelAr": "مشاهدة التغطية المباشرة",
+        "notesAr": null
+      },
+      "keywords": [],
+      "indexable": true,
+      "sourceLabelAr": "إدخال يدوي من لوحة التحكم",
+      "createdAt": "2026-10-14T06:59:10.663Z",
+      "createdBy": "backup-check",
+      "updatedAt": "2026-10-14T06:59:10.663Z",
+      "updatedBy": "backup-check"
+    }
+  ],
   "overrides": [],
   "news": [],
   "competitionOverrides": {},
@@ -24,6 +79,20 @@
   },
   "sourceControls": {},
   "audit": [
+    {
+      "id": "audit-mv7rem33-q3ci4x",
+      "at": "2026-10-14T06:59:17.199Z",
+      "actor": "backup-check",
+      "role": "owner",
+      "action": "backup.restore",
+      "target": "backup-2026-10-14T06-59-11-792Z-manual",
+      "summaryAr": "استعادة نسخة احتياطية backup-2026-10-14T06-59-11-792Z-manual (2026-10-14T06:59:11.792Z)",
+      "ok": true,
+      "details": {
+        "preRestoreBackupId": "backup-2026-10-14T06-59-15-190Z-pre-restore",
+        "checksum": "cd07096458d017f0"
+      }
+    },
     {
       "id": "audit-mv7rejfn-eahz2a",
       "at": "2026-10-14T06:59:13.763Z",
