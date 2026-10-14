@@ -30,3 +30,7 @@ yarn-error.log*
 *.pem
 *.tsbuildinfo
 next-env.d.ts
+
+# Local JSON store: in-flight atomic-write temporaries and quarantined corrupt snapshots
+data/*.tmp
+data/*.corrupt-*.json

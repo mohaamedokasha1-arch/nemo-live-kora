@@ -1,11 +1,11 @@
 /**
  * Storage migration.
  *
- * Moves the gateway dataset from wherever it lives now (the committed `data/gateway-store.json`
- * snapshot, or an existing cloud store) into the storage backend selected by the environment,
- * then proves the move by reading the data back and comparing counts.
+ * Imports a gateway dataset document (default: the committed `data/gateway-store.json`, or any
+ * file passed with --from) into the local structured-JSON store, then proves the import by reading
+ * the data back and comparing counts. The application has no external database to migrate to.
  *
- *   TURSO_DATABASE_URL=… TURSO_AUTH_TOKEN=… node --import tsx scripts/storage-migrate.ts
+ *   node --import tsx scripts/storage-migrate.ts --from=path/to/gateway-store.json
  *
  * Flags:
  *   --from=<path>   read the source document from this file (default: data/gateway-store.json)

@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import type { GatewayDatabase } from '../types';
+import { writeFileAtomic } from '../db/atomic-file';
+import { resolveLocalStoreFile } from '../db/durable-store';
 import {
-  FetchLike,
   StorageDriver,
   StoragePingResult,
   StorageReadResult,
@@ -14,12 +15,11 @@ export const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
 export const DEFAULT_STORE_FILE = 'gateway-store.json';
 
 /**
- * Local file driver.
+ * Local file driver — the single storage backend of the application.
  *
- * This is the development and self-hosted-VPS backend, and the local mirror the cloud drivers
- * also write. It is NOT durable on serverless hosts: each lambda gets its own ephemeral disk,
- * so `isDurable()` reports false when the app detects a serverless runtime. The sync endpoint
- * uses that flag to refuse reporting success.
+ * Writes are atomic (temporary file + fsync + rename), so a reader never sees a half-written
+ * document. It is NOT durable on serverless hosts: each lambda gets its own ephemeral `/tmp`, so
+ * `isDurable()` reports false there and the status pages say so.
  */
 export class FileStorageDriver implements StorageDriver {
   readonly kind = 'file' as const;
@@ -30,14 +30,15 @@ export class FileStorageDriver implements StorageDriver {
   private readonly forceDurable: boolean;
 
   constructor(options?: { dir?: string; file?: string; durable?: boolean }) {
-    const overrideDir = options?.dir || process.env.NEMO_DATA_DIR || '';
-    const overrideFile = options?.file || '';
-    this.dir = overrideDir || DEFAULT_DATA_DIR;
-    // The default location is written as a statically scoped path so the bundler does not have
-    // to trace the whole project; only an explicit override takes the dynamic branch.
-    this.file = overrideDir
-      ? path.join(/* turbopackIgnore: true */ overrideDir, overrideFile || DEFAULT_STORE_FILE)
-      : path.join(process.cwd(), 'data', overrideFile || DEFAULT_STORE_FILE);
+    // Default: the same runtime-resolved location the live durable layer writes (`data/` on a
+    // normal host, `/tmp` on serverless). Explicit `dir`/`file` options are used by tests and tools.
+    if (options?.dir || options?.file) {
+      this.dir = options?.dir || path.dirname(resolveLocalStoreFile());
+      this.file = path.join(this.dir, options?.file || DEFAULT_STORE_FILE);
+    } else {
+      this.file = resolveLocalStoreFile();
+      this.dir = path.dirname(this.file);
+    }
     this.forceDurable =
       options?.durable ??
       (process.env.NEMO_STORAGE_FILE_DURABLE || '').trim().toLowerCase() === 'true';
@@ -89,11 +90,7 @@ export class FileStorageDriver implements StorageDriver {
     const startedAt = Date.now();
     const payload = JSON.stringify(database, null, 2);
     try {
-      fs.mkdirSync(this.dir, { recursive: true });
-      // tmp + rename keeps a concurrent reader from ever seeing a half-written document.
-      const temporary = `${this.file}.${process.pid}.${Date.now()}.tmp`;
-      fs.writeFileSync(temporary, payload, 'utf-8');
-      fs.renameSync(temporary, this.file);
+      writeFileAtomic(this.file, payload);
       return {
         ok: true,
         bytes: Buffer.byteLength(payload),
@@ -177,4 +174,3 @@ export class MemoryStorageDriver implements StorageDriver {
   }
 }
 
-export type { FetchLike };

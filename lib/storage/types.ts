@@ -1,17 +1,15 @@
-import zlib from 'zlib';
 import type { GatewayDatabase } from '../types';
 
 /**
- * Persistent storage contract.
+ * Storage contract for the gateway snapshot.
  *
- * The gateway used to keep its whole dataset in a module-level object plus a best-effort local
- * JSON file. On a serverless host that file is per-lambda scratch space: a cron write was
- * invisible to the next request, and a cold start threw everything away. Every write path in
- * this system now goes through a driver that answers `isDurable()`, so the sync endpoint can
- * tell the truth about whether data survived.
+ * The application keeps its dataset in a structured JSON document on the local disk (see
+ * `lib/db/durable-store.ts`). Every driver answers `isDurable()`, so status pages and sync
+ * responses can say honestly whether the data survives a cold start and is shared between
+ * instances, instead of implying it always does.
  */
 
-export type StorageDriverKind = 'file' | 'turso' | 'upstash' | 'vercel-blob' | 'http' | 'memory';
+export type StorageDriverKind = 'file' | 'memory';
 
 export interface StorageReadResult {
   ok: boolean;
@@ -28,7 +26,7 @@ export interface StorageReadResult {
 export interface StorageWriteResult {
   ok: boolean;
   bytes: number;
-  /** ISO timestamp assigned by the driver (or locally when the driver has no clock). */
+  /** ISO timestamp assigned by the driver. */
   writtenAt: string;
   /** Rows/objects updated by the structured mirror, when the driver keeps one. */
   mirror: { matches: number; news: number; standings: number };
@@ -49,90 +47,16 @@ export interface StorageDriver {
   /** Human/Arabic label used in the sources dashboard. */
   readonly labelAr: string;
   /**
-   * True when data survives process restarts AND is shared between every instance of the app.
+   * True when data survives process restarts AND is shared between instances of the app.
    * A local file on a serverless host is deliberately `false`.
    */
   isDurable(): boolean;
-  /** Redacted description of the backing service — never contains a secret. */
+  /** Description of the backing file or memory store — contains no secret. */
   describe(): { kind: StorageDriverKind; target: string; durable: boolean };
   read(): Promise<StorageReadResult>;
   write(database: GatewayDatabase): Promise<StorageWriteResult>;
   /** Cheap round-trip used by /api/health and the sync endpoints. */
   ping(): Promise<StoragePingResult>;
-}
-
-/** Minimal fetch surface the drivers depend on, so tests can inject a stub. */
-export type FetchLike = (
-  url: string,
-  init?: {
-    method?: string;
-    headers?: Record<string, string>;
-    body?: string;
-    signal?: AbortSignal;
-    cache?: RequestCache;
-  }
-) => Promise<{
-  ok: boolean;
-  status: number;
-  text(): Promise<string>;
-  json(): Promise<unknown>;
-  headers?: { get(name: string): string | null };
-}>;
-
-export function resolveFetch(injected?: FetchLike): FetchLike {
-  if (injected) return injected;
-  return ((url, init) =>
-    fetch(url, init as RequestInit) as unknown as ReturnType<FetchLike>) as FetchLike;
-}
-
-/** Wraps a driver call in a timeout so a slow cloud never wedges a cron run. */
-export async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race<T>([
-      promise,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label}_timeout_after_${ms}ms`)), ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-/** libSQL escapes single quotes by doubling them; used by the Turso driver. */
-export function sqlStringLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
-}
-
-/**
- * Parses a stored payload in either format this system writes: a raw `GatewayDatabase` JSON
- * document (the `lib/storage/` drivers) or the gzip envelope of the live durable layer
- * (`lib/db/durable-store.ts`). Both shapes must pass the strict shape check before adoption, so
- * tooling and the request path can read each other's writes without a format migration.
- */
-export function parseStoredGatewayDocument(
-  raw: string
-): { database: GatewayDatabase | null; error: 'payload_not_json' | 'invalid_shape' | null } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { database: null, error: 'payload_not_json' };
-  }
-  if (isGatewayDatabaseShape(parsed)) return { database: parsed, error: null };
-  const envelope = parsed as { v?: unknown; alg?: unknown; data?: unknown } | null;
-  if (envelope && envelope.v === 1 && envelope.alg === 'gzip+base64' && typeof envelope.data === 'string') {
-    try {
-      const decoded: unknown = JSON.parse(
-        zlib.gunzipSync(Buffer.from(envelope.data, 'base64')).toString('utf-8')
-      );
-      if (isGatewayDatabaseShape(decoded)) return { database: decoded, error: null };
-    } catch {
-      // Fall through to invalid_shape below.
-    }
-  }
-  return { database: null, error: 'invalid_shape' };
 }
 
 /** Validates that a parsed JSON blob really is a GatewayDatabase before the store adopts it. */

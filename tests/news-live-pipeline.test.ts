@@ -1,7 +1,6 @@
 import test, { after, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import http from 'node:http';
 import path from 'node:path';
 import type { GatewayDatabase } from '../lib/types';
 import { clearHttpCache } from '../lib/sources/http-client';
@@ -92,10 +91,8 @@ const realFetch = globalThis.fetch;
 let workspace: string;
 let engine: typeof import('../lib/sync/engine');
 let store: typeof import('../lib/db/store');
-/** Stands in for shared storage: GET returns the snapshot, PUT overwrites it. */
-const shared = { stored: null as string | null };
-let snapshotServer: http.Server;
-let snapshotUrl: string;
+/** Directory of the local structured-JSON store used by these tests (never the committed data/). */
+let storeDir: string;
 
 before(async () => {
   const cacheDirectory = path.join(projectRoot, '.cache');
@@ -108,29 +105,8 @@ before(async () => {
   );
   process.chdir(workspace);
 
-  snapshotServer = http.createServer((req, res) => {
-    if (req.method === 'GET') {
-      if (shared.stored === null) {
-        res.writeHead(404).end();
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end(shared.stored);
-      return;
-    }
-    if (req.method === 'PUT') {
-      const chunks: Buffer[] = [];
-      req.on('data', (chunk) => chunks.push(chunk as Buffer));
-      req.on('end', () => {
-        shared.stored = Buffer.concat(chunks).toString('utf-8');
-        res.writeHead(204).end();
-      });
-      return;
-    }
-    res.writeHead(405).end();
-  });
-  await new Promise<void>((resolve) => snapshotServer.listen(0, '127.0.0.1', resolve));
-  const address = snapshotServer.address();
-  snapshotUrl = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/snapshot`;
+  storeDir = path.join(workspace, 'store');
+  fs.mkdirSync(storeDir);
 
   engine = await import('../lib/sync/engine');
   store = await import('../lib/db/store');
@@ -140,9 +116,8 @@ before(async () => {
 beforeEach(async () => {
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
   process.env.NEMO_NEWS_ENRICH = 'on';
-  process.env.NEMO_DURABLE_STORE = 'http';
-  process.env.NEMO_DURABLE_STORE_URL = snapshotUrl;
-  shared.stored = null;
+  process.env.NEMO_DATA_DIR = storeDir;
+  fs.rmSync(path.join(storeDir, 'gateway-store.json'), { force: true });
   store.resetStoreForTesting();
   // Production always adopts the shared snapshot before mutating it.
   await store.hydrateGatewayDatabase();
@@ -183,9 +158,7 @@ after(async () => {
   mock.restoreAll();
   process.chdir(projectRoot);
   store.resetStoreForTesting();
-  await new Promise<void>((resolve) => snapshotServer.close(() => resolve()));
-  delete process.env.NEMO_DURABLE_STORE;
-  delete process.env.NEMO_DURABLE_STORE_URL;
+  delete process.env.NEMO_DATA_DIR;
   for (const [key, value] of originalEnvironment) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -246,7 +219,7 @@ test('published news survives a cold start because it was written to the backend
   assert.ok(before > 0);
   const flush = await store.flushDurableStore({ force: true });
   assert.equal(flush.ok, true, `durable write reported: ${flush.error}`);
-  assert.ok(shared.stored, 'the store wrote to the backend');
+  assert.ok(fs.existsSync(path.join(storeDir, 'gateway-store.json')), 'the store wrote its document');
 
   // Cold start: forget the in-memory copy and hydrate from the backend only.
   store.resetStoreForTesting();
@@ -304,7 +277,7 @@ test('the news sync record stored in the database carries the resolution evidenc
   const persisted = await store.hydrateStore();
   assert.ok(
     persisted.newsSourceSyncs[0]?.resolutionReport,
-    'the evidence is persisted in shared storage, not just in memory'
+    'the evidence is persisted in the store document, not just in memory'
   );
 });
 
