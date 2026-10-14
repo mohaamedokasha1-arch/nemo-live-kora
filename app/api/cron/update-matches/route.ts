@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireCronAuth } from '@/lib/auth/cron-auth';
+import { NextResponse } from 'next/server';
 import { getGatewayDatabase, getPersistenceState } from '@/lib/db/store';
 import { ensureFreshMatches } from '@/lib/sync/engine';
 
@@ -7,9 +6,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-async function updateMatches(request: NextRequest) {
-  const denied = requireCronAuth(request);
-  if (denied) return denied;
+// Public endpoint by design: GET and POST trigger a sync without cron credentials.
+async function updateMatches() {
   try {
     const log = await ensureFreshMatches(0, 'API /api/cron/update-matches (live)');
     const result = getGatewayDatabase().meta.lastMatchesSyncResult;

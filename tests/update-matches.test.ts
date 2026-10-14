@@ -2,7 +2,7 @@ import test, { after, afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import type { GatewayDatabase } from '../lib/types';
 
 const projectRoot = process.cwd();
@@ -51,9 +51,9 @@ before(async () => {
 beforeEach(() => {
   for (const key of environmentKeys) delete process.env[key];
   // These tests assert the real write to the disposable workspace copy, so persistence is on here
-  // (npm test turns it off for every other file).
+  // (npm test turns it off for every other file). The route must work with no cron secret.
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
-  process.env.CRON_SECRET = 'test-only-secret';
+  assert.equal(process.env.CRON_SECRET, undefined);
   store.persistGatewayDatabase(structuredClone(initialDatabase));
 
   // Exercise the real sync pipeline without contacting third-party services.
@@ -123,17 +123,10 @@ test('Daily Vercel cron is configured for the update-matches route', () => {
   assert.equal(route.runtime, 'nodejs');
 });
 
-const authorizedRequest = () => new NextRequest('http://localhost/api/cron/update-matches', { headers: { authorization: 'Bearer test-only-secret' } });
-
-test('Authorized GET persists fetched matches and reports counts', async () => {
-  await assertVisitingUpdatesMatches(await route.GET(authorizedRequest()));
+test('Unauthenticated GET persists fetched matches and reports counts', async () => {
+  await assertVisitingUpdatesMatches(await route.GET());
 });
 
-test('POST also updates matches and replies {"status":"ok"}', async () => {
-  await assertVisitingUpdatesMatches(await route.POST(authorizedRequest()));
-});
-
-test('Unauthorized request cannot start a sync', async () => {
-  const response = await route.GET(new NextRequest('http://localhost/api/cron/update-matches'));
-  assert.equal(response.status, 401);
+test('Unauthenticated POST also updates matches and replies {"status":"ok"}', async () => {
+  await assertVisitingUpdatesMatches(await route.POST());
 });
