@@ -10,6 +10,11 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 
+/**
+ * Tajawal font is loaded via Google Fonts @import in globals.css.
+ * Fallback chain: Tajawal → Cairo (bundled) → system-ui.
+ */
+
 const SITE_NAME = 'نيمو كورة لايف — NEMO Sports';
 const SITE_TITLE = 'نيمو كورة لايف | جدول مباريات اليوم والأمس والغد — NEMO Sports';
 const SITE_DESCRIPTION =
@@ -72,7 +77,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#161f2e',
+  themeColor: '#0A0E27',
   width: 'device-width',
   initialScale: 1,
 };

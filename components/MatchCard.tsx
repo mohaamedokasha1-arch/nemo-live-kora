@@ -70,6 +70,21 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       ? 'kl-status-pin kl-pin-warn'
       : 'kl-status-pin kl-pin-upcoming';
 
+  // Determine the CTA link destination
+  const ctaHref = landingPath || targetUrl || null;
+
+  // CTA label based on match status
+  const ctaLabel =
+    match.status === 'live'
+      ? '🔴 شاهد البث الآن'
+      : match.status === 'finished'
+      ? '📺 إعادة المشاهدة'
+      : match.status === 'not_started'
+      ? '⏰ تفاصيل المباراة'
+      : match.status === 'postponed' || match.status === 'cancelled'
+      ? statusText
+      : '📺 شاهد البث';
+
   const cardContent = (
     <>
       {/* Main Body: Home Team (Right) — Center Time/Score/Status Pin — Away Team (Left) */}
@@ -119,7 +134,42 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
         </div>
       </div>
 
-      {/* Subtle Bottom Strip: Channel + Competition (Non-duplicated) + Direct Link Indicator */}
+      {/* Prominent CTA Button — always visible */}
+      {ctaHref ? (
+        <div className="kl-card-cta">
+          <Link
+            href={ctaHref}
+            className={`kl-live-watch-btn${match.status === 'postponed' || match.status === 'cancelled' ? ' kl-cta-postponed' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`${ctaLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+          >
+            <span className="kl-watch-icon" aria-hidden="true">
+              {match.status === 'live' ? (
+                <span className="kl-live-dot" />
+              ) : (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </span>
+            <span>{ctaLabel}</span>
+            <span className="kl-watch-arrow" aria-hidden="true">←</span>
+          </Link>
+        </div>
+      ) : (
+        /* Unlinked match — show link to match details page */
+        <div className="kl-card-cta">
+          <Link
+            href={buildMatchLandingPath(match.id)}
+            className="kl-live-watch-btn kl-cta-postponed"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span>📋 تفاصيل المباراة</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Subtle Bottom Strip: Channel + Competition + Direct Link Indicator */}
       <div className="kl-card-footer">
         <div className="kl-meta-item">
           <svg
@@ -223,7 +273,6 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       aria-label={`${actionLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
     >
       {cardContent}
-      <Link href={buildMatchLandingPath(match.id)}>تفاصيل المباراة</Link>
     </article>
   );
 }

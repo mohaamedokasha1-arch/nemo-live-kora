@@ -7,7 +7,7 @@ export default function Footer() {
     <footer className="kl-footer">
       <div className="kl-container kl-footer-inner">
         <div className="kl-footer-brand">
-          <strong>نيمو كورة لايف — NEMO Sports</strong>
+          <strong>⚽ نيمو كورة لايف — NEMO Live Kora</strong>
           <span>
             بوابة مباريات ومواعيد بتوقيت القاهرة، مع صفحة لكل مباراة وحالة بث مُتحقَّق منها. لا نستضيف
             أي بث غير مرخّص.
