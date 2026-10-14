@@ -409,6 +409,24 @@ export interface SyncLogEntry {
   totalMatchesInStore: number;
   totalStandingsInStore: number;
   totalNewsInStore: number;
+  /**
+   * التواريخ التي طُلبت في هذه المزامنة (بتوقيت القاهرة) وما تُخطّي منها بسبب الميزانية الزمنية
+   * أو حد طلبات المصدر. يُسجَّل حتى يظهر في اللوحة أي يوم لم يُغطَّ فعلًا.
+   */
+  dateWindow?: {
+    profile: 'wide' | 'quick';
+    todayCairo: string;
+    from: string;
+    to: string;
+    dates: string[];
+    daysBack: number;
+    daysAhead: number;
+    skipped: {
+      sportscoreDays: string[];
+      thesportsdbDayCalls: number;
+      apiFootballDays: string[];
+    };
+  };
 }
 
 export interface SourceErrorEntry {

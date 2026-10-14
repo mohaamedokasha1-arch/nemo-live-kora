@@ -10,7 +10,8 @@ build/
 dist/
 
 # Testing & caches
-coverage/
+# الجذر فقط: لا تُخفِ مجلد lib/coverage/ (كود المصدر)
+/coverage/
 .cache/
 .turbo/
 .vercel/

@@ -17,17 +17,27 @@ async function main() {
     trigger: 'CLI scripts/run-sync.ts',
   });
   const persistence = await flushDurableStore({ force: true });
+  // «ok» لا يعني أن الكتابة نجحت فقط: يجب أن يستجيب مصدر واحد على الأقل بنجاح في هذه المحاولة
+  // (بالمعيار نفسه المستخدم في المحرك). استجابة ناجحة بصفر مباراة تُعد نجاحًا، والمصدر الذي
+  // يعيد نسخة مخزنة أو حالة degraded لم ينجح مهما كانت حالة الكتابة.
+  const freshSources = log.sourceResults.filter((s) => !s.usedCachedSnapshot && s.status !== 'degraded');
+  const syncOk = freshSources.length > 0;
   console.log(
     JSON.stringify(
       {
-        ok: persistence.ok && persistence.durable,
+        ok: syncOk && persistence.ok && persistence.durable,
+        syncOk,
+        status: syncOk && persistence.ok ? 'ok' : 'degraded',
         persistence,
+        dateWindow: log.dateWindow,
         totalMatches: log.totalMatchesInStore,
         totalStandings: log.totalStandingsInStore,
         totalNews: log.totalNewsInStore,
         sources: log.sourceResults.map((s) => ({
           id: s.sourceId,
           status: s.status,
+          httpStatus: s.httpStatus,
+          matchesFetched: s.matchesFetched,
           usedCachedSnapshot: s.usedCachedSnapshot,
         })),
       },
@@ -38,6 +48,9 @@ async function main() {
   if (!persistence.ok || !persistence.durable) {
     console.error('[sync] snapshot was not committed to durable storage', getPersistenceState());
     process.exitCode = 2;
+  } else if (!syncOk) {
+    console.error('[sync] no source returned fresh data; existing snapshot kept unchanged');
+    process.exitCode = 3;
   }
 }
 

@@ -1,0 +1,61 @@
+{
+  "capturedWith": "production build (next start) on the final code, data copied to a temporary NEMO_DATA_DIR; the committed snapshot was not modified",
+  "note": "The sandbox has no egress to any sports or news provider. Every provider failed, so this shows the honest failure path and the logged date window. It is not evidence of live provider data. The CRON_SECRET used was a local throwaway value that is not stored here.",
+  "endpoints": [
+    {
+      "path": "/api/cron/sync?mode=daily (with auth)",
+      "httpStatus": 200,
+      "status": "degraded",
+      "syncOk": false,
+      "ok": true,
+      "durable": true,
+      "warnings": [
+        "لم تُجلب بيانات جديدة من المصادر في هذه المحاولة؛ بقيت آخر بيانات محفوظة كما هي."
+      ],
+      "dateWindow": {
+        "profile": "wide",
+        "todayCairo": "2026-10-14",
+        "from": "2026-10-13",
+        "to": "2026-10-21",
+        "dates": [
+          "2026-10-13",
+          "2026-10-14",
+          "2026-10-15",
+          "2026-10-16",
+          "2026-10-17",
+          "2026-10-18",
+          "2026-10-19",
+          "2026-10-20",
+          "2026-10-21"
+        ],
+        "daysBack": 1,
+        "daysAhead": 7,
+        "skipped": {
+          "sportscoreDays": [],
+          "thesportsdbDayCalls": 0,
+          "apiFootballDays": []
+        }
+      }
+    },
+    {
+      "path": "/api/cron/update-matches (public)",
+      "httpStatus": 200,
+      "status": "degraded",
+      "syncOk": false,
+      "ok": true,
+      "durable": true,
+      "warnings": [
+        "لم تُجلب بيانات جديدة من المصادر في هذه المحاولة؛ بقيت آخر بيانات محفوظة كما هي."
+      ]
+    }
+  ],
+  "keysOfSyncBody": [
+    "ok",
+    "status",
+    "syncOk",
+    "syncLog",
+    "persistence",
+    "durable",
+    "warnings"
+  ]
+}
