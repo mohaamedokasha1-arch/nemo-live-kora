@@ -119,6 +119,9 @@ async function executeNewsSync(
   fetchOptions?: { timeoutMs?: number; retries?: number; limitFeeds?: number }
 ): Promise<NewsSourceSyncRecord> {
   const startedAt = new Date().toISOString();
+  // Adopt the shared snapshot first (as the gateway sync does), so a cold instance never builds
+  // on its bundled copy and later overwrites newer shared news with it.
+  await hydrateStore();
   const gnRes = await isolateSource(
     'google-news-rss',
     () => fetchGoogleNewsRss(fetchOptions),

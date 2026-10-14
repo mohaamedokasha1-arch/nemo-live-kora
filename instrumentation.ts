@@ -10,10 +10,21 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
   if ((process.env.NEMO_SKIP_STORE_HYDRATION || '').trim().toLowerCase() === 'on') return;
   try {
-    const { hydrateGatewayDatabase, getDurableStoreStatus } = await import('./lib/db/store');
+    const { hydrateGatewayDatabase, getDurableStoreStatus, isServerlessRuntime } = await import('./lib/db/store');
     const status = getDurableStoreStatus();
     if (!status.configured) {
-      // Nothing to do: the deployment has no external store configured (see README section 7).
+      if (isServerlessRuntime()) {
+        // One actionable warning at boot — not an error per request. Without a shared store the
+        // cron honestly answers 503; the fix is configuration, documented in README section 7.
+        console.warn(
+          '[instrumentation] durable_store_not_configured',
+          JSON.stringify({
+            serverless: true,
+            howToFix:
+              'Set TURSO_DATABASE_URL+TURSO_AUTH_TOKEN, KV_REST_API_URL+KV_REST_API_TOKEN, BLOB_READ_WRITE_TOKEN, or NEMO_DURABLE_STORE_URL, then redeploy.',
+          })
+        );
+      }
       return;
     }
     const persistence = await hydrateGatewayDatabase();

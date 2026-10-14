@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-14",
+  "environment": "Local production build (`next start`) with VERCEL=1 and a local HTTP snapshot endpoint standing in for shared durable storage. Third-party provider hosts are unreachable from this sandbox, so provider fetches fail; that isolates the storage behaviour under test.",
+  "setup": {
+    "server": "VERCEL=1 NEMO_DURABLE_STORE=http NEMO_DURABLE_STORE_URL=http://127.0.0.1:4747/snapshot npx next start -H 0.0.0.0 -p 3100",
+    "bootLog": "[instrumentation] durable_store_ready {\"backend\":\"http\",\"persistence\":{\"mode\":\"http\",\"ok\":true,\"durable\":true,\"durableConfigured\":true,\"error\":null}}"
+  },
+  "cronWithUnreachableProviders": {
+    "request": "GET /api/cron/update-matches",
+    "httpStatus": 503,
+    "responseTimeSeconds": 2.35,
+    "note": "503 here is the honest source-failure path (matchesFetched: 0, previous data retained), not a storage failure.",
+    "persistence": { "mode": "http", "ok": true, "durable": true, "durableConfigured": true, "error": null },
+    "storage": { "backendId": "http", "hydrated": true, "dirty": false, "serverless": true, "localFile": "/tmp/nemo-gateway/gateway-store.json", "lastError": null },
+    "snapshotBytesOnSharedStore": 23000
+  },
+  "crossProcessWrite": {
+    "actor": "separate tsx process (hydrate -> add marker match -> persist -> flushDurableStore force)",
+    "result": { "mode": "http", "ok": true, "durable": true, "totalMatches": 39, "markerId": "match-e2e-cold-start-marker" }
+  },
+  "coldStartAfterLocalCacheCleared": {
+    "preparation": "server stopped, /tmp/nemo-gateway deleted, server restarted",
+    "request": "GET /api/matches?date=2026-10-14&q=ColdStart",
+    "markerServed": true,
+    "meaning": "the restarted instance served data written by another process, read from shared storage only"
+  },
+  "health": {
+    "request": "GET /api/health",
+    "httpStatus": 200,
+    "checks": { "storageRoundTrip": true, "storageDurable": true, "lastWritePersisted": true, "matchesPresent": true },
+    "roundTrip": { "driver": "http", "ok": true, "matchesReadBack": 39, "latencyMs": 2, "error": null },
+    "storageKindAgreement": "lib/storage selection and the durable layer both report the HTTP backend (kind: http)"
+  },
+  "logScan": {
+    "store_write_failed": 0,
+    "memory-only": 0,
+    "durable_write_failed": 0,
+    "local_file_write_failed": 0
+  },
+  "testSuite": {
+    "npmTest": "169 tests, 169 pass",
+    "lint": "pass",
+    "typecheck": "pass",
+    "build": "pass"
+  }
+}

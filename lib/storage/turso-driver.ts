@@ -5,7 +5,7 @@ import {
   StoragePingResult,
   StorageReadResult,
   StorageWriteResult,
-  isGatewayDatabaseShape,
+  parseStoredGatewayDocument,
   resolveFetch,
   withTimeout,
 } from './types';
@@ -62,7 +62,13 @@ export class TursoStorageDriver implements StorageDriver {
   private schemaError: string | null = null;
 
   constructor(options: TursoDriverOptions) {
-    this.url = options.url.replace(/\/+$/, '');
+    // Accept the libsql:// / wss:// forms operators paste from the Turso dashboard.
+    this.url = options.url
+      .trim()
+      .replace(/^libsql:\/\//i, 'https://')
+      .replace(/^wss:\/\//i, 'https://')
+      .replace(/^ws:\/\//i, 'http://')
+      .replace(/\/+$/, '');
     this.token = options.token;
     this.fetchImpl = resolveFetch(options.fetchImpl);
     this.timeoutMs = options.timeoutMs ?? 15_000;
@@ -226,16 +232,11 @@ export class TursoStorageDriver implements StorageDriver {
     if (payload === null) {
       return { ok: false, database: null, bytes: 0, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: 'empty_store' };
     }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(payload);
-    } catch {
-      return { ok: false, database: null, bytes: payload.length, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: 'payload_not_json' };
+    const { database, error } = parseStoredGatewayDocument(payload);
+    if (!database) {
+      return { ok: false, database: null, bytes: payload.length, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: error ?? 'invalid_shape' };
     }
-    if (!isGatewayDatabaseShape(parsed)) {
-      return { ok: false, database: null, bytes: payload.length, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: 'invalid_shape' };
-    }
-    return { ok: true, database: parsed, bytes: payload.length, origin: this.describe().target, latencyMs: Date.now() - startedAt };
+    return { ok: true, database, bytes: payload.length, origin: this.describe().target, latencyMs: Date.now() - startedAt };
   }
 
   async write(database: GatewayDatabase): Promise<StorageWriteResult> {

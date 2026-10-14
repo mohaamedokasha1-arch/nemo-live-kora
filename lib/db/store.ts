@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import {
   CompetitionStandingTable,
@@ -31,23 +32,49 @@ import { buildInitialVerifiedDatabase, mergeMatchRecords } from './seed-data';
 import type { TheSportsDBRoundWindow } from '../sources/thesportsdb';
 import {
   DurableStoreError,
-  decodeSnapshot,
+  decodeStoredSnapshot,
   describeDurableBackend,
   encodeSnapshot,
   resolveDurableBackend,
   type DurableStoreErrorCode,
 } from './durable-store';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const STORE_FILE = path.join(DATA_DIR, 'gateway-store.json');
+/**
+ * Local structured-JSON file layout.
+ *
+ * Two different files matter and must never be confused:
+ *  - the *bundled* snapshot (`<cwd>/data/gateway-store.json`) ships inside the deployment. On
+ *    Vercel that directory is read-only, so it can only ever be a seed — writing to it is what
+ *    produced `store_write_failed: updates are memory-only` in the production logs.
+ *  - the *writable* snapshot is where `persistGatewayDatabase()` actually writes:
+ *      · `NEMO_DATA_DIR/gateway-store.json` when an operator mounts a real data directory,
+ *      · `<tmp>/nemo-gateway/gateway-store.json` on serverless runtimes (the only writable disk;
+ *        a warm-instance cache, never claimed as durable shared storage),
+ *      · `<cwd>/data/gateway-store.json` on a normal host, where the file genuinely persists.
+ *
+ * Paths are resolved on every call rather than frozen at import time, so `VERCEL`, `NEMO_DATA_DIR`
+ * and the process working directory are honoured as they are at write time.
+ */
+export function resolveLocalStoreFile(env: NodeJS.ProcessEnv = process.env): string {
+  const overrideDir = (env.NEMO_DATA_DIR || '').trim();
+  if (overrideDir) return path.join(overrideDir, 'gateway-store.json');
+  if (isServerlessRuntime(env)) return path.join(os.tmpdir(), 'nemo-gateway', 'gateway-store.json');
+  return path.join(process.cwd(), 'data', 'gateway-store.json');
+}
+
+/** The read-only snapshot bundled with the deployment; used only as a seed/fallback. */
+export function bundledStoreFile(): string {
+  return path.join(process.cwd(), 'data', 'gateway-store.json');
+}
 
 /**
  * Where the snapshot can actually be read back from:
- *  - `redis` / `http` — an external store shared by every instance (see `durable-store.ts`).
- *  - `file` — `data/gateway-store.json`, which is durable on a normal server or in local dev.
+ *  - `turso` / `redis` / `blob` / `http` — an external store shared by every instance
+ *    (see `durable-store.ts`).
+ *  - `file` — the local structured JSON file, durable on a normal server or a mounted volume.
  *  - `memory` — process memory only; lost on the next cold start.
  */
-export type PersistenceMode = 'memory' | 'file' | 'redis' | 'http';
+export type PersistenceMode = 'memory' | 'file' | 'redis' | 'http' | 'turso' | 'blob';
 
 export interface PersistenceState {
   mode: PersistenceMode;
@@ -76,6 +103,8 @@ let durableDirty = false;
 let hydratedFromDurable = false;
 let flushPromise: Promise<PersistenceState> | null = null;
 let afterCallbackPending = false;
+/** A local-file failure is an expected condition on serverless; log it once, never per mutation. */
+let localWriteFailureLogged = false;
 
 export function getPersistenceState(): PersistenceState {
   const backend = resolveDurableBackend();
@@ -94,11 +123,17 @@ export function getPersistenceState(): PersistenceState {
     mode: localOk ? 'file' : 'memory',
     ok: localOk,
     // A file written from inside a lambda is not shared storage, however successful the write was.
-    durable: localOk && !isServerlessRuntime(),
+    // An operator can still declare a mounted volume durable via NEMO_STORAGE_FILE_DURABLE=true.
+    durable: localOk && (!isServerlessRuntime() || isFileStorageDeclaredDurable()),
     durableConfigured: false,
     error: localWriteState.error,
     at: null,
   };
+}
+
+/** True when the operator declared the local disk a persistent volume (see `lib/storage/`). */
+export function isFileStorageDeclaredDurable(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env.NEMO_STORAGE_FILE_DURABLE || '').trim().toLowerCase() === 'true';
 }
 
 export function getDurableStoreStatus() {
@@ -108,6 +143,7 @@ export function getDurableStoreStatus() {
     hydrated: hydratedFromDurable,
     dirty: durableDirty,
     serverless: isServerlessRuntime(),
+    localFile: resolveLocalStoreFile(),
     lastError: durableState.error,
     lastSuccessAt: durableState.at,
   };
@@ -157,7 +193,8 @@ export async function hydrateGatewayDatabase(): Promise<PersistenceState> {
       hydratedFromDurable = true;
       durableState = { ok: true, error: null, at: new Date().toISOString() };
     } else {
-      const { snapshot, savedAt } = decodeSnapshot(raw);
+      // Envelope written by this layer, or a legacy raw document from lib/storage tooling.
+      const { snapshot, savedAt } = decodeStoredSnapshot(raw);
       if (!isGatewayDatabaseShape(snapshot)) {
         throw new DurableStoreError('store_snapshot_invalid', 'shape_mismatch');
       }
@@ -190,21 +227,29 @@ export function flushDurableStore(options: { force?: boolean } = {}): Promise<Pe
   }
   if (flushPromise) return flushPromise;
 
-  const payload = encodeSnapshot(memoryStore ?? getGatewayDatabase());
-  durableDirty = false;
   flushPromise = (async () => {
     try {
-      await backend.write(payload);
-      durableState = { ok: true, error: null, at: new Date().toISOString() };
-    } catch (error) {
-      durableDirty = true;
-      durableState = { ok: false, error: errorCode(error, 'store_write_failed'), at: null };
-      console.error('[store] durable_write_failed', durableState.error, error instanceof Error ? error.message : '');
+      // Drain in a bounded loop: a mutation landing while a write is in flight marks the store
+      // dirty again, and an awaited flush must only resolve once the backend holds that data too.
+      for (let pass = 0; pass < 3; pass += 1) {
+        const payload = encodeSnapshot(memoryStore ?? getGatewayDatabase());
+        durableDirty = false;
+        try {
+          await backend.write(payload);
+          durableState = { ok: true, error: null, at: new Date().toISOString() };
+        } catch (error) {
+          durableDirty = true;
+          durableState = { ok: false, error: errorCode(error, 'store_write_failed'), at: null };
+          console.error('[store] durable_write_failed', durableState.error, error instanceof Error ? error.message : '');
+          break;
+        }
+        if (!durableDirty) break;
+      }
     } finally {
       flushPromise = null;
     }
-    // A mutation that raced with this write still needs to reach the backend.
-    if (durableDirty) scheduleDurableFlush();
+    // Mutations that arrived during the final pass are flushed after the response, as usual.
+    if (durableDirty && durableState.ok) scheduleDurableFlush();
     return getPersistenceState();
   })();
   return flushPromise;
@@ -259,26 +304,43 @@ function isGatewayDatabaseShape(value: unknown): value is GatewayDatabase {
   return Boolean(candidate.meta && Array.isArray(candidate.matches));
 }
 
+/** Reads and validates one local JSON snapshot file; returns null when absent or invalid. */
+function readLocalStoreFile(file: string): GatewayDatabase | null {
+  try {
+    if (!fs.existsSync(file)) return null;
+    const raw = fs.readFileSync(file, 'utf-8');
+    const parsed = JSON.parse(raw) as GatewayDatabase;
+    if (parsed && parsed.meta && Array.isArray(parsed.matches)) {
+      return migrateGatewayDatabase(parsed);
+    }
+  } catch {
+    // An unreadable local copy must never take the store down; the caller falls back.
+  }
+  return null;
+}
+
 /**
- * Loads the unified GatewayDatabase from disk (data/gateway-store.json) or initializes it
- * with the verified real seed dataset if not yet written.
+ * Loads the unified GatewayDatabase: durable hydration (when configured) has already replaced
+ * the in-memory copy by the time most callers run; this synchronous path seeds memory from the
+ * writable local file, then the bundled snapshot, then the verified seed dataset.
  */
 export function getGatewayDatabase(): GatewayDatabase {
   if (memoryStore) {
     return memoryStore;
   }
 
-  try {
-    if (fs.existsSync(STORE_FILE)) {
-      const raw = fs.readFileSync(STORE_FILE, 'utf-8');
-      const parsed = JSON.parse(raw) as GatewayDatabase;
-      if (parsed && parsed.meta && Array.isArray(parsed.matches)) {
-        memoryStore = migrateGatewayDatabase(parsed);
-        return memoryStore;
-      }
+  const writable = readLocalStoreFile(resolveLocalStoreFile());
+  if (writable) {
+    memoryStore = writable;
+    return memoryStore;
+  }
+  const bundledFile = bundledStoreFile();
+  if (bundledFile !== resolveLocalStoreFile()) {
+    const bundled = readLocalStoreFile(bundledFile);
+    if (bundled) {
+      memoryStore = bundled;
+      return memoryStore;
     }
-  } catch {
-    // Fallback to initial verified database if file read fails
   }
 
   const initial = buildInitialVerifiedDatabase();
@@ -288,10 +350,14 @@ export function getGatewayDatabase(): GatewayDatabase {
 }
 
 /**
- * Persists the GatewayDatabase: an atomic local write (data/gateway-store.json) plus a debounced
- * push to the durable backend when one is configured. A read-only serverless filesystem is never
- * fatal — the in-memory store stays authoritative for this process and `getPersistenceState()`
- * reports exactly what happened.
+ * Persists the GatewayDatabase: an atomic structured-JSON write to the writable local file plus
+ * a debounced push to the durable backend when one is configured.
+ *
+ * On serverless the local write goes to the writable temp directory — never into the read-only
+ * deployment bundle, which is what used to log `store_write_failed` for every mutation even when
+ * the durable write later succeeded. A local failure is recorded in the persistence state and
+ * logged once as a warning; it is only the whole story when no durable backend is configured,
+ * and `getPersistenceState()` then still reports the data as non-durable.
  */
 export function persistGatewayDatabase(db: GatewayDatabase): void {
   memoryStore = db;
@@ -299,17 +365,26 @@ export function persistGatewayDatabase(db: GatewayDatabase): void {
   if (!isStorePersistenceEnabled()) {
     localWriteState = { ok: false, error: 'persistence_disabled' };
   } else {
+    const file = resolveLocalStoreFile();
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      const temporary = `${STORE_FILE}.${process.pid}.tmp`;
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const temporary = `${file}.${process.pid}.tmp`;
       fs.writeFileSync(temporary, JSON.stringify(db, null, 2), 'utf-8');
-      fs.renameSync(temporary, STORE_FILE);
+      fs.renameSync(temporary, file);
       localWriteState = { ok: true, error: null };
-    } catch {
+    } catch (error) {
       localWriteState = { ok: false, error: 'store_write_failed' };
-      console.error('[store] store_write_failed: updates are memory-only');
+      if (!localWriteFailureLogged) {
+        localWriteFailureLogged = true;
+        console.warn(
+          '[store] local_file_write_failed',
+          JSON.stringify({
+            file,
+            durableConfigured: Boolean(resolveDurableBackend()),
+            message: error instanceof Error ? error.message : 'unknown_error',
+          })
+        );
+      }
     }
   }
   // Serverless instances cannot rely on the file write; the configured backend must confirm it.
@@ -412,8 +487,7 @@ export function egyptianSeasonLabelFor(cairoDate: string): string {
 
 /**
  * Round window to request for the Egyptian league this run: the highest round already stored
- * for the current season, plus the one before and the one after. Only matches of the same
- * season count, so last season's round numbers never shift the window.
+ * for the current season,d numbers never shift the window.
  */
 export function getEgyptianRoundWindow(todayCairo: string): TheSportsDBRoundWindow {
   const season = egyptianSeasonLabelFor(todayCairo);
@@ -914,6 +988,30 @@ export async function verifyStorageRoundTrip(): Promise<StorageRoundTripResult> 
   };
 
   if (!backend) {
+    // No shared backend. On a host where the local JSON file is itself the durable store (real
+    // disk or a declared volume) and a write was already confirmed in this process, prove the
+    // round-trip against that file instead of declaring the deployment broken.
+    if (state.mode === 'file' && state.durable && state.ok) {
+      const local = readLocalStoreFile(resolveLocalStoreFile());
+      const latencyMs = Date.now() - startedAt;
+      if (!local) {
+        return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'store_empty', latencyMs };
+      }
+      const expected = getGatewayDatabase();
+      const ok =
+        local.matches.length === expected.matches.length &&
+        local.news.length === expected.news.length &&
+        Object.keys(local.standings).length === Object.keys(expected.standings).length;
+      return {
+        ...base,
+        target: resolveLocalStoreFile(),
+        ok,
+        matchesReadBack: local.matches.length,
+        newsReadBack: local.news.length,
+        error: ok ? null : 'store_readback_mismatch',
+        latencyMs,
+      };
+    }
     return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'no_durable_backend', latencyMs: Date.now() - startedAt };
   }
 
@@ -923,7 +1021,7 @@ export async function verifyStorageRoundTrip(): Promise<StorageRoundTripResult> 
     if (raw === null) {
       return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'store_empty', latencyMs };
     }
-    const { snapshot } = decodeSnapshot(raw);
+    const { snapshot } = decodeStoredSnapshot(raw);
     if (!isGatewayDatabaseShape(snapshot)) {
       return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'store_snapshot_invalid', latencyMs };
     }

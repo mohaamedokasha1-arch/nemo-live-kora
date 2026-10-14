@@ -1,3 +1,4 @@
+import zlib from 'zlib';
 import type { GatewayDatabase } from '../types';
 
 /**
@@ -10,7 +11,7 @@ import type { GatewayDatabase } from '../types';
  * tell the truth about whether data survived.
  */
 
-export type StorageDriverKind = 'file' | 'turso' | 'upstash' | 'vercel-blob' | 'memory';
+export type StorageDriverKind = 'file' | 'turso' | 'upstash' | 'vercel-blob' | 'http' | 'memory';
 
 export interface StorageReadResult {
   ok: boolean;
@@ -102,6 +103,36 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, label: str
 /** libSQL escapes single quotes by doubling them; used by the Turso driver. */
 export function sqlStringLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
+}
+
+/**
+ * Parses a stored payload in either format this system writes: a raw `GatewayDatabase` JSON
+ * document (the `lib/storage/` drivers) or the gzip envelope of the live durable layer
+ * (`lib/db/durable-store.ts`). Both shapes must pass the strict shape check before adoption, so
+ * tooling and the request path can read each other's writes without a format migration.
+ */
+export function parseStoredGatewayDocument(
+  raw: string
+): { database: GatewayDatabase | null; error: 'payload_not_json' | 'invalid_shape' | null } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { database: null, error: 'payload_not_json' };
+  }
+  if (isGatewayDatabaseShape(parsed)) return { database: parsed, error: null };
+  const envelope = parsed as { v?: unknown; alg?: unknown; data?: unknown } | null;
+  if (envelope && envelope.v === 1 && envelope.alg === 'gzip+base64' && typeof envelope.data === 'string') {
+    try {
+      const decoded: unknown = JSON.parse(
+        zlib.gunzipSync(Buffer.from(envelope.data, 'base64')).toString('utf-8')
+      );
+      if (isGatewayDatabaseShape(decoded)) return { database: decoded, error: null };
+    } catch {
+      // Fall through to invalid_shape below.
+    }
+  }
+  return { database: null, error: 'invalid_shape' };
 }
 
 /** Validates that a parsed JSON blob really is a GatewayDatabase before the store adopts it. */
