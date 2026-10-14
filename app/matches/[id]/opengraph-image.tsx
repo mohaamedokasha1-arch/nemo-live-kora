@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { formatArabicFullDate, isValidDateParam } from '@/lib/cairo-time';
 import { findCatalogEntriesByCairoDate, resolveMatchView } from '@/lib/matches/match-catalog';
-import { findCatalogEntryById } from '@/lib/matches/match-links';
+import { findServedCatalogEntryById } from '@/lib/admin/served-catalog';
 import {
   OG_IMAGE_CONTENT_TYPE,
   OG_IMAGE_SIZE,
@@ -195,7 +195,7 @@ function FallbackCard() {
 
 /** بطاقة مباراة واحدة من كتالوج `data/matches.ts`. */
 function MatchCard({ matchId }: { matchId: string }) {
-  const entry = findCatalogEntryById(matchId);
+  const entry = findServedCatalogEntryById(matchId);
   if (!entry) return <FallbackCard />;
 
   const view = resolveMatchView(entry);

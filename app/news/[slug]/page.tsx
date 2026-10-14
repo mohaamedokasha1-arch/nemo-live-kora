@@ -56,6 +56,15 @@ export default async function NewsArticlePage({
   if (!item) notFound();
 
   const related = getRelatedPublishedNews(db.news, item, 4);
+  // نصّ الخبر المكتوب في لوحة الإدارة: يُعرض على الصفحة العامة فعلًا (محتوى الموقع نفسه).
+  // أخبار المصادر لا نصّ كاملًا لها لدينا، فلا نخترع نصًّا: المقتطف وحده هو المتاح.
+  const firstPartyBody = item.origin === 'manual' ? (item.bodyText || '').trim() : '';
+  const bodyParagraphs = firstPartyBody
+    ? firstPartyBody
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+    : [];
   const relatedMatches = db.matches.filter((match) => item.relatedMatchIds.includes(match.id));
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -81,6 +90,9 @@ export default async function NewsArticlePage({
   }
   if (item.updatedAt) {
     jsonLd.dateModified = item.updatedAt;
+  }
+  if (firstPartyBody) {
+    jsonLd.articleBody = firstPartyBody;
   }
 
   return (
@@ -115,11 +127,19 @@ export default async function NewsArticlePage({
         <p className="kl-article-excerpt" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
           {item.excerpt}
         </p>
-      ) : (
+      ) : bodyParagraphs.length > 0 ? null : (
         <p className="kl-article-excerpt kl-article-excerpt-note">
           لم يوفّر المصدر مقتطفًا إضافيًا غير العنوان. لا نولّد تفاصيل غير موجودة في الخلاصة.
         </p>
       )}
+
+      {bodyParagraphs.length > 0 ? (
+        <div className="kl-article-body" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
+          {bodyParagraphs.map((paragraph, index) => (
+            <p key={`${item.id}-p${index}`}>{paragraph}</p>
+          ))}
+        </div>
+      ) : null}
 
       <div className="kl-article-actions">
         {item.originalUrl ? (

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { MatchRecord } from '@/lib/types';
 import { formatArabicFullDate, formatArabicTimestamp, toCairoTimeArabic } from '@/lib/cairo-time';
 import { getGatewayDatabase, guardStaleLiveStatus } from '@/lib/db/store';
-import { findCatalogEntryForMatch } from '@/lib/matches/match-links';
+import { findServedCatalogEntryForMatch } from '@/lib/admin/served-catalog';
 import { resolveWatchDestinationForRecord } from '@/lib/nemo-watch';
 import AdSlot from './AdSlot';
 import { shouldRenderAdSlot } from '@/lib/ads/config';
@@ -50,6 +50,6 @@ export default function SourceMatchDetails({ record }: { record: MatchRecord }) 
           <AdSlot format="in-article" label="مساحة إعلانية داخل صفحة المباراة" slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCH_BODY} />
         ) : null}
 
-    {related.length > 0 && <section><h2>مباريات مرتبطة بالفريقين</h2><ul>{related.map((m) => <li key={m.id}><Link href={`/matches/${findCatalogEntryForMatch(m)?.id || m.id}`}>{m.homeTeam.nameAr} ضد {m.awayTeam.nameAr} — {m.cairoDate}</Link></li>)}</ul></section>}
+    {related.length > 0 && <section><h2>مباريات مرتبطة بالفريقين</h2><ul>{related.map((m) => <li key={m.id}><Link href={`/matches/${findServedCatalogEntryForMatch(m)?.id || m.id}`}>{m.homeTeam.nameAr} ضد {m.awayTeam.nameAr} — {m.cairoDate}</Link></li>)}</ul></section>}
   </article>;
 }

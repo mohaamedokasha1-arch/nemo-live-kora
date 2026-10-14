@@ -7,15 +7,15 @@ import {
 } from '../cairo-time';
 import { CANONICAL_COMPETITIONS } from '../catalog';
 import { getGatewayDatabase } from '../db/store';
+import { applyManualLayerToMatch, manualMatchAsRecord } from '../admin/overrides';
 import { GATEWAY_SITE_URL } from '../site-url';
 import type { MatchRecord, MatchScore, MatchStatusCode } from '../types';
+import { buildMatchLandingPath, buildMatchLivePath } from './match-links';
 import {
-  buildMatchLandingPath,
-  buildMatchLivePath,
-  findCatalogEntryForMatch,
-  getAllCatalogEntries,
-  getFeaturedCatalogEntry,
-} from './match-links';
+  findServedCatalogEntryForMatch,
+  getServedCatalogEntries,
+  getServedFeaturedCatalogEntry,
+} from '../admin/served-catalog';
 import type {
   MatchCatalogEntry,
   MatchCatalogStatus,
@@ -54,9 +54,18 @@ const STATUS_LABEL_AR: Record<MatchStatusCode, string> = {
 /** أقصى مدة معقولة لمباراة كرة قدم مع الوقت الإضافي والبدل (بالدقائق). */
 const MAX_PLAUSIBLE_MATCH_MINUTES = 180;
 
+/**
+ * سجل المباراة كما تعرضه الصفحات: من مخزن المصادر إن وُجد، وإلا من مباريات
+ * لوحة الإدارة، ثم تُطبَّق الحقول المثبَّتة يدويًا فوق النتيجة.
+ *
+ * الطبقتان معًا تضمنان أن أي تعديل للمدير يظهر في صفحة الهبوط وصفحة البث
+ * والبيانات المنظمة — حتى لو لم تُحدَّث لقطة المخزن بعد.
+ */
 export function resolveSourceMatchRecord(entry: MatchCatalogEntry): MatchRecord | null {
   const db = getGatewayDatabase();
-  return db.matches.find((match) => findCatalogEntryForMatch(match)?.id === entry.id) ?? null;
+  const fromStore = db.matches.find((match) => findServedCatalogEntryForMatch(match)?.id === entry.id) ?? null;
+  const record = fromStore ?? manualMatchAsRecord(entry.id);
+  return record ? applyManualLayerToMatch(record) : null;
 }
 
 /**
@@ -168,19 +177,19 @@ function mostRecentIso(values: Array<string | null | undefined>): string | null 
  * تُستخدم في بطاقة المشاركة الخاصة بجدول اليوم (opengraph-image).
  */
 export function findCatalogEntriesByCairoDate(cairoDate: string): MatchCatalogEntry[] {
-  return getAllCatalogEntries().filter((entry) => entry.cairoDate === cairoDate);
+  return getServedCatalogEntries().filter((entry) => entry.cairoDate === cairoDate);
 }
 
 /** كل المباريات المدمجة، مرتبة زمنيًا من الأحدث إلى الأقدم. */
 export function resolveAllMatchViews(now: Date = new Date()): ResolvedMatchView[] {
-  return getAllCatalogEntries()
+  return getServedCatalogEntries()
     .map((entry) => resolveMatchView(entry, now))
     .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime());
 }
 
 /** مباراة الأسبوع المعروضة في بوابة الصفحة الرئيسية. */
 export function resolveFeaturedMatchView(now: Date = new Date()): ResolvedMatchView | null {
-  const entry = getFeaturedCatalogEntry();
+  const entry = getServedFeaturedCatalogEntry();
   return entry ? resolveMatchView(entry, now) : null;
 }
 
@@ -359,7 +368,7 @@ export function validateMatchCatalogEntry(entry: MatchCatalogEntry): string[] {
 }
 
 /** يتحقق من كل الكتالوج + يمنع تكرار المعرّفات. يعيد [] عندما يكون كل شيء سليمًا. */
-export function validateMatchCatalog(entries: MatchCatalogEntry[] = getAllCatalogEntries()): string[] {
+export function validateMatchCatalog(entries: MatchCatalogEntry[] = getServedCatalogEntries()): string[] {
   const errors: string[] = [];
   const seen = new Set<string>();
   for (const entry of entries) {

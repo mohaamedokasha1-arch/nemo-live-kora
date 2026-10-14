@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { findCatalogEntryById } from '@/lib/matches/match-links';
+import { findServedCatalogEntryById } from '@/lib/admin/served-catalog';
 import { resolveMatchView } from '@/lib/matches/match-catalog';
 import { hydrateStore } from '@/lib/db/store';
 import { buildLivePageMetadata } from '@/lib/seo/metadata';
@@ -25,7 +25,7 @@ export async function generateMetadata({
   params: Promise<{ matchId: string }>;
 }): Promise<Metadata> {
   const { matchId } = await params;
-  const entry = findCatalogEntryById(matchId);
+  const entry = findServedCatalogEntryById(matchId);
 
   if (!entry) {
     return {
@@ -44,7 +44,7 @@ export default async function LiveMatchPage({
 }) {
   const { matchId } = await params;
   await hydrateStore();
-  const entry = findCatalogEntryById(matchId);
+  const entry = findServedCatalogEntryById(matchId);
   if (!entry) notFound();
 
   const view = resolveMatchView(entry);

@@ -13,6 +13,8 @@ export interface GatewayClientProps {
   allMatchesOnDate: MatchRecord[];
   /** وصف آخر محاولة جلب للمباريات (ناجحة أو فاشلة) — يُحسب على الخادم */
   freshnessNote?: string | null;
+  /** خريطة `معرّف المباراة ← مسار صفحتها الداخلية` محسوبة على الخادم. */
+  landingPaths?: Record<string, string>;
 }
 
 export default function MatchGatewayClient({
@@ -20,6 +22,7 @@ export default function MatchGatewayClient({
   todayCairo,
   allMatchesOnDate,
   freshnessNote,
+  landingPaths,
 }: GatewayClientProps) {
   const router = useRouter();
   const yesterdayDate = shiftDateString(todayCairo, -1);
@@ -87,7 +90,7 @@ export default function MatchGatewayClient({
       {allMatchesOnDate.length > 0 ? (
         <div className="kl-cards-list">
           {allMatchesOnDate.map((match) => (
-            <MatchCard key={match.id} match={match} />
+            <MatchCard key={match.id} match={match} landingPath={landingPaths?.[match.id] ?? null} />
           ))}
         </div>
       ) : (

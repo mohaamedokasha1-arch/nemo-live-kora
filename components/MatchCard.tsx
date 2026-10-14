@@ -13,7 +13,17 @@ export const VERIFIED_MATCH_LINK_LABEL_AR = 'صفحة المباراة على NE
 /** البطاقة التي لها صفحة هبوط داخلية على البوابة (المسار الموصى به للزائر). */
 export const MATCH_PAGE_LINK_LABEL_AR = 'تفاصيل المباراة والمشاهدة المباشرة';
 
-export default function MatchCard({ match }: { match: MatchRecord }) {
+/**
+ * `landingPath` يُمرَّر من الخادم عند وجود صفحة داخلية للمباراة (بما فيها مباريات
+ * لوحة الإدارة) لأن هذه الطبقة تُبنى على المتصفح أيضًا ولا تقرأ طبقة الإدارة.
+ */
+export default function MatchCard({
+  match,
+  landingPath: providedLandingPath,
+}: {
+  match: MatchRecord;
+  landingPath?: string | null;
+}) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
   const sourceLabel = getMatchSourceLabelAr(match.primarySource);
   const kickoffConfirmed =
@@ -21,7 +31,12 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
   // الأولوية للصفحة الداخلية (صفحة هبوط المباراة) لأنها بوابة المشاهدة الرسمية على الموقع،
   // وإن لم توجد صفحة داخلية نستخدم رابط NEMO Sports المُتحقَّق منه فقط.
   const catalogEntry = findCatalogEntryForMatch(match);
-  const landingPath = catalogEntry ? buildMatchLandingPath(catalogEntry.id) : null;
+  const landingPath =
+    providedLandingPath === undefined
+      ? catalogEntry
+        ? buildMatchLandingPath(catalogEntry.id)
+        : null
+      : providedLandingPath;
   const targetUrl = match.nemoLink.verified ? match.nemoLink.url : null;
   const hasAction = Boolean(landingPath || targetUrl);
   const cardClass = [

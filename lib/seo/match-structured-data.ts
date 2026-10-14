@@ -1,4 +1,5 @@
-import { buildMatchLandingPath, findCatalogEntryForMatch } from '../matches/match-links';
+import { buildMatchLandingPath } from '../matches/match-links';
+import { findServedCatalogEntryForMatch } from '../admin/served-catalog';
 import { GATEWAY_SITE_URL } from '../site-url';
 import type { MatchRecord } from '../types';
 
@@ -29,7 +30,7 @@ export function createMatchScheduleStructuredData(
     itemListOrder: 'https://schema.org/ItemListOrderAscending',
     numberOfItems: matches.length,
     itemListElement: matches.slice(0, 20).map((match, index) => {
-      const entry = findCatalogEntryForMatch(match);
+      const entry = findServedCatalogEntryForMatch(match);
       /*
        * كل عنصر في القائمة يحمل رابطًا — بلا استثناء.
        *
