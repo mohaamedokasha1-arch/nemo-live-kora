@@ -5,7 +5,7 @@ import {
   StoragePingResult,
   StorageReadResult,
   StorageWriteResult,
-  isGatewayDatabaseShape,
+  parseStoredGatewayDocument,
   resolveFetch,
   withTimeout,
 } from './types';
@@ -80,11 +80,12 @@ export class VercelBlobStorageDriver implements StorageDriver {
       if (!bodyResponse.ok) {
         return { ok: false, database: null, bytes: 0, origin: this.pathname, latencyMs: Date.now() - startedAt, error: `HTTP ${bodyResponse.status}` };
       }
-      const parsed = JSON.parse(rawText) as unknown;
-      if (!isGatewayDatabaseShape(parsed)) {
-        return { ok: false, database: null, bytes: rawText.length, origin: this.pathname, latencyMs: Date.now() - startedAt, error: 'invalid_shape' };
+      // Raw document (this driver's format) or the durable layer's gzip envelope at the same path.
+      const { database, error } = parseStoredGatewayDocument(rawText);
+      if (!database) {
+        return { ok: false, database: null, bytes: rawText.length, origin: this.pathname, latencyMs: Date.now() - startedAt, error: error ?? 'invalid_shape' };
       }
-      return { ok: true, database: parsed, bytes: rawText.length, origin: this.pathname, latencyMs: Date.now() - startedAt };
+      return { ok: true, database, bytes: rawText.length, origin: this.pathname, latencyMs: Date.now() - startedAt };
     } catch (error) {
       return {
         ok: false,

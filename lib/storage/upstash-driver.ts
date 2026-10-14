@@ -5,7 +5,7 @@ import {
   StoragePingResult,
   StorageReadResult,
   StorageWriteResult,
-  isGatewayDatabaseShape,
+  parseStoredGatewayDocument,
   resolveFetch,
   withTimeout,
 } from './types';
@@ -103,16 +103,12 @@ export class UpstashStorageDriver implements StorageDriver {
     if (!response.result) {
       return { ok: false, database: null, bytes: 0, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: 'empty_store' };
     }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.result);
-    } catch {
-      return { ok: false, database: null, bytes: response.result.length, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: 'payload_not_json' };
+    // Raw document (this driver's format) or the durable layer's gzip envelope — both are ours.
+    const { database, error } = parseStoredGatewayDocument(response.result);
+    if (!database) {
+      return { ok: false, database: null, bytes: response.result.length, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: error ?? 'invalid_shape' };
     }
-    if (!isGatewayDatabaseShape(parsed)) {
-      return { ok: false, database: null, bytes: response.result.length, origin: this.describe().target, latencyMs: Date.now() - startedAt, error: 'invalid_shape' };
-    }
-    return { ok: true, database: parsed, bytes: response.result.length, origin: this.describe().target, latencyMs: Date.now() - startedAt };
+    return { ok: true, database, bytes: response.result.length, origin: this.describe().target, latencyMs: Date.now() - startedAt };
   }
 
   async write(database: GatewayDatabase): Promise<StorageWriteResult> {

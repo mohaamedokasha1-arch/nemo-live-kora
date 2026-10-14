@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGatewayDatabase, getPersistenceState, hydrateStore, verifyStorageRoundTrip } from '@/lib/db/store';
+import { getDurableStoreStatus, getGatewayDatabase, getPersistenceState, hydrateStore, verifyStorageRoundTrip } from '@/lib/db/store';
 import { describeStorage } from '@/lib/storage';
 import { describeSourceConfiguration } from '@/lib/config/env';
 
@@ -55,7 +55,7 @@ export async function GET() {
       ok,
       checkedAt: new Date().toISOString(),
       checks,
-      storage: { ...storage, roundTrip, persistence },
+      storage: { ...storage, roundTrip, persistence, durable: getDurableStoreStatus() },
       keys: describeSourceConfiguration(),
       counts: {
         matches: db.matches.length,

@@ -18,9 +18,12 @@ async function main() {
           problem:
             'لا يوجد مخزن دائم مهيأ؛ على بيئة serverless تُعتبر البيانات مؤقتة والكرون يعيد 503.',
           howToFix: [
+            'Turso/libSQL: اضبط TURSO_DATABASE_URL وTURSO_AUTH_TOKEN ثم أعد النشر.',
             'Upstash Redis (Vercel Marketplace): اضبط KV_REST_API_URL وKV_REST_API_TOKEN ثم أعد النشر.',
+            'Vercel Blob: اضبط BLOB_READ_WRITE_TOKEN ثم أعد النشر.',
             'أو أي نقطة HTTP: اضبط NEMO_DURABLE_STORE_URL (و NEMO_DURABLE_STORE_TOKEN عند الحاجة).',
-            'NEMO_DURABLE_STORE يمكن أن يحدد الخيار صراحة: redis أو http أو file.',
+            'NEMO_DURABLE_STORE أو NEMO_STORAGE_DRIVER يمكن أن يحددا الخيار صراحة: turso أو redis/upstash أو blob/vercel-blob أو http أو file.',
+            'على خادم بديسك حقيقي لا حاجة لمخزن سحابي: ملف JSON المحلي دائم، ويمكن إعلان مجلد مثبّت عبر NEMO_DATA_DIR وNEMO_STORAGE_FILE_DURABLE=true.',
           ],
         },
         null,

@@ -45,13 +45,16 @@
 
 ### التخزين الدائم (`lib/storage/`)
 
-البيانات (المباريات، الترتيب، الأخبار) تُكتب في مخزن قابل للاستبدال يُختار تلقائيًا:
+البيانات (المباريات، الترتيب، الأخبار) تُكتب عبر طبقة تخزين واحدة موحّدة (`lib/db/durable-store.ts` للمسار
+الحي + `lib/storage/` للأدوات، بنفس المفاتيح ونفس صيغ البيانات) تُختار تلقائيًا:
 
-1. `NEMO_STORAGE_DRIVER` إن ضُبط (`auto | turso | upstash | vercel-blob | file | memory`)
-2. أول زوج مفاتيح سحابي مضبوط: `TURSO_DATABASE_URL`+`TURSO_AUTH_TOKEN` ← `UPSTASH_REDIS_REST_URL`+`UPSTASH_REDIS_REST_TOKEN` ← `BLOB_READ_WRITE_TOKEN`
-3. الملف المحلي `data/gateway-store.json` (كتابة ذرّية عبر temporary + rename)
+1. محدّد صريح: `NEMO_DURABLE_STORE` ثم `NEMO_STORAGE_DRIVER` (المحدّدان مترادفان: `turso | redis/upstash | blob/vercel-blob | http | file | memory`)
+2. أول مخزن سحابي مضبوط: `TURSO_DATABASE_URL`+`TURSO_AUTH_TOKEN` ← `UPSTASH_REDIS_REST_URL`/`KV_REST_API_URL` + التوكن ← `BLOB_READ_WRITE_TOKEN` ← `NEMO_DURABLE_STORE_URL`
+3. ملف JSON المحلي المهيكل (كتابة ذرّية عبر temporary + rename): `data/gateway-store.json` على خادم عادي،
+   أو `NEMO_DATA_DIR` عند ضبطه، أو مجلد `/tmp` المؤقت على serverless كذاكرة دافئة فقط.
 
-على Vercel يُبلّغ الملف المحلي عن `durable: false` لأن قرص كل lambda مؤقت، ولذلك يعيد `/api/cron/update-matches`
+على Vercel يُبلّغ الملف المحلي عن `durable: false` لأن قرص كل lambda مؤقت (ولا يُكتب أبدًا داخل حزمة النشر
+المقروءة — وهو ما كان يطبع `store_write_failed` في السجلات)، ولذلك يعيد `/api/cron/update-matches`
 و`/api/health` الرمز **503** حتى يُضبط مخزن سحابي — لا يدّعي المسار نجاحًا لا يمكن قراءته.
 الترحيل: `node --import tsx scripts/storage-migrate.ts --dry-run` ثم بدونها؛ الترحيل يرفض الإنهاء إذا اختلفت
 أعداد القراءة عن الكتابة (`readback_mismatch`) أو وُجدت أخطاء سلامة روابط مباريات.
@@ -114,7 +117,7 @@
 │   │   ├── metadata.ts             # الوسوم المعيارية ووسوم المشاركة لكل نوع صفحة
 │   │   └── match-structured-data.ts# ItemList لصفحات الجداول
 │   ├── db/
-│   │   ├── durable-store.ts        # نقل اللقطة إلى مخزن خارجي (Redis REST أو HTTP) + مظروف مضغوط
+│   │   ├── durable-store.ts        # نقل اللقطة إلى مخزن دائم (Turso/Redis/KV/Blob/HTTP) + مظروف مضغوط
 │   │   ├── seed-data.ts
 │   │   └── store.ts
 │   ├── sources/
@@ -201,7 +204,7 @@ npm run dev
 - **Output Directory**: `.next` (الافتراضي لـ Next.js)
 - يوجد `vercel.json` بمهمة Cron واحدة يوميًا (`0 5 * * *`) تستدعي `/api/cron/update-matches`. خطة Hobby تسمح بمهمة واحدة يوميًا فقط؛ صفحة الأخبار تحاول التحديث عند الطلب إذا مرّ 15 دقيقة على آخر محاولة مزامنة، بما فيها المحاولة الفاشلة. الصفحة الرئيسية لا تنتظر مصدر الأخبار.
 - **المتغيرات البيئية** (كلها موثّقة بالعربية في `.env.example`):
-  - **التخزين الدائم (مطلوب لنجاح الكرون على Vercel):** `KV_REST_API_URL` + `KV_REST_API_TOKEN` (Upstash Redis عبر Vercel Marketplace) أو `NEMO_DURABLE_STORE_URL` (+ `NEMO_DURABLE_STORE_TOKEN`) لأي نقطة HTTP. معها `NEMO_DURABLE_STORE` و`NEMO_DURABLE_STORE_KEY` و`NEMO_DURABLE_STORE_TIMEOUT_MS` اختيارية. الفحص: `npm run store:check`.
+  - **التخزين الدائم (مطلوب لنجاح الكرون على Vercel — يكفي واحد):** `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (Turso/libSQL) أو `KV_REST_API_URL` + `KV_REST_API_TOKEN` (Upstash Redis عبر Vercel Marketplace) أو `BLOB_READ_WRITE_TOKEN` (Vercel Blob) أو `NEMO_DURABLE_STORE_URL` (+ `NEMO_DURABLE_STORE_TOKEN`) لأي نقطة HTTP. معها `NEMO_DURABLE_STORE`/`NEMO_STORAGE_DRIVER` و`NEMO_DURABLE_STORE_KEY` و`NEMO_DURABLE_STORE_TIMEOUT_MS` اختيارية، وبعد الضبط يجب **إعادة النشر**. الفحص: `npm run store:check`.
   - **مفاتيح المصادر:** `API_FOOTBALL_KEY` (مطلوب لـ API-Football)، `FOOTBALL_DATA_API_KEY` (اختياري)، `THESPORTSDB_API_KEY` (افتراضيًا `123`)
   - **الروابط:** `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`، `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
 - **`CRON_SECRET` يحمي `/api/cron/sync` و`/api/cron/sync-news` ولوحة الإدارة**. اضبطه في متغيرات بيئة الاستضافة، واحتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له. مسار `/api/cron/update-matches` لا يتطلب سرًا.
@@ -216,12 +219,17 @@ npm run dev
 الفشل الكامل أو التخزين غير الدائم يُرجع 503، وليس نجاحًا عامًا. نجاح HTTP محلي لا يثبت تنفيذ الجدولة أو الإنتاج.
 
 **طبقة التخزين الدائم:** ملف `data/gateway-store.json` داخل حزمة النشر ليس مخزنًا مشتركًا؛ لذلك يُنقل كامل
-اللقطة إلى مخزن خارجي عبر `lib/db/durable-store.ts`:
+اللقطة إلى مخزن خارجي عبر `lib/db/durable-store.ts` (وهي نفس الطبقة التي تقرأها أدوات `lib/storage/`):
 
-- `redis` — Upstash Redis REST (`KV_REST_API_URL` / `KV_REST_API_TOKEN` أو أسماء Upstash) عبر أوامر `GET`/`SET`.
+- `turso` — Turso/libSQL (`TURSO_DATABASE_URL` / `LIBSQL_URL` + التوكن) عبر HTTP pipeline؛ اللقطة في
+  جدول `nemo_kv_store` مع مرآة خام متزامنة في `gateway_documents` لفحص SQL وأدوات الترحيل.
+- `redis` — Upstash Redis REST (`KV_REST_API_URL` / `KV_REST_API_TOKEN` أو أسماء Upstash) عبر أوامر `GET`/`SET`
+  (مع قراءة احتياطية لمفتاح `nemo:gateway` القديم الذي كتبته أدوات الترحيل).
+- `blob` — Vercel Blob (`BLOB_READ_WRITE_TOKEN`) في مسار ثابت `nemo-gateway/gateway-store.json`.
 - `http` — أي نقطة (`NEMO_DURABLE_STORE_URL`) تقرأ بـ `GET` وتكتب بـ `PUT`.
-- اللقطة تُضغط `gzip` وتُغلَّف في مظروف مُصدَّر (`v: 1`)؛ نحو 134KB تصبح ~24KB، وأي قيمة غريبة أو تالفة
-  تُرفض (`store_snapshot_invalid`) بدلًا من تحميلها كقاعدة بيانات.
+- اللقطة تُضغط `gzip` وتُغلَّف في مظروف مُصدَّر (`v: 1`)؛ نحو 180KB تصبح ~25KB، وأي قيمة غريبة أو تالفة
+  تُرفض (`store_snapshot_invalid`) بدلًا من تحميلها كقاعدة بيانات. والقارئ يقبل أيضًا المستند الخام
+  الذي كتبته أدوات `lib/storage/` بعد فحص شكل صارم، فلا حاجة لهجرة تنسيق عند التبديل بين المخازن.
 
 آلية الأمان والدوام:
 
@@ -229,8 +237,10 @@ npm run dev
    ومع كل مزامنة عند الطلب يُقرأ المخزن أولًا عبر `hydrateGatewayDatabase()`.
 2. لا تُكتب اللقطة إلى المخزن الخارجي إلا بعد نجاح القراءة (`store_not_hydrated` يمنع الكتابة) حتى لا
    تستبدل نسخة قديمة مضمّنة بيانات أحدث في الإنتاج.
-3. الكرون ينتظر تأكيد الكتابة (`flushDurableStore({ force: true })`)؛ بقية المسارات تكتب بعد إرسال الرد
-   عبر `after()` مرة واحدة لكل دفعة تغييرات.
+3. مسارات الكرون (`update-matches` و`sync` و`sync-news` ومزامنة الإدارة) تنتظر تأكيد الكتابة
+   (`flushDurableStore({ force: true })`، بحلقة تصريف محدودة تلحق أي تعديل وصل أثناء الكتابة) قبل الرد؛
+   بقية المسارات تكتب بعد إرسال الرد عبر `after()` مرة واحدة لكل دفعة تغييرات. وكل عملية قراءة/كتابة
+   للمخزن محدودة بمهلة 8 ثوانٍ افتراضيًا (`NEMO_DURABLE_STORE_TIMEOUT_MS`) داخل `maxDuration = 60`.
 
 بهذا يعيد `GET/POST /api/cron/update-matches` الحالة `200` و`status: "ok"` فقط بعد وصول البيانات إلى
 تخزين مشترك حقيقي؛ وبدون مخزن مهيأ يعيد `503` مع `persistence.durableConfigured: false` و`storageReason`
@@ -242,7 +252,7 @@ npm run dev
 ```bash
 npm run verify        # lint + typecheck + test + build + npm audit --omit=dev
 npm run security      # بوابة الأمان دون شبكة (ثغرات معروفة، أسرار، حقن HTML)
-npm test              # 145 اختبارًا
+npm test              # 169 اختبارًا
 npm run build
 npm run store:check
 node --import tsx scripts/audit-connectivity.ts --out=docs/evidence/connectivity.json
