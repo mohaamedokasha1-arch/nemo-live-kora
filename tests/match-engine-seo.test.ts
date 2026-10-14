@@ -118,18 +118,31 @@ test('2) البيانات المنظمة تحتوي كل الحقول المطل
     assert.equal(organizer['@type'], 'SportsOrganization', entry.id);
     assert.equal(organizer.name, entry.competition.nameAr, entry.id);
 
-    // —— offers: رابط المشاهدة + سعر 0 + العملة + InStock
+    // —— offers: رابط المشاهدة + سعر 0 + العملة + توفّر مطابق لحالة المباراة
+    //    (مباراة منتهية/ملغاة ← SoldOut، وإلا ← InStock؛ وvalidFrom للمباريات القادمة فقط)
     const offers = node.offers as Record<string, unknown>;
     assert.equal(offers['@type'], 'Offer', entry.id);
     assert.equal(offers.price, '0', entry.id);
-    assert.equal(offers.availability, 'https://schema.org/InStock', entry.id);
     assert.ok(['EGP', 'USD', 'SAR', 'AED', 'EUR'].includes(String(offers.priceCurrency)), entry.id);
+
+    const soldOut = view.isFinished || view.status === 'cancelled';
     assert.equal(
-      offers.url,
-      view.verifiedBroadcastUrl || `${GATEWAY_SITE_URL}${buildMatchLivePath(entry.id)}`,
+      offers.availability,
+      soldOut ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
       entry.id
     );
-    assert.equal(offers.validFrom, entry.broadcast.availableFromUtc || startIso, entry.id);
+    assert.equal(
+      offers.url,
+      soldOut
+        ? view.canonicalUrl
+        : view.verifiedBroadcastUrl || `${GATEWAY_SITE_URL}${buildMatchLivePath(entry.id)}`,
+      entry.id
+    );
+    if (soldOut) {
+      assert.equal(offers.validFrom, undefined, `${entry.id}: validFrom لا معنى له على عرض منتهٍ`);
+    } else {
+      assert.equal(offers.validFrom, entry.broadcast.availableFromUtc || startIso, entry.id);
+    }
 
     // —— eventStatus ضمن القيم المعتمدة في Schema.org فقط (لا EventLive)
     const eventStatus = String(node.eventStatus).replace('https://schema.org/', '');

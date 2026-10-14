@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import NemoLogo from '@/components/NemoLogo';
 import { NEMO_SPORTS_BASE_URL } from '@/lib/catalog';
 
 export default function Footer() {
@@ -7,10 +8,12 @@ export default function Footer() {
     <footer className="kl-footer">
       <div className="kl-container kl-footer-inner">
         <div className="kl-footer-brand">
+          {/* العلامة الرسمية نفسها المستخدمة في الهيدر (تظهر في كل صفحة) */}
+          <NemoLogo size={40} tone="light" className="kl-footer-logo" />
           <strong>نيمو كورة لايف — NEMO Sports</strong>
           <span>
-            بوابة مباريات ومواعيد بتوقيت القاهرة، مع صفحة لكل مباراة وحالة بث مُتحقَّق منها. لا نستضيف
-            أي بث غير مرخّص.
+            بوابة مباريات ومواعيد بتوقيت القاهرة، مع صفحة تفصيلية لكل مباراة ومشاهدة مباشرة،
+            وتحديث تلقائي للنتائج والأخبار. لا نستضيف أي بث غير مرخّص.
           </span>
         </div>
 
@@ -26,7 +29,6 @@ export default function Footer() {
             منصة NEMO Sports
           </a>
           <Link href="/news">الأخبار</Link>
-          <Link href="/sources">حالة المصادر</Link>
         </div>
 
         <nav className="kl-footer-links kl-footer-legal" aria-label="روابط قانونية">

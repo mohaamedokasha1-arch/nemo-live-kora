@@ -54,7 +54,9 @@ test('Match resolver only allows exact, date-matched source identities in the ve
   assert.equal(verified.linkType, 'direct_match');
   assert.equal(verified.url, EXACT_MATCH_URL);
   assert.equal(verified.verified, true);
-  assert.match(verified.subLabelAr, /لا نفترض توفر بث نشط/);
+  // النص واثق ومهني ولا يدّعي وجود بث نشط ولا يشكّك الزائر
+  assert.match(verified.subLabelAr, /صفحة هذه المباراة تحديدًا/);
+  assert.ok(!/لا نفترض|لم نتحقق|موثّق/.test(verified.subLabelAr), 'نص يشكّك الزائر');
   assert.equal(
     getVerifiedNemoMatchPageUrl({
       ...VERIFIED_NEMO_MAPPING_TABLE[0],
@@ -125,11 +127,16 @@ test('MatchCard preserves verified broadcast routing and adds data-only details 
   const verifiedHtml = renderToStaticMarkup(MatchCard({ match: verifiedMatch }));
   assert.ok(verifiedHtml.includes('href="/matches/zamalek-vs-al-ahly-2026-10-11"'));
   assert.ok(verifiedHtml.includes('النتيجة والملخص — صفحة المباراة'));
-  assert.ok(verifiedHtml.includes(MATCH_PAGE_LINK_LABEL_AR) === false);
+  // وصف الرابط (aria-label) يصف الفعل والوجهة دائمًا، أما نص شريط البطاقة السفلي فيبقى
+  // وصفًا للحالة (نتيجة/ملخص للمباراة المنتهية)، فلا يتكرر النص نفسه مرتين للقارئ.
+  assert.ok(verifiedHtml.includes(`aria-label="${MATCH_PAGE_LINK_LABEL_AR} —`));
   assert.ok(verifiedHtml.includes(toCairoTimeArabic(verifiedMatch.utcKickoff)));
   assert.ok(verifiedHtml.includes('kl-match-card-linked'));
 
-  // مباراة مُتحقَّقة但没有 صفحة داخلية بعد: تبقى البطاقة تربط مباشرة بالصفحة المطابقة على NEMO.
+  // مباراة مُتحقَّقة لا يوجد لها سجل في الكتالوج: البطاقة تقود — كباقي البطاقات — إلى
+  // صفحة التفاصيل الديناميكية /matches/[id] الخاصة بالسجل نفسه، ومنها زر المشاهدة
+  // الموحّد إلى المنصة. (كانت البطاقة سابقًا تفتح صفحة NEMO مباشرة، وهو ما أُلغِي
+  // بقرار صاحب المنتج: كل بطاقة تدخل البوابة أولًا ثم يتفرّع الزائر للمنصة.)
   const verifiedWithoutLanding = mapTheSportsDBEventToRecord({
     idEvent: '2561120',
     idAPIfootball: '1612249',
@@ -145,9 +152,22 @@ test('MatchCard preserves verified broadcast routing and adds data-only details 
     intAwayScore: 1,
   });
   const verifiedOnlyHtml = renderToStaticMarkup(MatchCard({ match: verifiedWithoutLanding }));
-  assert.ok(verifiedOnlyHtml.includes('href="https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry#live-stream"'));
-  assert.ok(verifiedOnlyHtml.includes('انتهت المباراة — لا يوجد بث موثّق حاليًا'));
+  // كل بطاقة → صفحة التفاصيل الداخلية (لا رابط خارجي مباشر من البطاقة)
+  assert.ok(
+    verifiedOnlyHtml.includes(`href="/matches/${verifiedWithoutLanding.id}"`),
+    'بطاقة سجل مُتحقَّق منه يجب أن تقود إلى صفحة تفاصيله الداخلية'
+  );
+  assert.ok(!verifiedOnlyHtml.includes('href="https://nemo-sports'), 'لا رابط خارجي مباشر من البطاقة');
+  assert.ok(verifiedOnlyHtml.includes('انتهت المباراة — تفاصيل المباراة'));
   assert.ok(verifiedOnlyHtml.includes(VERIFIED_MATCH_LINK_LABEL_AR) === false);
+
+  // الوجهة الخارجية المُتحقَّق منها لم تُفقَد: ما زالت محفوظة في بيانات السجل، ويستخدمها
+  // محرّك المشاهدة الموحّد لعرضها في صفحة التفاصيل/المشاهدة (اختبار watch-routing تغطيه).
+  assert.equal(verifiedWithoutLanding.nemoLink.verified, true);
+  assert.equal(
+    verifiedWithoutLanding.nemoLink.url,
+    'https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry#live-stream'
+  );
 
   const unmatched = mapTheSportsDBEventToRecord({
     idEvent: '2561124',
@@ -162,7 +182,11 @@ test('MatchCard preserves verified broadcast routing and adds data-only details 
     strStatus: 'NS',
   });
   const unmatchedHtml = renderToStaticMarkup(MatchCard({ match: unmatched }));
-  assert.match(unmatchedHtml, /^<article [^>]*kl-match-card-unlinked/);
+  // البطاقة صارت رابطًا إلى صفحة التفاصيل الديناميكية لكل مباراة بلا استثناء،
+  // مع الاحتفاظ بفئة «غير مرتبطة» لأنها بلا وجهة بث خارجية موثّقة.
+  // التنويع البصري لا يمسّ قابلية النقر: البطاقة تظل رابطًا إلى صفحة التفاصيل
+  assert.match(unmatchedHtml, /^<a [^>]*kl-match-card-no-broadcast/);
+  assert.match(unmatchedHtml, /href="\/matches\/[^"]+"/);
   assert.ok(unmatchedHtml.includes(UNVERIFIED_MATCH_LINK_LABEL_AR));
   assert.ok(unmatchedHtml.includes(`href="/matches/${unmatched.id}"`));
   assert.ok(!unmatchedHtml.includes('href="https://nemo-sports'));
@@ -321,7 +345,7 @@ test('Sync bookkeeping: attempt, last success, and failure are reported honestly
   let meta = getGatewayDatabase().meta;
   assert.ok(meta.lastMatchesSyncAttemptAt);
   assert.equal(meta.lastSuccessfulMatchesSyncAt, meta.lastMatchesSyncAttemptAt);
-  assert.match(describeMatchesFreshness(meta) || '', /آخر تحديث للمباريات من المصادر/);
+  assert.match(describeMatchesFreshness(meta) || '', /آخر تحديث للمباريات/);
 
   const successAt = meta.lastSuccessfulMatchesSyncAt;
   await recordMatchesSyncAttempt({
@@ -335,5 +359,7 @@ test('Sync bookkeeping: attempt, last success, and failure are reported honestly
   meta = getGatewayDatabase().meta;
   assert.equal(meta.lastSuccessfulMatchesSyncAt, successAt);
   assert.equal(meta.lastMatchesSyncResult?.ok, false);
-  assert.match(describeMatchesFreshness(meta) || '', /تعذر تحديث المباريات/);
+  // فشل المزامنة لا يُعرض للزائر إطلاقًا: السطر يعرض آخر تحديث فقط أو لا شيء
+  const failureNote = describeMatchesFreshness(meta) || '';
+  assert.ok(!/تعذر|فشل|خطأ/.test(failureNote), `رسالة فشل ظاهرة للزائر: ${failureNote}`);
 });

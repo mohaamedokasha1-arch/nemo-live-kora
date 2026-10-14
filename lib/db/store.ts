@@ -707,10 +707,10 @@ export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date())
     return {
       ...match,
       status: 'unconfirmed',
-      statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+      statusLabelAr: 'قيد التحديث',
       statusNoteAr: plausible
-        ? 'آخر تحديث من المصدر قديم؛ لا نعرض المباراة كجارية حتى يصل تحديث جديد.'
-        : 'المصدر يصفها بالمباشرة خارج مدة المباراة المعتادة أو بلا موعد مؤكد؛ لا نعرضها كمباراة جارية.',
+        ? 'تُحدَّث حالة المباراة تلقائيًا من المصدر.'
+        : 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
       liveMinute: null,
     };
   }
@@ -721,7 +721,7 @@ export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date())
         ...match,
         status: 'unconfirmed',
         statusLabelAr: 'الموعد غير مؤكد من المصدر',
-        statusNoteAr: 'لم يرسل المصدر موعد انطلاق مؤكدًا لهذه المباراة.',
+        statusNoteAr: 'سيُعرض الموعد الرسمي فور إعلانه.',
       };
     }
     if (nowMs - kickoffMs > NOT_STARTED_GRACE_MS) {
@@ -730,7 +730,7 @@ export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date())
         status: 'unconfirmed',
         statusLabelAr: 'بانتظار تأكيد الحالة من المصدر',
         statusNoteAr:
-          'موعد انطلاق المباراة مضى ولم يصل تحديث من المصدر؛ لا نعرضها كمباراة لم تبدأ بعد.',
+          'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
       };
     }
   }

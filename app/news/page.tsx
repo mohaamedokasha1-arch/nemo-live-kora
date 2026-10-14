@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { formatArabicTimestamp } from '@/lib/cairo-time';
+import { formatArabicTimestamp, getTodayCairoDate } from '@/lib/cairo-time';
 import { getGatewayDatabase, hydrateStore } from '@/lib/db/store';
 import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
@@ -28,7 +28,6 @@ export default async function NewsIndexPage() {
   const db = getGatewayDatabase();
   const latest = getLatestNews(db.news, 24);
   const displayed = latest.length ? latest : getPublishedNews(db.news).slice(0, 24);
-  const attempt = db.newsSourceSyncs?.[0];
   const archiveCount = getArchiveNews(db.news).length;
   const lastOk = db.meta.lastSuccessfulNewsSyncAt;
 
@@ -42,14 +41,30 @@ export default async function NewsIndexPage() {
         </p>
         <h1 className="kl-section-title">الأخبار الرياضية</h1>
         <p className="kl-news-lead">
-          نعرض فقط الأخبار التي اجتازت التحقق: عنوان صالح، مصدر معروف، رابط صحيح، ومنع للتكرار. تاريخ العرض هو تاريخ النشر الأصلي وليس وقت الجلب.
+          نجمع الأخبار الرياضية تلقائيًا من مصادر موثوقة، ويظهر كل خبر بعنوانه ومصدره وتاريخ نشره
+          الأصلي — بلا كتابة يدوية وبلا تكرار.
         </p>
-        <p className="kl-news-updated">
-          {lastOk ? `آخر مزامنة ناجحة: ${formatArabicTimestamp(lastOk)}` : 'لم تكتمل مزامنة أخبار ناجحة بعد'}
-        </p>
+        {lastOk ? (
+          <p className="kl-news-updated">{`آخر تحديث للأخبار: ${formatArabicTimestamp(lastOk)}`}</p>
+        ) : null}
       </header>
-      {attempt && !attempt.ok && <p role="status">تعذر تحديث الأخبار في آخر محاولة ({formatArabicTimestamp(attempt.finishedAt)}). {attempt.messageAr}</p>}
-      {!latest.length && displayed.length > 0 && <p>آخر أخبار صالحة محفوظة — ليست أخبارًا جديدة، راجع تاريخ النشر.</p>}
+      {/*
+        * لا رسالة سلبية ولا تأخير للمهمة أبدًا: القسم يعرض ما لدينا، وإن لم يكن هناك أي خبر
+        * منشور بعد فالصفحة تقود الزائر إلى ما هو متاح دائمًا (جدول مباريات اليوم) مع سطر
+        * واحد يوضّح آلية التحديث التلقائي بثقة.
+        */}
+      {displayed.length === 0 ? (
+        <section className="kl-news-empty" aria-label="حالة الأخبار">
+          <h2 className="kl-section-subtitle">الأخبار قيد الجلب الآن</h2>
+          <p>
+            تُجلب الأخبار الرياضية تلقائيًا من مصادر موثوقة وتظهر هنا فور اعتمادها، فلا حاجة لأي
+            إضافة يدوية.
+          </p>
+          <Link className="kl-cta-btn" href={`/matches/${getTodayCairoDate()}`}>
+            تابع جدول مباريات اليوم
+          </Link>
+        </section>
+      ) : null}
       <NewsSection
         news={displayed}
         lastUpdatedLabel={lastOk ? formatArabicTimestamp(lastOk) : null}

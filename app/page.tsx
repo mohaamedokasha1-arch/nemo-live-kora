@@ -5,7 +5,7 @@ import { formatArabicTimestamp, getTodayCairoDate, isValidDateParam } from '@/li
 import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
 import { describeMatchesFreshness } from '@/lib/freshness';
 import { getLatestNews } from '@/lib/news/query';
-import { ensureFreshMatches } from '@/lib/sync/engine';
+import { ensureFreshMatches, ensureFreshNews } from '@/lib/sync/engine';
 import FeaturedMatches from '@/components/FeaturedMatches';
 import MatchGatewayClient from '@/components/MatchGatewayClient';
 import NewsSection from '@/components/NewsSection';
@@ -39,8 +39,12 @@ export default async function HomePage({
     redirect(`/matches/${date}`);
   }
 
-  // Refresh match data on demand (short timeouts, shared in-flight run); failures keep old data.
-  await ensureFreshMatches();
+  /*
+   * تحديث تلقائي عند الطلب لكل شيء يظهر للزائر: المباريات والنتائج والأخبار.
+   * الفترتان قصيرتان (10 و15 دقيقة) والنداءات المتزامنة تتشارك تشغيلًا واحدًا، وأي
+   * فشل شبكي لا يمسح البيانات المحفوظة — فلا يحتاج الموقع أي تدخل يدوي ليتجدّد.
+   */
+  await Promise.allSettled([ensureFreshMatches(), ensureFreshNews()]);
   // Keep the essential match schedule independent from the optional news source's latency.
   const store = getGatewayDatabase();
   const queryResult = queryGatewayMatches({ cairoDate: todayCairo });

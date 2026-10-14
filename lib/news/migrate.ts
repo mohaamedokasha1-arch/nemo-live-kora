@@ -226,7 +226,7 @@ function migrateMatches(matches: MatchRecord[]): {
       ? {
           status: 'unconfirmed' as const,
           statusLabelAr: 'الموعد غير مؤكد من المصدر',
-          statusNoteAr: 'لا يتوفر موعد انطلاق موثوق؛ لا نعرض المباراة على أنها لم تبدأ أو جارية.',
+          statusNoteAr: 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
         }
       : normalizedStatus;
     const cairoDate = hasValidKickoff

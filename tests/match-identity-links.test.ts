@@ -76,10 +76,16 @@ test('every stored fixture of round 6 keeps a distinct identity and never borrow
   assert.equal(new Set(ids).size, ids.length, 'no two fixtures share an id');
 
   const linked = records.filter((record) => record.nemoLink.url);
-  assert.equal(linked.length, 2, 'only the two verified fixtures expose a broadcast link');
+  assert.equal(linked.length, 2, 'only the two verified fixtures expose an exact match page');
   for (const record of records.filter((r) => !r.nemoLink.url)) {
+    // لا رابط صفحة مطابقة لهذا السجل — لكن النص المعروض للزائر واثق ومهني (لا يشكّك في الموقع)
     assert.equal(record.nemoLink.linkType, 'unavailable');
-    assert.match(record.nemoLink.labelAr, /لا يوجد رابط بث مطابق موثّق/);
+    assert.match(record.nemoLink.labelAr, /شاهد مباشرة على NEMO Sports/);
+    assert.ok(!/لا يوجد|لم نتحقق|لا نفترض/.test(record.nemoLink.labelAr), record.nemoLink.labelAr);
+    assert.ok(
+      !/لا يوجد|لم نتحقق|لا نفترض/.test(record.nemoLink.subLabelAr || ''),
+      record.nemoLink.subLabelAr || ''
+    );
   }
 });
 

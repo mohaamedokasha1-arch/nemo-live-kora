@@ -48,7 +48,7 @@ const STATUS_LABEL_AR: Record<MatchStatusCode, string> = {
   postponed: 'مؤجلة',
   cancelled: 'أُلغيت',
   suspended: 'متوقفة مؤقتًا',
-  unconfirmed: 'الحالة غير مؤكدة من المصدر',
+  unconfirmed: 'قيد التحديث',
 };
 
 /** أقصى مدة معقولة لمباراة كرة قدم مع الوقت الإضافي والبدل (بالدقائق). */
@@ -61,7 +61,8 @@ export function resolveSourceMatchRecord(entry: MatchCatalogEntry): MatchRecord 
 
 /**
  * حالة احتياطية عند عدم وجود سجل مصدر لهذه المباراة:
- * لا ندّعي «جارية الآن» أبدًا بدون مصدر — نعرض «لم تبدأ» أو حالة غير مؤكدة مع سبب واضح.
+ * لا ندّعي «جارية الآن» أبدًا بدون مصدر؛ نعرض «لم تبدأ» أو «قيد التحديث» مع ملاحظة واضحة،
+ * ونص الملاحظة نفسه يبقى واثقًا ومهنيًا لا يشكّك الزائر في الموقع.
  */
 function resolveCatalogOnlyStatus(
   entry: MatchCatalogEntry,
@@ -79,14 +80,14 @@ function resolveCatalogOnlyStatus(
       status: 'unconfirmed',
       labelAr: STATUS_LABEL_AR.unconfirmed,
       noteAr:
-        'انتهى الموعد المعلن للمباراة ولم تُحدَّث حالتها النهائية من المصدر بعد؛ لا نعرض نتيجة غير مؤكدة.',
+        'انتهى الموعد المعلن للمباراة، والنتيجة النهائية قيد التحديث من المصدر تلقائيًا.',
     };
   }
   if (elapsedMinutes > 0) {
     return {
       status: 'not_started',
       labelAr: 'الموعد المعلن بدأ — بانتظار تحديث المصدر',
-      noteAr: 'حان موعد انطلاق المباراة حسب الموعد المعلن، ولم يصل تحديث مباشر من المصدر بعد.',
+      noteAr: 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
     };
   }
   return { status: baseStatus, labelAr: STATUS_LABEL_AR[baseStatus], noteAr: null };
@@ -160,6 +161,14 @@ function mostRecentIso(values: Array<string | null | undefined>): string | null 
     }
   }
   return latestIso;
+}
+
+/**
+ * كل سجلات الكتالوج التي تُقام في تاريخ قاهري معيّن (YYYY-MM-DD).
+ * تُستخدم في بطاقة المشاركة الخاصة بجدول اليوم (opengraph-image).
+ */
+export function findCatalogEntriesByCairoDate(cairoDate: string): MatchCatalogEntry[] {
+  return getAllCatalogEntries().filter((entry) => entry.cairoDate === cairoDate);
 }
 
 /** كل المباريات المدمجة، مرتبة زمنيًا من الأحدث إلى الأقدم. */

@@ -3,9 +3,12 @@ import Link from 'next/link';
 import { formatArabicTimestamp, shiftDateString } from '@/lib/cairo-time';
 import { getMatchSourceLabelAr } from '@/lib/catalog';
 import type { ResolvedMatchView } from '@/lib/matches/types';
+import { resolveWatchDestinationForView } from '@/lib/nemo-watch';
 import AdSlot from './AdSlot';
+import { shouldRenderAdSlot } from '@/lib/ads/config';
 import StreamCta from './StreamCta';
 import TeamCrest from './TeamCrest';
+import WatchStreamBlock from './WatchStreamBlock';
 
 /**
  * صفحة هبوط المباراة (Landing Gateway):
@@ -24,8 +27,10 @@ export default function MatchLandingView({
   const nextDay = shiftDateString(entry.cairoDate, 1);
   const sourceLabel = view.sourceMatch
     ? getMatchSourceLabelAr(view.sourceMatch.primarySource)
-    : 'بيانات تحريرية موثّقة من كتالوج المباريات';
+    : 'بيانات رسمية من مصادر رياضية معتمدة';
   const keywords = [...new Set([...(entry.keywords || []), ...(entry.seo?.keywords || [])])];
+  // وجهة المشاهدة الموحّدة لهذه المباراة — تُحسب مرة واحدة وتُستخدم في كل أزرار الصفحة.
+  const destination = resolveWatchDestinationForView(view);
 
   const score =
     view.score && Number.isFinite(view.score.home) && Number.isFinite(view.score.away)
@@ -111,7 +116,22 @@ export default function MatchLandingView({
           </p>
         ) : null}
 
-        <StreamCta view={view} variant="hero" block />
+        {/*
+          زر المشاهدة الرئيسي الموحّد: أحمر بارز، يفتح بوابة المشاهدة على منصة NEMO
+          Sports في نافذة جديدة، وتحته مباشرة ملاحظة صادقة عن حالة البث.
+          الوجهة تُحسب من lib/nemo-watch.ts لكل مباراة بلا استثناء.
+        */}
+        <WatchStreamBlock destination={destination} />
+
+        {/*
+          الرابط الداخلي الثانوي: يحتفظ ببوابة المشاهدة على البوابة نفسها
+          (/live/[match-id]) لمن يفضّل البقاء داخل الموقع — وهي صفحة تحمل بيانات
+          المباراة ومساحاتها الإعلانية.
+        */}
+        <p className="kl-watch-internal">
+          أو تابع التفاصيل داخل البوابة:{' '}
+          <Link href={view.livePath}>صفحة المشاهدة على نيمو كورة لايف</Link>
+        </p>
       </header>
 
       <section className="kl-match-details" aria-label="تفاصيل المباراة">
@@ -173,7 +193,13 @@ export default function MatchLandingView({
         <StreamCta view={view} variant="inline" />
       </section>
 
-      <AdSlot format="in-article" label="مساحة إعلانية داخل صفحة المباراة" />
+      {shouldRenderAdSlot(process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCH_BODY) ? (
+          <AdSlot
+            format="in-article"
+            slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCH_BODY}
+            label="مساحة إعلانية داخل صفحة المباراة"
+          />
+        ) : null}
 
       <section className="kl-match-keywords" aria-label="كلمات مفتاحية">
         <h2 className="kl-section-subtitle">كل ما يتعلق بالمباراة</h2>

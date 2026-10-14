@@ -15,7 +15,7 @@ import {
 } from '../db/store';
 import { fetchApiFootballSync } from '../sources/api-football';
 import { fetchFootballDataSync } from '../sources/football-data';
-import { fetchGoogleNewsRss } from '../sources/google-news-rss';
+import { fetchGoogleNewsRss, NEWS_FEEDS } from '../sources/google-news-rss';
 import {
   fetchSportScoreFixturesByDate,
   fetchSportScoreMatches,
@@ -107,7 +107,13 @@ export const THESPORTSDB_QUICK_BUDGET_MS = 8000;
  */
 let newsInFlight: Promise<NewsSourceSyncRecord> | null = null;
 export function runNewsSync(trigger = 'مزامنة أخبار', errors: SourceErrorEntry[] = [],
-  options?: { timeoutMs?: number; retries?: number; limitFeeds?: number }): Promise<NewsSourceSyncRecord> {
+  options?: {
+    timeoutMs?: number;
+    retries?: number;
+    limitFeeds?: number;
+    /** موضع البداية داخل مجموعات الخلاصات — للتدوير في التحديث السريع عند الطلب. */
+    feedOffset?: number;
+  }): Promise<NewsSourceSyncRecord> {
   if (newsInFlight) return newsInFlight;
   newsInFlight = executeNewsSync(trigger, errors, options).finally(() => { newsInFlight = null; });
   return newsInFlight;
@@ -116,7 +122,12 @@ export function runNewsSync(trigger = 'مزامنة أخبار', errors: SourceE
 async function executeNewsSync(
   trigger = 'مزامنة أخبار',
   errors: SourceErrorEntry[] = [],
-  fetchOptions?: { timeoutMs?: number; retries?: number; limitFeeds?: number }
+  fetchOptions?: {
+    timeoutMs?: number;
+    retries?: number;
+    limitFeeds?: number;
+    feedOffset?: number;
+  }
 ): Promise<NewsSourceSyncRecord> {
   const startedAt = new Date().toISOString();
   // Adopt the shared snapshot first (as the gateway sync does), so a cold instance never builds
@@ -206,10 +217,18 @@ export async function ensureFreshNews(
     }
   }
   if (newsRefreshInFlight) return newsRefreshInFlight;
+  /*
+   * التدوير: كل نافذة ١٥ دقيقة تنتقل لمجموعة الخلاصات التالية، فيمرّ التحديث عند الطلب
+   * على كل المصادر على مدار اليوم (المجموعة الأولى = الدوري المصري تأتي دائمًا أولًا
+   * في المزامنة اليومية الكاملة). بهذا يتجدّد المحتوى تلقائيًا بلا أي تدخل يدوي.
+   */
+  const feedWindowMs = 15 * 60 * 1000;
+  const feedOffset = Math.floor(Date.now() / feedWindowMs) % Math.max(NEWS_FEEDS.length, 1);
   newsRefreshInFlight = runNewsSync('تحديث أخبار عند الطلب', [], {
     timeoutMs: 4000,
     retries: 0,
     limitFeeds: 1,
+    feedOffset,
   }).finally(() => {
     newsRefreshInFlight = null;
   });

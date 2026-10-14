@@ -26,7 +26,7 @@ export default function StreamCta({
 
   const note = view.verifiedBroadcastUrl
     ? `بث مُتحقَّق منه${entry.broadcast.isFree === false ? ' (باشتراك)' : ' ومجاني'} — ${entry.broadcast.labelAr}`
-    : 'تفتح صفحة المشاهدة داخل الموقع، وتُعرض حالة البث الفعلية فقط عند التحقق منها.';
+    : 'تفتح صفحة المشاهدة على منصة NEMO Sports في نافذة جديدة، ومنها تختار المباراة التي تريد مشاهدتها.';
 
   return (
     <div className={`kl-cta kl-cta-${variant}${block ? ' kl-cta-block' : ''}`}>

@@ -20,6 +20,15 @@ export function buildMatchLivePath(id: string): string {
   return `/live/${encodeURIComponent(id)}`;
 }
 
+/**
+ * مسار صورة المشاركة المُولَّدة (1200×675) الخاصة بالمباراة.
+ * تُنشئها `app/matches/[id]/opengraph-image.tsx` أوتوماتيكيًا لكل معرّف،
+ * وتُستخدم كصورة أساسية في البيانات المنظمة (متطلب Google: عرض ≥ 720px).
+ */
+export function buildMatchOgImagePath(id: string): string {
+  return `/matches/${encodeURIComponent(id)}/opengraph-image`;
+}
+
 /** كل مباريات الكتالوج (مستبعدًا منها النموذج التعليمي غير المنشور). */
 export function getAllCatalogEntries(): MatchCatalogEntry[] {
   return [...MATCH_CATALOG];

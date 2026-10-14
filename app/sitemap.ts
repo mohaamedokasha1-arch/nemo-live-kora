@@ -152,6 +152,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  const sourceRoutes: MetadataRoute.Sitemap = db.matches.filter((m) => !findCatalogEntryForMatch(m) && m.kickoffConfirmed === true && m.cairoDate >= startDate && m.cairoDate <= endDate && parseDate(m.lastUpdatedAt)).map((m) => ({ url: `${GATEWAY_SITE_URL}/matches/${m.id}`, lastModified: new Date(m.lastUpdatedAt), changeFrequency: 'daily', priority: 0.6 }));
-  return [...staticRoutes, ...matchRoutes, ...sourceRoutes, ...dateRoutes, ...newsRoutes];
+  /**
+   * ⚠️ قرار مقصود: سجلات المصادر الخام (‎/matches/match-api-football-XXXXXXX) **لا**
+   * تُضاف إلى خريطة الموقع.
+   *
+   * السبب: تلك الصفحات تُبنى آليًا من بيانات المصدر فقط (بلا ملعب ولا بث ولا بيانات
+   * منظمة)، ومعرّفاتها غير قابلة للقراءة، وهي بذلك «محتوى رقيق» لا يمثّل هدف بحث
+   * حقيقيًا. إدراجها كان يُدخل عشرات الروابط منخفضة القيمة في خريطة الموقع فتزاحم
+   * صفحات هبوط المباريات (وهي الوجهة الحقيقية على البوابة) وتُشتّت ميزانية الزحف.
+   *
+   * الصفحات نفسها تبقى موجودة ومتاحة للزائر وللروبوت (index/follow) وتصل إليها
+   * الروابط الداخلية من الجداول — لكننا لا نُعلنها كوجهات في خريطة الموقع.
+   * أما صفحات هبوط الكتالوج فهي المسار الرسمي المُعلن لكل مباراة.
+   *
+   * للحصول على رقم تحقّقي: كم سجل مصدر خام استُثني من الخريطة الآن.
+   */
+  const excludedSourceOnlyCount = db.matches.filter(
+    (match) =>
+      !findCatalogEntryForMatch(match) &&
+      match.kickoffConfirmed === true &&
+      match.cairoDate >= startDate &&
+      match.cairoDate <= endDate
+  ).length;
+  if (excludedSourceOnlyCount > 0) {
+    console.info(
+      `[sitemap] استُثني ${excludedSourceOnlyCount} سجل مصدر خام من خريطة الموقع (محتوى رقيق) — الوجهة الرسمية هي صفحات هبوط الكتالوج.`
+    );
+  }
+
+  return [...staticRoutes, ...matchRoutes, ...dateRoutes, ...newsRoutes];
 }

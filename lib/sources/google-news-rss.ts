@@ -262,6 +262,41 @@ export const NEWS_FEEDS: Array<{
     labelAr: 'التغطية الدولية للدوري المصري',
   },
   {
+    query: 'الدوري المصري الممتاز',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الدوري المصري الممتاز',
+    labelAr: 'ترتيب ونتائج الدوري المصري',
+  },
+  {
+    query: 'كأس مصر',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'كأس مصر',
+    labelAr: 'كأس مصر',
+  },
+  {
+    query: 'بيراميدز OR الإسماعيلي OR المصري البورسعيدي',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الأندية المصرية',
+    labelAr: 'أندية الدوري المصري',
+  },
+  {
+    query: 'دوري أبطال أفريقيا',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'البطولات الأفريقية',
+    labelAr: 'دوري أبطال أفريقيا',
+  },
+  {
+    query: 'الدوري السعودي OR كأس العالم للأندية',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الكرة العربية والعالمية',
+    labelAr: 'الكرة العربية والعالمية',
+  },
+  {
     query: 'Champions League OR Premier League',
     hl: 'ar',
     gl: 'EG',
@@ -305,6 +340,12 @@ export async function fetchGoogleNewsRss(options: {
   timeoutMs?: number;
   retries?: number;
   limitFeeds?: number;
+  /**
+   * موضع البداية داخل قائمة المجموعات — يتيح **تدوير** المجموعات في التحديث السريع
+   * عند الطلب (الذي يقرأ مجموعة واحدة فقط للبقاء داخل ميزانية زمن قصيرة)، فلا
+   * تُهمَّل مجموعة بعينها ويتجدّد المحتوى من كل المصادر خلال ساعات اليوم.
+   */
+  feedOffset?: number;
   /** Relay links to resolve per feed. Raise for a full daily crawl. */
   maxResolvedPerFeed?: number;
   /** Publisher pages to read for a real excerpt (bounded to stay inside a cron budget). */
@@ -313,7 +354,17 @@ export async function fetchGoogleNewsRss(options: {
   const fetchedAt = new Date().toISOString();
   const timeoutMs = options.timeoutMs ?? 8000;
   const retries = options.retries ?? 1;
-  const feeds = NEWS_FEEDS.slice(0, options.limitFeeds || NEWS_FEEDS.length);
+  const totalFeeds = NEWS_FEEDS.length;
+  const requestedCount = Math.min(options.limitFeeds || totalFeeds, totalFeeds);
+  const startIndex =
+    totalFeeds === 0
+      ? 0
+      : ((Math.trunc(options.feedOffset || 0) % totalFeeds) + totalFeeds) % totalFeeds;
+  // نافذة دائرية: تقرأ `requestedCount` مجموعة بدءًا من موضع البداية مع الالتفاف عند النهاية.
+  const feeds = Array.from(
+    { length: requestedCount },
+    (_, index) => NEWS_FEEDS[(startIndex + index) % totalFeeds]
+  ).filter((feed): feed is (typeof NEWS_FEEDS)[number] => Boolean(feed));
   const enrichmentEnabled =
     (process.env.NEMO_NEWS_ENRICH || 'on').trim().toLowerCase() !== 'off';
 

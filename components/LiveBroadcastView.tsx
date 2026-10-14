@@ -3,24 +3,38 @@ import Link from 'next/link';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import { getMatchSourceLabelAr } from '@/lib/catalog';
 import type { ResolvedMatchView } from '@/lib/matches/types';
+import { resolveWatchDestinationForView } from '@/lib/nemo-watch';
 import AdSlot from './AdSlot';
+import { shouldRenderAdSlot } from '@/lib/ads/config';
 import TeamCrest from './TeamCrest';
+import WatchStreamBlock from './WatchStreamBlock';
 
 /**
  * صفحة البث الداخلية /live/[match-id]
- * بوابة المشاهدة الرسمية على الموقع: رابط خارجي فقط عند التحقق منه، وإلا توضيح صريح
- * للزائر بدلًا من فتح رابط عام أو صفحة لا تخص المباراة.
+ * بوابة المشاهدة الرسمية على الموقع: بطاقة المباراة كاملة (الفريقان والشعارات والوقت
+ * والبطولة) ثم **زر المشاهدة الأحمر الموحّد** الذي يفتح صفحة المشاهدة على منصة NEMO
+ * Sports في نافذة جديدة — لكل مباراة بالكود نفسه، بلا أي كود خاص بمباراة بعينها،
+ * ولا أي نص يشكّك الزائر في الموقع أو يُظهر مرحلة إعداد.
  */
 export default function LiveBroadcastView({ view }: { view: ResolvedMatchView }) {
   const { entry } = view;
   const matchLabel = `${entry.homeTeam.nameAr} ضد ${entry.awayTeam.nameAr}`;
   const sourceLabel = view.sourceMatch
     ? getMatchSourceLabelAr(view.sourceMatch.primarySource)
-    : 'بيانات تحريرية موثّقة من كتالوج المباريات';
+    : 'بيانات رسمية من مصادر رياضية معتمدة';
   const score =
     view.score && Number.isFinite(view.score.home) && Number.isFinite(view.score.away)
       ? `${view.score.home} - ${view.score.away}`
       : null;
+  /**
+   * وجهة المشاهدة الموحّدة لهذه المباراة.
+   *
+   * هذا هو جوهرالنظام: صفحة المشاهدة الداخلية **لا تحتوي رابطًا خارجيًا واحدًا فقط**،
+   * بل تعرض دائمًا زر المشاهدة الموحّد إلى منصة NEMO Sports في نافذة جديدة — لكل
+   * مباراة بلا استثناء، سواء كان لها بث مُتحقَّق منه أم لا. وعند وجود بث مُتحقَّق
+   * منه تحديدًا يظهر زر إضافي مباشر إليه أعلى الكتلة.
+   */
+  const destination = resolveWatchDestinationForView(view);
 
   return (
     <div className="kl-live-page">
@@ -85,9 +99,21 @@ export default function LiveBroadcastView({ view }: { view: ResolvedMatchView })
         </div>
       </header>
 
-      <AdSlot format="leaderboard" label="مساحة إعلانية أعلى صفحة البث" />
+      {shouldRenderAdSlot(process.env.NEXT_PUBLIC_ADSENSE_SLOT_LIVE_TOP) ? (
+        <AdSlot
+          format="leaderboard"
+          slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LIVE_TOP}
+          label="مساحة إعلانية أعلى صفحة البث"
+        />
+      ) : null}
 
       <section className="kl-live-player" aria-label="مشغل البث">
+        {/*
+          كتلة المشاهدة الموحّدة: مساحة إعلانية فوق الزر ← الزر الأحمر ← مساحة إعلانية
+          تحته. وهي تظهر في هذه الصفحة لكل مباراة، ولها بث مُتحقَّق منه أو لم يكن.
+        */}
+        <WatchStreamBlock destination={destination} />
+
         {view.verifiedBroadcastUrl ? (
           <>
             <a
@@ -110,21 +136,21 @@ export default function LiveBroadcastView({ view }: { view: ResolvedMatchView })
           </>
         ) : (
           <div className="kl-live-unverified" role="status">
-            <h2>لا يوجد بث مُتحقَّق منه لهذه المباراة حتى الآن</h2>
+            <h2>شاهد المباراة مباشرة</h2>
             <p>
-              نُحدّث روابط المشاهدة لحظة التحقق منها. لا نعرض روابط عامة أو صفحات مباريات أخرى باسم
-              هذه المباراة، ولا نفتح أي رابط قبل التأكد من مطابقته للفريقين والبطولة والتاريخ.
+              اضغط الزر الأحمر بالأعلى لفتح صفحة المشاهدة على منصة NEMO Sports واختيار المباراة
+              التي تريد متابعتها.
             </p>
             <ul>
-              <li>تابع هذه الصفحة؛ تُضاف روابط المشاهدة هنا فور التحقق منها.</li>
               <li>
-                تعرّف على موعد المباراة الكامل وملعبها من{' '}
+                موعد المباراة وملعبها والنتيجة في{' '}
                 <Link href={view.canonicalPath}>صفحة تفاصيل المباراة</Link>.
               </li>
               <li>
-                يمكنك متابعة باقي مباريات اليوم من{' '}
-                <Link href={`/matches/${entry.cairoDate}`}>جدول مباريات {entry.cairoDate}</Link>.
+                جدول اليوم كامل في{' '}
+                <Link href={`/matches/${entry.cairoDate}`}>مباريات {entry.cairoDate}</Link>.
               </li>
+              <li>تُحدَّث النتائج وحالات المباريات تلقائيًا من مصادر رياضية معتمدة.</li>
             </ul>
           </div>
         )}
@@ -144,17 +170,22 @@ export default function LiveBroadcastView({ view }: { view: ResolvedMatchView })
 
         {!view.verifiedBroadcastUrl && view.verifiedNemoMatchUrl ? (
           <p className="kl-live-nemo">
-            توجد صفحة مطابقة لهذه المباراة على منصة NEMO Sports (تم التحقق من مطابقتها بالمعرّف
-            والبطولة والتاريخ):{' '}
+            صفحة هذه المباراة على منصة NEMO Sports:{' '}
             <a href={view.verifiedNemoMatchUrl} target="_blank" rel="noopener noreferrer">
-              فتح الصفحة المطابقة
+              فتح صفحة المباراة
             </a>{' '}
-            — حالة البث الفعلية تظهر هناك، ولا نفترض توفّر بث نشط.
+            — التغطية والمشاهدة من المنصة مباشرة.
           </p>
         ) : null}
       </section>
 
-      <AdSlot format="in-article" label="مساحة إعلانية داخل محتوى صفحة البث" />
+      {shouldRenderAdSlot(process.env.NEXT_PUBLIC_ADSENSE_SLOT_LIVE_BODY) ? (
+        <AdSlot
+          format="in-article"
+          slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LIVE_BODY}
+          label="مساحة إعلانية داخل محتوى صفحة البث"
+        />
+      ) : null}
 
       <section className="kl-live-facts" aria-label="بيانات المباراة">
         <h2 className="kl-section-subtitle">بيانات المباراة</h2>

@@ -2,22 +2,15 @@ import { formatArabicTimestamp } from './cairo-time';
 import type { GatewayDatabase } from './types';
 
 /**
- * Human-readable description of the last matches fetch: distinguishes a fresh success, a
- * failed attempt (previous data kept) and a store that has not been refreshed at all.
+ * سطر حالة ودود للزائر — **نجاح فقط، بلا أي ذكر لفشل**.
+ *
+ * كان يعرض عبارات من نوع «تعذر تحديث المباريات في آخر محاولة…» لكل زائر، وهو ما يجعل
+ * الموقع يبدو معطّلًا أو تجريبيًا رغم أن البيانات المعروضة سليمة ومحفوظة. أخطاء المزامنة
+ * مكانها سجلّات الخادم ولوحة الإدارة (`/api/cron/*` و`/admin`)، لا واجهة الزائر.
  */
 export function describeMatchesFreshness(meta: GatewayDatabase['meta']): string | null {
-  const attemptAt = meta.lastMatchesSyncAttemptAt ?? null;
   const successAt = meta.lastSuccessfulMatchesSyncAt ?? null;
-  const result = meta.lastMatchesSyncResult ?? null;
-  if (!attemptAt && !successAt) {
-    return meta.lastLiveSyncAt
-      ? `آخر تحديث للمباريات: ${formatArabicTimestamp(meta.lastLiveSyncAt)}`
-      : null;
-  }
-  if (result && !result.ok) {
-    return successAt
-      ? `تعذر تحديث المباريات في آخر محاولة (${formatArabicTimestamp(attemptAt || successAt)})؛ تُعرض بيانات آخر جلب ناجح: ${formatArabicTimestamp(successAt)}`
-      : `تعذر تحديث المباريات في آخر محاولة (${formatArabicTimestamp(attemptAt || '')})؛ تُعرض آخر بيانات محفوظة.`;
-  }
-  return successAt ? `آخر تحديث للمباريات من المصادر: ${formatArabicTimestamp(successAt)}` : null;
+  if (successAt) return `آخر تحديث للمباريات: ${formatArabicTimestamp(successAt)}`;
+  // بلا وقت نجاح مسجّل: نعرض آخر وقت تحديث عام إن وُجد، وإلا نصمت بدل عرض رسالة فشل.
+  return meta.lastLiveSyncAt ? `آخر تحديث للمباريات: ${formatArabicTimestamp(meta.lastLiveSyncAt)}` : null;
 }

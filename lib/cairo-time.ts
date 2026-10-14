@@ -205,25 +205,25 @@ export function normalizeMatchStatus(
         if (elapsedMs < -maxEarlyLiveMs || elapsedMs > maxLiveAgeMs) {
           return {
             status: 'unconfirmed',
-            statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+            statusLabelAr: 'قيد التحديث',
             statusNoteAr:
               elapsedMs > maxLiveAgeMs
-                ? 'المصدر يصفها بالمباشرة رغم تجاوز مدة المباراة المعتادة؛ لا نعرضها كمباراة جارية.'
-                : 'المصدر يصفها بالمباشرة قبل موعد بدايتها المتوقع؛ الحالة تحتاج إلى تحقق.',
+                ? 'تُحدَّث حالة المباراة تلقائيًا من المصدر.'
+                : 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
           };
         }
       } else {
         return {
           status: 'unconfirmed',
-          statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
-          statusNoteAr: 'تعذر التحقق من موعد المباراة للتحقق من حالة البث المباشر.',
+          statusLabelAr: 'قيد التحديث',
+          statusNoteAr: 'سيُعرض الموعد الرسمي فور إعلانه.',
         };
       }
     } else {
       return {
         status: 'unconfirmed',
-        statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
-        statusNoteAr: 'لا يتوفر موعد بداية موثوق للتحقق من حالة المباراة المباشرة.',
+        statusLabelAr: 'قيد التحديث',
+        statusNoteAr: 'سيُعرض الموعد الرسمي فور إعلانه.',
       };
     }
 
@@ -275,14 +275,14 @@ export function normalizeMatchStatus(
   ) {
     // Rule: NEVER infer "انتهت" from elapsed time alone.
     // If kickoff is more than 15 minutes in the past and provider still says NS, keep status as
-    // "لم تبدأ" or "غير مؤكدة" with an explicit transparent note.
+    // «قيد التحديث» (الحالة الداخلية unconfirmed) مع ملاحظة واضحة بلا تشكيك للزائر.
     if (utcKickoff) {
       const kickoffMs = new Date(utcKickoff).getTime();
       if (!Number.isNaN(kickoffMs) && now.getTime() - kickoffMs > 30 * 60 * 1000) {
         return {
           status: 'unconfirmed',
-          statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
-          statusNoteAr: 'تجاوز موعد البداية دون تأكيد تحديث الحالة من المصدر',
+          statusLabelAr: 'قيد التحديث',
+          statusNoteAr: 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
         };
       }
     }
@@ -291,8 +291,8 @@ export function normalizeMatchStatus(
 
   return {
     status: 'unconfirmed',
-    statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
-    statusNoteAr: 'الحالة التفصيلية غير متوفرة من المصدر حاليًا',
+    statusLabelAr: 'قيد التحديث',
+    statusNoteAr: 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
   };
 }
 
@@ -345,7 +345,7 @@ export function formatScoreDisplay(score: MatchScore, status: MatchStatusCode): 
     hasScore: false,
     homeDisplay: '—',
     awayDisplay: '—',
-    summaryText: status === 'not_started' ? 'لم تبدأ بعد' : 'النتيجة غير متاحة من المصدر',
+    summaryText: status === 'not_started' ? 'لم تبدأ بعد' : 'النتيجة قيد التحديث',
   };
 }
 

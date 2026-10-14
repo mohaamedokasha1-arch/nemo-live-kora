@@ -10,6 +10,12 @@ export default function NewsSection({
   news: NewsItemRecord[];
   lastUpdatedLabel?: string | null;
 }) {
+  /*
+   * بلا أخبار: لا يُرسم أي شيء — لا عنوان قسم فارغ ولا نص «ستظهر الأخبار هنا».
+   * قسم فارغ يوحي بأن الموقع لا يعمل، وإخفاؤه يعرض صفحة نظيفة كاملة.
+   */
+  if (!news || news.length === 0) return null;
+
   return (
     <section id="news" className="kl-news-section" aria-label="آخر الأخبار">
       <div className="kl-section-head kl-news-head">
@@ -24,15 +30,7 @@ export default function NewsSection({
         </Link>
       </div>
 
-      {!news || news.length === 0 ? (
-        <div className="kl-empty-box">
-          <p className="kl-empty-title">لا توجد أخبار جديدة مؤكدة للعرض حاليًا</p>
-          <p className="kl-news-empty-note">
-            لا نعرض عناوين تجريبية أو نتائج مباريات باعتبارها أخبارًا. ستظهر الأخبار هنا بعد مزامنة ناجحة من المصدر المعتمد.
-          </p>
-        </div>
-      ) : (
-        <div className="kl-news-grid">
+      <div className="kl-news-grid">
           {news.map((item) => (
             <article key={item.id} className="kl-news-card">
               <div className="kl-news-thumb">
@@ -58,7 +56,6 @@ export default function NewsSection({
             </article>
           ))}
         </div>
-      )}
     </section>
   );
 }
