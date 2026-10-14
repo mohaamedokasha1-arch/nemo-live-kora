@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { hydrateStore } from '@/lib/db/store';
 import { getLatestNews, getNewsAdminStats } from '@/lib/news/query';
 import { ensureFreshNews } from '@/lib/sync/engine';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   await ensureFreshNews();
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const latest = getLatestNews(db.news, 20);
   const stats = getNewsAdminStats(db.news);
 

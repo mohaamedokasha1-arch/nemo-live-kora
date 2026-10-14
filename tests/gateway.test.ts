@@ -251,7 +251,7 @@ test('5. Five Approved Sources Adapters & Deduplication: normalizes and merges w
   assert.equal(parsedNews[0].publishedAt, '2026-10-11T22:15:00.000Z');
 });
 
-test('6. Egyptian Priority & Filter Integrity: Egyptian Premier League appears first on 2026-10-12 and filters only expose real data', () => {
+test('6. Egyptian Priority & Filter Integrity: Egyptian Premier League appears first on 2026-10-12 and filters only expose real data', async () => {
   const db = getGatewayDatabase();
   assert.equal(Object.keys(db.sources).length, 5);
 
@@ -268,7 +268,7 @@ test('6. Egyptian Priority & Filter Integrity: Egyptian Premier League appears f
 
   // Upserting an empty array must never delete existing matches
   const beforeCount = db.matches.length;
-  upsertMatchesInStore([]);
+  await upsertMatchesInStore([]);
   assert.equal(getGatewayDatabase().matches.length, beforeCount);
 
   const migrated = getGatewayDatabase();

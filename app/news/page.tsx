@@ -2,7 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { getGatewayDatabase, hydrateStore } from '@/lib/db/store';
 import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { ensureFreshNews } from '@/lib/sync/engine';
@@ -11,7 +11,7 @@ import NewsSection from '@/components/NewsSection';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const hasIndexableCurrentNews = getLatestNews(db.news, 24).some(isIndexableNewsArticle);
   return {
     title: 'الأخبار الرياضية',
@@ -23,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewsIndexPage() {
+  await hydrateStore();
   await ensureFreshNews();
   const db = getGatewayDatabase();
   const latest = getLatestNews(db.news, 24);

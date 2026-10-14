@@ -861,3 +861,94 @@ export function upsertCompetitionsInStore(records: GatewayDatabase['competitions
   db.competitions = [...byId.values()];
   persistGatewayDatabase(db);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Compatibility adapters
+ *
+ * The durable-store layer above is the single writer for the request path. These adapters keep the
+ * older call convention (`hydrateStore()` returning the database) working without duplicating any
+ * write logic, so pages, API routes and the audit tooling read the very same snapshot the durable
+ * layer adopted. They never write.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Adopts the shared snapshot, then returns the in-memory database. */
+export async function hydrateStore(): Promise<GatewayDatabase> {
+  await hydrateGatewayDatabase();
+  return getGatewayDatabase();
+}
+
+/** Alias kept for existing tests; the durable layer owns the real reset. */
+export function resetStoreForTesting(): void {
+  resetStoreStateForTests();
+}
+
+export interface StorageRoundTripResult {
+  ok: boolean;
+  /** True when the snapshot is stored somewhere shared and persistent, not lambda-local. */
+  durable: boolean;
+  driver: PersistenceMode;
+  target: string;
+  matchesReadBack: number;
+  newsReadBack: number;
+  error: string | null;
+  latencyMs: number;
+}
+
+/**
+ * Proves the snapshot can be read back from wherever it was written, and that what comes back is
+ * the data we hold — not a bundled or stale copy. A cron that reports success without this is
+ * reporting a write nobody can read.
+ *
+ * Without a configured durable backend there is nothing shared to read back, so `durable` is false
+ * and `ok` is false: that is the honest answer, not an error to hide.
+ */
+export async function verifyStorageRoundTrip(): Promise<StorageRoundTripResult> {
+  const startedAt = Date.now();
+  const state = getPersistenceState();
+  const backend = resolveDurableBackend();
+  const base = {
+    durable: state.durable,
+    driver: state.mode,
+    target: backend?.target ?? describeDurableBackend().target ?? state.mode,
+    latencyMs: 0,
+  };
+
+  if (!backend) {
+    return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'no_durable_backend', latencyMs: Date.now() - startedAt };
+  }
+
+  try {
+    const raw = await backend.read();
+    const latencyMs = Date.now() - startedAt;
+    if (raw === null) {
+      return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'store_empty', latencyMs };
+    }
+    const { snapshot } = decodeSnapshot(raw);
+    if (!isGatewayDatabaseShape(snapshot)) {
+      return { ...base, ok: false, matchesReadBack: 0, newsReadBack: 0, error: 'store_snapshot_invalid', latencyMs };
+    }
+    const db = snapshot as GatewayDatabase;
+    const expected = getGatewayDatabase();
+    const ok =
+      db.matches.length === expected.matches.length &&
+      db.news.length === expected.news.length &&
+      Object.keys(db.standings).length === Object.keys(expected.standings).length;
+    return {
+      ...base,
+      ok,
+      matchesReadBack: db.matches.length,
+      newsReadBack: db.news.length,
+      error: ok ? null : 'store_readback_mismatch',
+      latencyMs,
+    };
+  } catch (error) {
+    return {
+      ...base,
+      ok: false,
+      matchesReadBack: 0,
+      newsReadBack: 0,
+      error: error instanceof DurableStoreError ? error.code : 'store_read_failed',
+      latencyMs: Date.now() - startedAt,
+    };
+  }
+}

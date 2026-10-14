@@ -1,5 +1,10 @@
 import { NewsItemRecord, RawNewsCandidate } from '../types';
 import { collapseWhitespace, normalizeNewsUrl, stripHtml } from './normalize';
+import {
+  isBlockedArticleHost,
+  isTrustedPublisherArticleUrl,
+  samePublisherHost,
+} from './publisher-domains';
 
 export interface NewsValidationResult {
   ok: boolean;
@@ -49,6 +54,7 @@ export function isLikelyArticleUrl(value: string): boolean {
 
   try {
     const url = new URL(normalized);
+    if (isBlockedArticleHost(url.hostname)) return false;
     if (url.pathname === '/' || /^\/(?:rss|feed|search)(?:\/|$)/i.test(url.pathname)) {
       return false;
     }
@@ -59,38 +65,36 @@ export function isLikelyArticleUrl(value: string): boolean {
 }
 
 /**
- * The publisher root URL is not an article URL. Accept direct article URLs only when the
- * article host exactly matches the RSS publisher host (with only the www alias normalized).
+ * The publisher root URL is not an article URL. Accept direct article URLs when the article host
+ * belongs to the same publisher as the RSS `<source url>` (compared at the registrable-domain
+ * level, so mobile/AMP mirrors of the same publisher are accepted), the host is not a
+ * social/Google property, and the path is deeper than the site root.
  */
 export function isDirectPublisherArticleUrl(
   articleUrl: string | null | undefined,
   publisherUrl: string | null | undefined
 ): boolean {
-  if (!articleUrl || !publisherUrl || !isLikelyArticleUrl(articleUrl)) return false;
+  return isTrustedPublisherArticleUrl(articleUrl, publisherUrl).ok;
+}
 
-  try {
-    const article = new URL(articleUrl);
-    const publisher = new URL(publisherUrl);
-    if (
-      !['http:', 'https:'].includes(publisher.protocol) ||
-      article.username ||
-      article.password ||
-      article.port ||
-      publisher.username ||
-      publisher.password ||
-      publisher.port
-    ) {
-      return false;
-    }
+/**
+ * Headlines that are nothing but a scoreboard entry ("الأهلي 2 - 1 الزمالك", "Result: 3-0") are
+ * match data, not journalism. They are rejected with their own code so the admin log shows why
+ * the feed produced nothing publishable instead of blaming the link resolver.
+ */
+const SCORE_HEADLINE_RE =
+  /(\d+\s*[-–—:]\s*\d+)|(\b\d+\s*goals?\b.*\b\d+\s*goals?\b)/i;
+const SCORE_CONTEXT_RE =
+  /(نتيجة|النتيجة|انتهت|ملخص|شاهد أهداف|اهداف المباراة|highlights?|match report|full[- ]time|final score|live score|نتائج مباريات|نتائج اليوم)/i;
 
-    // Normalize the common www alias, but require the same host. Suffix-only checks can
-    // accidentally treat public suffixes (for example, "com") as a publisher domain.
-    const articleHost = article.hostname.toLowerCase().replace(/^www\./, '');
-    const publisherHost = publisher.hostname.toLowerCase().replace(/^www\./, '');
-    return articleHost === publisherHost && article.pathname.split('/').filter(Boolean).length >= 2;
-  } catch {
-    return false;
-  }
+export function isMatchScoreHeadline(title: string, excerpt?: string | null): boolean {
+  const clean = collapseWhitespace(stripHtml(title || ''));
+  if (!clean) return false;
+  if (!SCORE_HEADLINE_RE.test(clean)) return false;
+  // A score plus real reporting context is still an article; a bare scoreboard line is not.
+  const hasContext = SCORE_CONTEXT_RE.test(`${clean} ${excerpt || ''}`);
+  const words = clean.split(/\s+/).length;
+  return !hasContext || words <= 8;
 }
 
 /** Thin headline-only syndication pages are intentionally not indexable. */
@@ -160,6 +164,15 @@ export function validateNewsCandidate(candidate: RawNewsCandidate): NewsValidati
     };
   }
 
+  if (isMatchScoreHeadline(title, candidate.excerpt)) {
+    return {
+      ok: false,
+      code: 'match_score_only',
+      messageAr: 'رفض: العنوان نتيجة مباراة وليس خبرًا صحفيًا.',
+      normalizedUrl: normalizeNewsUrl(link),
+    };
+  }
+
   if (isEmptyOrTechnicalContent(title, candidate.excerpt)) {
     return {
       ok: false,
@@ -176,3 +189,5 @@ export function validateNewsCandidate(candidate: RawNewsCandidate): NewsValidati
     normalizedUrl: normalizeNewsUrl(link),
   };
 }
+
+export { isBlockedArticleHost, isTrustedPublisherArticleUrl, samePublisherHost };

@@ -3,11 +3,20 @@ import {
   isDirectPublisherArticleUrl,
   isGoogleNewsUrl,
 } from '../news/validate';
+import { isTrustedPublisherArticleUrl } from '../news/publisher-domains';
 import { collapseWhitespace, normalizeNewsUrl, stripHtml } from '../news/normalize';
+import { enrichCandidates } from '../news/article-enrichment';
+import {
+  ResolverStrategy,
+  isGoogleNewsRelayUrl,
+  resolveGoogleNewsRelayUrl,
+} from '../news/google-news-resolver';
 import { fetchWithProtection } from './http-client';
 
 const GOOGLE_NEWS_RSS_BASE_URL =
-  process.env.GOOGLE_NEWS_RSS_BASE_URL || 'https://news.google.com/rss/search';
+  process.env.GOOGLE_NEWS_RSS_BASE_URL || 'https://news.google.com/rss';
+const GOOGLE_NEWS_SEARCH_URL =
+  process.env.GOOGLE_NEWS_RSS_SEARCH_URL || `${GOOGLE_NEWS_RSS_BASE_URL}/search`;
 
 function decodeXmlEntities(str: string): string {
   return stripHtml(str);
@@ -39,6 +48,7 @@ function excerptFromDescription(rawDescription: string, title: string): string |
 /**
  * Parses Google News RSS 2.0 XML into RawNewsCandidate[].
  * Never copies full article bodies. Never substitutes today's date for a missing pubDate.
+ * The relay link is preserved in `relayUrl` so the resolver and the audit log can both see it.
  */
 export function parseGoogleNewsRssXml(
   xmlText: string,
@@ -62,6 +72,7 @@ export function parseGoogleNewsRssXml(
     const rawPubDate = extractTag(block, 'pubDate');
     const rawDescription = extractTag(block, 'description');
     const sourceMatch = block.match(/<source(?:\s+url="([^"]*)")?>([\s\S]*?)<\/source>/i);
+    const enclosureMatch = block.match(/<enclosure[^>]+url="([^"]+)"[^>]*type="image/i);
 
     let title = collapseWhitespace(rawTitle);
     const link = collapseWhitespace(rawLink);
@@ -89,7 +100,7 @@ export function parseGoogleNewsRssXml(
       publishedAtKnown: known,
       updatedAt: null,
       excerpt: excerptFromDescription(rawDescription, title),
-      imageUrl: null,
+      imageUrl: enclosureMatch?.[1] ? decodeXmlEntities(enclosureMatch[1]) : null,
       publisherName: publisherName || 'Google News',
       publisherUrl,
       language,
@@ -101,117 +112,167 @@ export function parseGoogleNewsRssXml(
   return items;
 }
 
-const GOOGLE_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const GOOGLE_ARTICLE_REDIRECT_TIMEOUT_MS = 2500;
-const GOOGLE_ARTICLE_REDIRECT_LIMIT = 5;
-
-function isAllowedGoogleNewsRedirect(url: URL): boolean {
-  return (
-    url.protocol === 'https:' &&
-    !url.username &&
-    !url.password &&
-    (!url.port || url.port === '443') &&
-    isGoogleNewsUrl(url.href)
-  );
-}
-
 /**
- * Resolve a Google News RSS hop only when its HTTP redirect points to the publisher named
- * in that RSS item. Redirects are followed manually: this code never fetches the publisher
- * (or an unrelated redirect target) from the server.
+ * Resolves one candidate's link to the publisher article URL, and verifies that the resolved host
+ * really belongs to the publisher named in the RSS `<source>` tag. Returns null when no strategy
+ * produced a usable publisher URL — the caller then records the item as rejected with a reason.
  */
 export async function resolveGoogleNewsArticleUrl(
   candidate: RawNewsCandidate,
-  timeoutMs = GOOGLE_ARTICLE_REDIRECT_TIMEOUT_MS
+  timeoutMs = 5000
 ): Promise<string | null> {
   const candidateUrl = candidate.originalUrl || candidate.link;
   if (!candidateUrl) return null;
 
-  if (!isGoogleNewsUrl(candidateUrl)) {
-    return isDirectPublisherArticleUrl(candidateUrl, candidate.publisherUrl)
-      ? normalizeNewsUrl(candidateUrl)
-      : null;
+  // Already a direct publisher URL: keep it when it is an article on that publisher's domain.
+  if (!isGoogleNewsRelayUrl(candidateUrl) && !isGoogleNewsUrl(candidateUrl)) {
+    const direct = isTrustedPublisherArticleUrl(candidateUrl, candidate.publisherUrl);
+    return direct.ok && direct.normalized ? normalizeNewsUrl(direct.normalized) || direct.normalized : null;
   }
 
-  let currentUrl: URL;
-  try {
-    currentUrl = new URL(candidateUrl);
-    if (!isAllowedGoogleNewsRedirect(currentUrl)) return null;
-  } catch {
-    return null;
-  }
+  const resolved = await resolveGoogleNewsRelayUrl(candidateUrl, { timeoutMs });
+  if (!resolved.url) return null;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    for (let hop = 0; hop < GOOGLE_ARTICLE_REDIRECT_LIMIT; hop += 1) {
-      if (!isAllowedGoogleNewsRedirect(currentUrl)) return null;
-
-      const response = await fetch(currentUrl, {
-        method: 'GET',
-        redirect: 'manual',
-        cache: 'no-store',
-        headers: {
-          Accept: 'text/html,application/xhtml+xml',
-          'User-Agent': 'NemoLiveKoraNewsResolver/1.0',
-        },
-        signal: controller.signal,
-      });
-
-      const location = response.headers.get('location');
-      const isRedirect = GOOGLE_REDIRECT_STATUSES.has(response.status);
-      try {
-        await response.body?.cancel();
-      } catch {
-        // The response body is intentionally not read or stored.
-      }
-
-      if (!isRedirect || !location) return null;
-
-      let nextUrl: URL;
-      try {
-        nextUrl = new URL(location, currentUrl);
-      } catch {
-        return null;
-      }
-      if (nextUrl.protocol !== 'https:' || nextUrl.username || nextUrl.password) return null;
-
-      if (isGoogleNewsUrl(nextUrl.href)) {
-        if (!isAllowedGoogleNewsRedirect(nextUrl)) return null;
-        currentUrl = nextUrl;
-        continue;
-      }
-
-      return isDirectPublisherArticleUrl(nextUrl.href, candidate.publisherUrl)
-        ? normalizeNewsUrl(nextUrl.href)
-        : null;
-    }
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  return null;
+  const trusted = isTrustedPublisherArticleUrl(resolved.url, candidate.publisherUrl);
+  if (!trusted.ok || !trusted.normalized) return null;
+  return normalizeNewsUrl(trusted.normalized) || trusted.normalized;
 }
 
-async function resolveFeedArticleUrls(
-  candidates: RawNewsCandidate[],
-  maxResolved = 8
-): Promise<RawNewsCandidate[]> {
-  const resolveCount = Math.min(candidates.length, maxResolved);
-  const resolved = await Promise.all(
-    candidates.slice(0, resolveCount).map(async (candidate) => {
-      const directUrl = await resolveGoogleNewsArticleUrl(candidate);
-      return directUrl
-        ? { ...candidate, link: directUrl, originalUrl: directUrl }
-        : candidate;
-    })
-  );
+export interface ResolutionReport {
+  attempted: number;
+  resolved: number;
+  unresolved: number;
+  strategies: Record<string, number>;
+  errors: Record<string, number>;
+}
 
-  // Keep the remaining RSS records for audit/rejection accounting. Unresolved Google
-  // relay URLs remain subject to rejection by the normal news validator.
-  return [...resolved, ...candidates.slice(resolveCount)];
+function emptyResolutionReport(): ResolutionReport {
+  return { attempted: 0, resolved: 0, unresolved: 0, strategies: {}, errors: {} };
+}
+
+/**
+ * Resolves the relay links of the first `maxResolved` candidates (bounded, small concurrency) and
+ * returns the full list — resolved items first, unresolved ones kept so rejection accounting in
+ * the admin log stays truthful instead of silently dropping rows.
+ */
+export async function resolveFeedArticleUrls(
+  candidates: RawNewsCandidate[],
+  options: { maxResolved?: number; concurrency?: number; timeoutMs?: number } = {}
+): Promise<{ candidates: RawNewsCandidate[]; report: ResolutionReport }> {
+  const maxResolved = options.maxResolved ?? 10;
+  const concurrency = Math.max(1, options.concurrency ?? 4);
+  const timeoutMs = options.timeoutMs ?? 5000;
+  const report = emptyResolutionReport();
+
+  const targets = candidates.slice(0, maxResolved);
+  const rest = candidates.slice(maxResolved);
+  const resolved: RawNewsCandidate[] = [];
+
+  for (let i = 0; i < targets.length; i += concurrency) {
+    const batch = targets.slice(i, i + concurrency);
+    const settled = await Promise.all(
+      batch.map(async (candidate) => {
+        report.attempted += 1;
+        if (!isGoogleNewsRelayUrl(candidate.originalUrl || candidate.link)) {
+          // A feed that already hands us the publisher URL needs no resolution.
+          const direct = isDirectPublisherArticleUrl(
+            candidate.originalUrl || candidate.link,
+            candidate.publisherUrl
+          );
+          if (direct) {
+            report.resolved += 1;
+            report.strategies.direct = (report.strategies.direct || 0) + 1;
+            return candidate;
+          }
+          report.unresolved += 1;
+          report.errors.not_a_relay_url = (report.errors.not_a_relay_url || 0) + 1;
+          return candidate;
+        }
+
+        const resolution = await resolveGoogleNewsRelayUrl(candidate.originalUrl || candidate.link, {
+          timeoutMs,
+        });
+        const strategy: ResolverStrategy | null = resolution.strategy;
+        if (resolution.url) {
+          const trusted = isTrustedPublisherArticleUrl(resolution.url, candidate.publisherUrl);
+          if (trusted.ok && trusted.normalized) {
+            const finalUrl = normalizeNewsUrl(trusted.normalized) || trusted.normalized;
+            report.resolved += 1;
+            report.strategies[strategy || 'unknown'] = (report.strategies[strategy || 'unknown'] || 0) + 1;
+            return { ...candidate, link: finalUrl, originalUrl: finalUrl };
+          }
+          report.unresolved += 1;
+          const reason = `publisher_mismatch:${trusted.reason}`;
+          report.errors[reason] = (report.errors[reason] || 0) + 1;
+          return candidate;
+        }
+        report.unresolved += 1;
+        const reason = resolution.error || 'unknown';
+        report.errors[reason] = (report.errors[reason] || 0) + 1;
+        return candidate;
+      })
+    );
+    resolved.push(...settled);
+  }
+
+  return { candidates: [...resolved, ...rest], report };
+}
+
+/** Feeds fetched on every news sync. Egyptian coverage first, then international. */
+export const NEWS_FEEDS: Array<{
+  query: string;
+  hl: 'ar' | 'en';
+  gl: string;
+  categoryAr: string;
+  labelAr: string;
+}> = [
+  {
+    query: 'الدوري المصري',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الدوري المصري الممتاز',
+    labelAr: 'الدوري المصري',
+  },
+  {
+    query: 'الأهلي OR الزمالك',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الأندية المصرية',
+    labelAr: 'الأهلي والزمالك',
+  },
+  {
+    query: 'منتخب مصر',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'منتخب مصر',
+    labelAr: 'منتخب مصر',
+  },
+  {
+    query: 'كورة مصر أخبار',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الكرة المصرية',
+    labelAr: 'الكرة المصرية',
+  },
+  {
+    query: 'Egyptian Premier League',
+    hl: 'en',
+    gl: 'EG',
+    categoryAr: 'تغطية دولية — الكرة المصرية',
+    labelAr: 'التغطية الدولية للدوري المصري',
+  },
+  {
+    query: 'Champions League OR Premier League',
+    hl: 'ar',
+    gl: 'EG',
+    categoryAr: 'الكرة العالمية',
+    labelAr: 'الكرة العالمية',
+  },
+];
+
+export function buildGoogleNewsFeedUrl(feed: { query: string; hl: string; gl: string }): string {
+  const params = new URLSearchParams({ q: feed.query, hl: feed.hl, gl: feed.gl, ceid: `${feed.gl}:${feed.hl}` });
+  return `${GOOGLE_NEWS_SEARCH_URL}?${params.toString()}`;
 }
 
 export interface GoogleNewsFetchResult {
@@ -221,8 +282,14 @@ export interface GoogleNewsFetchResult {
   news: RawNewsCandidate[];
   error?: string;
   errorAr?: string;
+  /** How many relay links were turned into real publisher article URLs. */
+  resolvedCount: number;
+  /** How many items now carry a publisher-derived excerpt instead of a headline echo. */
+  enrichedCount: number;
+  resolution: ResolutionReport;
   feedResults: Array<{
     url: string;
+    labelAr: string;
     ok: boolean;
     httpStatus: number | null;
     itemCount: number;
@@ -231,50 +298,38 @@ export interface GoogleNewsFetchResult {
 }
 
 /**
- * Fetches Arabic & English Egyptian football news feeds from Google News RSS.
+ * Fetches Arabic & English football news from Google News RSS, resolves every relay link to its
+ * publisher article, and enriches a bounded number of items with the publisher's own summary.
  */
 export async function fetchGoogleNewsRss(options: {
   timeoutMs?: number;
   retries?: number;
   limitFeeds?: number;
+  /** Relay links to resolve per feed. Raise for a full daily crawl. */
+  maxResolvedPerFeed?: number;
+  /** Publisher pages to read for a real excerpt (bounded to stay inside a cron budget). */
+  enrichmentLimit?: number;
 } = {}): Promise<GoogleNewsFetchResult> {
   const fetchedAt = new Date().toISOString();
   const timeoutMs = options.timeoutMs ?? 8000;
   const retries = options.retries ?? 1;
-  const allFeeds: Array<{ url: string; lang: 'ar' | 'en'; categoryAr: string }> = [
-    {
-      url: `${GOOGLE_NEWS_RSS_BASE_URL}?q=${encodeURIComponent('الدوري المصري')}&hl=ar&gl=EG&ceid=EG:ar`,
-      lang: 'ar',
-      categoryAr: 'الدوري المصري الممتاز',
-    },
-    {
-      url: `${GOOGLE_NEWS_RSS_BASE_URL}?q=${encodeURIComponent('منتخب مصر')}&hl=ar&gl=EG&ceid=EG:ar`,
-      lang: 'ar',
-      categoryAr: 'منتخب مصر',
-    },
-    {
-      url: `${GOOGLE_NEWS_RSS_BASE_URL}?q=${encodeURIComponent('Egyptian Premier League')}&hl=en&gl=EG&ceid=EG:en`,
-      lang: 'en',
-      categoryAr: 'تغطية دولية — الكرة المصرية',
-    },
-  ];
-  const feeds = allFeeds.slice(0, options.limitFeeds || allFeeds.length);
+  const feeds = NEWS_FEEDS.slice(0, options.limitFeeds || NEWS_FEEDS.length);
+  const enrichmentEnabled =
+    (process.env.NEMO_NEWS_ENRICH || 'on').trim().toLowerCase() !== 'off';
 
   const allItems: RawNewsCandidate[] = [];
   const feedResults: GoogleNewsFetchResult['feedResults'] = [];
+  const totals = emptyResolutionReport();
   let anyOk = false;
   let lastHttp: number | null = null;
   let totalLatency = 0;
   let lastErr: string | undefined;
 
   for (const feed of feeds) {
+    const url = buildGoogleNewsFeedUrl(feed);
     const res = await fetchWithProtection<string>(
-      feed.url,
-      {
-        timeoutMs,
-        retries,
-        cacheTtlMs: 10 * 60_000,
-      },
+      url,
+      { timeoutMs, retries, cacheTtlMs: 10 * 60_000 },
       'text'
     );
     totalLatency += res.latencyMs;
@@ -284,7 +339,8 @@ export async function fetchGoogleNewsRss(options: {
       const lower = res.data.toLowerCase();
       if (!lower.includes('<rss') && !lower.includes('<item>')) {
         feedResults.push({
-          url: feed.url,
+          url,
+          labelAr: feed.labelAr,
           ok: false,
           httpStatus: res.httpStatus,
           itemCount: 0,
@@ -294,11 +350,24 @@ export async function fetchGoogleNewsRss(options: {
         continue;
       }
       anyOk = true;
-      const parsed = parseGoogleNewsRssXml(res.data, feed.lang, feed.categoryAr, fetchedAt);
-      const feedCandidates = await resolveFeedArticleUrls(parsed.slice(0, 20));
-      allItems.push(...feedCandidates);
+      const parsed = parseGoogleNewsRssXml(res.data, feed.hl, feed.categoryAr, fetchedAt);
+      const resolution = await resolveFeedArticleUrls(parsed.slice(0, 20), {
+        maxResolved: options.maxResolvedPerFeed ?? 10,
+        timeoutMs: 5000,
+      });
+      totals.attempted += resolution.report.attempted;
+      totals.resolved += resolution.report.resolved;
+      totals.unresolved += resolution.report.unresolved;
+      for (const [key, value] of Object.entries(resolution.report.strategies)) {
+        totals.strategies[key] = (totals.strategies[key] || 0) + value;
+      }
+      for (const [key, value] of Object.entries(resolution.report.errors)) {
+        totals.errors[key] = (totals.errors[key] || 0) + value;
+      }
+      allItems.push(...resolution.candidates);
       feedResults.push({
-        url: feed.url,
+        url,
+        labelAr: feed.labelAr,
         ok: true,
         httpStatus: res.httpStatus,
         itemCount: parsed.length,
@@ -306,7 +375,8 @@ export async function fetchGoogleNewsRss(options: {
     } else {
       lastErr = res.error;
       feedResults.push({
-        url: feed.url,
+        url,
+        labelAr: feed.labelAr,
         ok: false,
         httpStatus: res.httpStatus,
         itemCount: 0,
@@ -315,6 +385,7 @@ export async function fetchGoogleNewsRss(options: {
     }
   }
 
+  // Deduplicate across feeds: the same story appears in several queries.
   const seen = new Set<string>();
   const deduped = allItems.filter((item) => {
     const key = `${item.sourceItemId || ''}::${item.link}::${item.title.toLowerCase()}`;
@@ -322,6 +393,31 @@ export async function fetchGoogleNewsRss(options: {
     seen.add(key);
     return true;
   });
+
+  // Pull the publisher's own summary for a bounded set of resolved items so the site shows real
+  // content instead of a repeated headline.
+  let enrichedCount = 0;
+  if (enrichmentEnabled && deduped.length > 0) {
+    const targets = deduped.filter((item) => !isGoogleNewsUrl(item.link));
+    const enriched = await enrichCandidates(targets, {
+      limit: options.enrichmentLimit ?? 6,
+      concurrency: 3,
+      timeoutMs: 7000,
+    });
+    for (let i = 0; i < deduped.length; i += 1) {
+      const found = enriched.get(deduped[i].link);
+      if (!found?.ok) continue;
+      const current = deduped[i];
+      deduped[i] = {
+        ...current,
+        excerpt: found.excerpt && found.excerpt.length > (current.excerpt?.length || 0) ? found.excerpt : current.excerpt,
+        imageUrl: current.imageUrl || found.imageUrl,
+        publishedAt: current.publishedAtKnown ? current.publishedAt : found.publishedAt,
+        publishedAtKnown: current.publishedAtKnown || Boolean(found.publishedAt),
+      };
+      if (found.excerpt) enrichedCount += 1;
+    }
+  }
 
   return {
     ok: anyOk,
@@ -332,6 +428,9 @@ export async function fetchGoogleNewsRss(options: {
     errorAr: anyOk
       ? undefined
       : 'تعذر جلب خلاصة Google News RSS. تم الاحتفاظ بالأخبار المنشورة سابقًا.',
+    resolvedCount: totals.resolved,
+    enrichedCount,
+    resolution: totals,
     feedResults,
   };
 }

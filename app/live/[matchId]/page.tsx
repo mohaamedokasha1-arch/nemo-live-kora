@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { findCatalogEntryById } from '@/lib/matches/match-links';
 import { resolveMatchView } from '@/lib/matches/match-catalog';
+import { hydrateStore } from '@/lib/db/store';
 import { buildLivePageMetadata } from '@/lib/seo/metadata';
 import LiveBroadcastView from '@/components/LiveBroadcastView';
 
@@ -41,6 +42,7 @@ export default async function LiveMatchPage({
   params: Promise<{ matchId: string }>;
 }) {
   const { matchId } = await params;
+  await hydrateStore();
   const entry = findCatalogEntryById(matchId);
   if (!entry) notFound();
 

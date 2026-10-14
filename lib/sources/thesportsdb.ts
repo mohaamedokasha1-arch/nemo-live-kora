@@ -16,13 +16,89 @@ import { getStableMatchId } from '../match-identity';
 import { MatchRecord } from '../types';
 import { fetchWithProtection } from './http-client';
 
-const THESPORTSDB_BASE_URL =
-  process.env.THESPORTSDB_BASE_URL || 'https://www.thesportsdb.com/api/v1/json';
+import { SOURCE_ENDPOINTS, THESPORTSDB_LEAGUES, thesportsdbKeyCandidates } from '../config/env';
+
+const THESPORTSDB_BASE_URL = SOURCE_ENDPOINTS.thesportsdbBase;
+
 /**
- * Free-tier key. TheSportsDB documents `123` as its free key; `3` is kept as the historical
- * default so existing deployments keep working. Set THESPORTSDB_API_KEY to override.
+ * Free-tier keys. TheSportsDB documents `123` as its current free key; `3` is the historical
+ * default that still resolves. A premium key set via THESPORTSDB_API_KEY is tried first, and if
+ * the provider rejects it the documented free keys are tried in order — so a mistyped premium key
+ * degrades to working free data instead of taking the whole Egyptian schedule offline.
  */
-const THESPORTSDB_API_KEY = process.env.THESPORTSDB_API_KEY || '3';
+const THESPORTSDB_API_KEY = process.env.THESPORTSDB_API_KEY || '123';
+
+export interface TheSportsDBKeyProbe {
+  key: string;
+  ok: boolean;
+  httpStatus: number | null;
+  error?: string;
+}
+
+let workingKey: string | null = null;
+let keyProbes: TheSportsDBKeyProbe[] = [];
+
+/** Keys tried in the most recent run, for the sources dashboard. */
+export function thesportsdbKeyProbeLog(): TheSportsDBKeyProbe[] {
+  return [...keyProbes];
+}
+
+/** The key that will be used for the next run (null until a probe succeeds). */
+export function thesportsdbActiveKey(): string | null {
+  return workingKey;
+}
+
+/** Test hook. */
+export function resetTheSportsDBKeyState(): void {
+  workingKey = null;
+  keyProbes = [];
+}
+
+/**
+ * Finds a key the provider accepts. `lookupleague.php` is the cheapest call that proves both the
+ * key and the Egyptian league id at once. The result is cached per process, so a sync makes one
+ * probe, not one per endpoint.
+ */
+export async function resolveTheSportsDBApiKey(options: {
+  timeoutMs?: number;
+  force?: boolean;
+} = {}): Promise<{ key: string; httpStatus: number | null; probes: TheSportsDBKeyProbe[] }> {
+  if (workingKey && !options.force) {
+    return { key: workingKey, httpStatus: null, probes: keyProbes };
+  }
+  const candidates = thesportsdbKeyCandidates();
+  const probes: TheSportsDBKeyProbe[] = [];
+  for (const key of candidates) {
+    const url = `${THESPORTSDB_BASE_URL}/${key}/lookupleague.php?id=${THESPORTSDB_LEAGUES.egyptianPremierLeague}`;
+    const res = await fetchWithProtection<{ leagues?: unknown[] }>(url, {
+      timeoutMs: options.timeoutMs ?? 6000,
+      retries: 0,
+      cacheTtlMs: 30 * 60_000,
+    });
+    const rejected = res.httpStatus === 400 || res.httpStatus === 401 || res.httpStatus === 403;
+    if (res.ok && !rejected) {
+      probes.push({ key: maskKey(key), ok: true, httpStatus: res.httpStatus });
+      workingKey = key;
+      keyProbes = probes;
+      return { key, httpStatus: res.httpStatus, probes };
+    }
+    probes.push({
+      key: maskKey(key),
+      ok: false,
+      httpStatus: res.httpStatus,
+      error: rejected ? 'key_rejected' : res.error || `HTTP ${res.httpStatus ?? 'n/a'}`,
+    });
+    // A network failure is not a key problem: stop trying other keys and let the caller report it.
+    if (!rejected && res.httpStatus === null) break;
+  }
+  keyProbes = probes;
+  return { key: candidates[0] || THESPORTSDB_API_KEY, httpStatus: null, probes };
+}
+
+function maskKey(key: string): string {
+  if (key.length <= 3) return key;
+  return `${key.slice(0, 2)}${'*'.repeat(Math.max(1, key.length - 3))}${key.slice(-1)}`;
+}
 
 export interface TheSportsDBRawEvent {
   idEvent: string;
@@ -245,13 +321,13 @@ export interface TheSportsDBEndpointResult {
  * id for the Egypt Cup was found (`search_all_leagues.php?c=Egypt` lists only 4829 and 5185).
  */
 export const THESPORTSDB_FOLLOWED_LEAGUES: Array<{ id: string; labelAr: string }> = [
-  { id: '4829', labelAr: 'الدوري المصري الممتاز' },
-  { id: '5185', labelAr: 'كأس الرابطة المصرية' },
-  { id: '5057', labelAr: 'كأس الكونفدرالية الأفريقية' },
+  { id: THESPORTSDB_LEAGUES.egyptianPremierLeague, labelAr: 'الدوري المصري الممتاز' },
+  { id: THESPORTSDB_LEAGUES.egyptLeagueCup, labelAr: 'كأس الرابطة المصرية' },
+  { id: THESPORTSDB_LEAGUES.cafConfederationCup, labelAr: 'كأس الكونفدرالية الأفريقية' },
 ];
 
 /** League ids that must never enter the soccer schedule, with the reason. */
-export const THESPORTSDB_EXCLUDED_LEAGUE_IDS = new Set<string>(['4830']);
+export const THESPORTSDB_EXCLUDED_LEAGUE_IDS = new Set<string>(THESPORTSDB_LEAGUES.excludedLeagueIds);
 
 /** Egyptian league (4829) round-by-round fetch: season label and round numbers. */
 export interface TheSportsDBRoundWindow {
@@ -269,22 +345,36 @@ export interface TheSportsDBRoundWindow {
  */
 export function buildTheSportsDBEndpoints(
   dates: string[],
-  rounds?: TheSportsDBRoundWindow | null
-): Array<{ url: string; labelAr: string }> {
-  const base = `${THESPORTSDB_BASE_URL}/${THESPORTSDB_API_KEY}`;
+  rounds?: TheSportsDBRoundWindow | null,
+  apiKey: string = THESPORTSDB_API_KEY
+): Array<{ url: string; labelAr: string; kind: 'round' | 'season' | 'league' | 'day' }> {
+  const base = `${THESPORTSDB_BASE_URL}/${apiKey}`;
+  const leagueId = THESPORTSDB_LEAGUES.egyptianPremierLeague;
+  const season = rounds?.season;
   const roundUrls = (rounds?.rounds || []).map((r) => ({
-    url: `${base}/eventsround.php?id=4829&r=${r}&s=${encodeURIComponent(rounds!.season)}`,
+    url: `${base}/eventsround.php?id=${leagueId}&r=${r}&s=${encodeURIComponent(rounds!.season)}`,
     labelAr: `الدوري المصري الممتاز — الجولة ${r}`,
+    kind: 'round' as const,
   }));
+  // Whole-season listing: the fallback that still works when `eventsround.php` returns 404 for a
+  // premium key (documented provider behaviour), and the only call that yields every round.
+  const seasonUrls = season
+    ? [{
+        url: `${base}/eventsseason.php?id=${leagueId}&s=${encodeURIComponent(season)}`,
+        labelAr: `الدوري المصري الممتاز — موسم ${season} كاملًا`,
+        kind: 'season' as const,
+      }]
+    : [];
   const leagueUrls = THESPORTSDB_FOLLOWED_LEAGUES.flatMap((league) => [
-    { url: `${base}/eventsnextleague.php?id=${league.id}`, labelAr: `${league.labelAr} — المباريات القادمة` },
-    { url: `${base}/eventspastleague.php?id=${league.id}`, labelAr: `${league.labelAr} — آخر النتائج` },
+    { url: `${base}/eventsnextleague.php?id=${league.id}`, labelAr: `${league.labelAr} — المباريات القادمة`, kind: 'league' as const },
+    { url: `${base}/eventspastleague.php?id=${league.id}`, labelAr: `${league.labelAr} — آخر النتائج`, kind: 'league' as const },
   ]);
   const dayUrls = dates.slice(0, 3).map((d) => ({
     url: `${base}/eventsday.php?d=${encodeURIComponent(d)}&s=Soccer`,
     labelAr: `مباريات يوم ${d}`,
+    kind: 'day' as const,
   }));
-  return [...roundUrls, ...leagueUrls, ...dayUrls];
+  return [...roundUrls, ...seasonUrls, ...leagueUrls, ...dayUrls];
 }
 
 export interface TheSportsDBFetchOptions {
@@ -306,6 +396,8 @@ export interface TheSportsDBFetchResult {
   skippedRecords: number;
   /** Endpoints not requested because the time budget was used up. */
   skippedEndpoints: number;
+  /** Which API keys were tried and what the provider answered (masked). */
+  apiKeyProbes: TheSportsDBKeyProbe[];
   error?: string;
 }
 
@@ -319,9 +411,12 @@ export async function fetchTheSportsDBMatches(
   dates: string[],
   options: TheSportsDBFetchOptions = {}
 ): Promise<TheSportsDBFetchResult> {
-  const endpoints = buildTheSportsDBEndpoints(dates, options.rounds);
   const startedAt = Date.now();
   const budgetMs = options.budgetMs ?? Number.POSITIVE_INFINITY;
+  // One probe per process: a bad premium key must not take the whole Egyptian schedule offline.
+  const keyResolution = await resolveTheSportsDBApiKey({ timeoutMs: options.timeoutMs ?? 6000 });
+  const apiKey = keyResolution.key;
+  const endpoints = buildTheSportsDBEndpoints(dates, options.rounds, apiKey);
 
   const collected: MatchRecord[] = [];
   const seenEventIds = new Set<string>();
@@ -402,6 +497,7 @@ export async function fetchTheSportsDBMatches(
     endpoints: results,
     skippedRecords,
     skippedEndpoints,
+    apiKeyProbes: keyResolution.probes,
     error: anyOk ? undefined : lastError || 'Failed to reach TheSportsDB endpoints',
   };
 }

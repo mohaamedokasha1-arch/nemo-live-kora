@@ -8,7 +8,7 @@ import {
   getTodayCairoDate,
   isValidDateParam,
 } from '@/lib/cairo-time';
-import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { hydrateStore, queryGatewayMatches } from '@/lib/db/store';
 import { describeMatchesFreshness } from '@/lib/freshness';
 import { findCatalogEntryById, findCatalogEntryForMatch } from '@/lib/matches/match-links';
 import { resolveMatchView, resolveUpcomingMatchViews } from '@/lib/matches/match-catalog';
@@ -65,7 +65,7 @@ export async function generateMetadata({
 
   const entry = findCatalogEntryById(id);
   if (!entry) {
-    const match = getGatewayDatabase().matches.find((m) => m.id === id);
+    const match = (await hydrateStore()).matches.find((m) => m.id === id);
     if (match && findCatalogEntryForMatch(match)) return buildMatchLandingMetadata(resolveMatchView(findCatalogEntryForMatch(match)!));
     if (match) return { title: `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`, description: `تفاصيل المباراة بتاريخ ${match.cairoDate}، النتيجة والحالة المتاحة من المصادر.`, alternates: { canonical: `/matches/${match.id}` }, robots: { index: match.kickoffConfirmed === true, follow: true } };
     return {
@@ -90,7 +90,7 @@ export default async function MatchRoutePage({
     if (id === todayCairo) redirect('/');
 
     await ensureFreshMatches();
-    const store = getGatewayDatabase();
+    const store = await hydrateStore();
     const queryResult = queryGatewayMatches({ cairoDate: id });
     const jsonLd = createMatchScheduleStructuredData(id, queryResult.matches);
 
@@ -123,7 +123,7 @@ export default async function MatchRoutePage({
   /* ---------- الحالة ②: صفحة هبوط مباراة من كتالوج data/matches.ts ---------- */
   const entry = findCatalogEntryById(id);
   if (!entry) {
-    const match = getGatewayDatabase().matches.find((m) => m.id === id);
+    const match = (await hydrateStore()).matches.find((m) => m.id === id);
     if (!match) notFound();
     const canonicalEntry = findCatalogEntryForMatch(match);
     if (canonicalEntry) redirect(`/matches/${canonicalEntry.id}`);

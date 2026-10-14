@@ -33,8 +33,8 @@ test('robots exposes the gateway sitemap without blocking public news', () => {
   assert.doesNotMatch(rules, /\/news/);
 });
 
-test('sitemap contains only canonical, useful dates, match landing pages and indexable news', () => {
-  const entries = sitemap();
+test('sitemap contains only canonical, useful dates, match landing pages and indexable news', async () => {
+  const entries = await sitemap();
   const today = getTodayCairoDate();
   const start = shiftDateString(today, -1);
   const end = shiftDateString(today, 7);

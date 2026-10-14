@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRequest } from '@/lib/auth/cron-auth';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
 import { getNewsAdminStats } from '@/lib/news/query';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { hydrateStore } from '@/lib/db/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const denied = requireAdminRequest(request);
   if (denied) return denied;
 
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const stats = getNewsAdminStats(db.news);
 
   return NextResponse.json({

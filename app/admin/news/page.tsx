@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { ADMIN_COOKIE, hasConfiguredAdminSecret, isValidAdminSecret } from '@/lib/auth/cron-auth';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
 import { getNewsAdminStats } from '@/lib/news/query';
-import { getGatewayDatabase } from '@/lib/db/store';
+import { hydrateStore } from '@/lib/db/store';
 import { formatArabicTimestamp } from '@/lib/cairo-time';
 import AdminNewsClient from './AdminNewsClient';
 
@@ -41,7 +41,7 @@ export default async function AdminNewsPage() {
     );
   }
 
-  const db = getGatewayDatabase();
+  const db = await hydrateStore();
   const stats = getNewsAdminStats(db.news);
 
   return (

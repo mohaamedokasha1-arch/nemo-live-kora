@@ -25,8 +25,82 @@ import {
 } from '../types';
 import { fetchWithProtection } from './http-client';
 
-const SPORTSCORE_BASE_URL =
-  process.env.SPORTSCORE_BASE_URL || 'https://sportscore.com/api/widget';
+import { SOURCE_ENDPOINTS, sportscoreKey } from '../config/env';
+
+/**
+ * SportScore publishes its API under the site origin (`https://sportscore.com/developers/`):
+ *   GET /api/widget/matches/?sport=football&limit=1..50   — live + recent matches
+ *   GET /api/v1/matches/…                                 — alias of the widget endpoint
+ *   GET /api/v1/fixtures/?…                               — fixtures/results for one calendar day
+ *   GET /api/widget/standings/?sport=…&slug=…             — league table
+ * `SPORTSCORE_BASE_URL` is the *site origin*, not the widget path, so every endpoint below is
+ * built from it. Older deployments that set it to `…/api/widget` are detected and corrected
+ * instead of silently producing `/api/widget/api/widget/matches/`.
+ */
+/** Site origin, derived live so a runtime override is honoured. */
+export function sportscoreSiteOrigin(): string {
+  return normalizeSportscoreOrigin(SOURCE_ENDPOINTS.sportscoreBase);
+}
+
+export function normalizeSportscoreOrigin(configured: string): string {
+  const trimmed = (configured || 'https://sportscore.com').replace(/\/+$/, '');
+  return trimmed.replace(/\/api\/(v1|widget)$/, '');
+}
+
+/** Self-identification is optional but documented; it keeps the gateway out of anonymous traffic. */
+const SPORTSCORE_SRC = process.env.SPORTSCORE_SRC || 'nemo-live-kora';
+
+/** Candidate matches endpoints, tried in order until one returns a usable payload. */
+export function buildSportscoreMatchEndpoints(limit = 50): string[] {
+  const origin = sportscoreSiteOrigin();
+  const query = `sport=football&limit=${limit}&src=${encodeURIComponent(SPORTSCORE_SRC)}`;
+  return [
+    `${origin}/api/widget/matches/?${query}`,
+    `${origin}/api/v1/matches/?${query}`,
+    `${origin}/api/widget/matches?${query}`,
+  ];
+}
+
+/** Fixtures/results for one calendar day (wider coverage than the rolling 50-match widget). */
+export function buildSportscoreFixturesEndpoint(date: string): string {
+  return `${sportscoreSiteOrigin()}/api/v1/fixtures/?sport=football&date=${encodeURIComponent(
+    date
+  )}&src=${encodeURIComponent(SPORTSCORE_SRC)}`;
+}
+
+export function buildSportscoreStandingsEndpoint(slug: string): string {
+  return `${sportscoreSiteOrigin()}/api/widget/standings/?sport=football&slug=${encodeURIComponent(
+    slug
+  )}&src=${encodeURIComponent(SPORTSCORE_SRC)}`;
+}
+
+function sportscoreHeaders(): Record<string, string> {
+  const key = sportscoreKey();
+  return key ? { 'x-sportscore-key': key } : {};
+}
+
+/**
+ * The widget has answered with `{matches:[…]}`, `{data:{matches:[…]}}`, and a bare array in
+ * different revisions. All three shapes are accepted so an envelope change does not read as an
+ * outage.
+ */
+export function extractSportscoreMatchList(payload: unknown): SportScoreRawMatch[] | null {
+  if (Array.isArray(payload)) return payload as SportScoreRawMatch[];
+  if (!payload || typeof payload !== 'object') return null;
+  const candidate = payload as {
+    matches?: unknown;
+    data?: { matches?: unknown } | unknown[];
+    events?: unknown;
+    fixtures?: unknown;
+  };
+  if (Array.isArray(candidate.matches)) return candidate.matches as SportScoreRawMatch[];
+  if (Array.isArray(candidate.events)) return candidate.events as SportScoreRawMatch[];
+  if (Array.isArray(candidate.fixtures)) return candidate.fixtures as SportScoreRawMatch[];
+  if (Array.isArray(candidate.data)) return candidate.data as SportScoreRawMatch[];
+  const nested = candidate.data as { matches?: unknown } | undefined;
+  if (nested && Array.isArray(nested.matches)) return nested.matches as SportScoreRawMatch[];
+  return null;
+}
 
 export interface SportScoreRawMatch {
   home: string;
@@ -244,41 +318,131 @@ export interface SportScoreFetchOptions {
   timeoutMs?: number;
   retries?: number;
   cacheTtlMs?: number;
+  /** Override the widget limit (provider cap is 50). */
+  limit?: number;
+  /** Explicit endpoint list; defaults to the documented candidates. */
+  endpoints?: string[];
 }
 
 /**
  * Fetches the live/rolling 50-match widget feed from SportScore.
  * Records that fail validation or mapping are counted in `skippedRecords`; the rest are kept.
  */
-export async function fetchSportScoreMatches(options: SportScoreFetchOptions = {}): Promise<{
+export interface SportScoreMatchesFetchResult {
   ok: boolean;
   httpStatus: number | null;
   latencyMs: number;
   matches: MatchRecord[];
   skippedRecords: number;
+  /** Which endpoint answered, so a route change is visible in the sync log. */
+  endpoint: string | null;
+  attempts: Array<{ url: string; ok: boolean; httpStatus: number | null; error?: string }>;
   error?: string;
-}> {
-  const url = `${SPORTSCORE_BASE_URL}/matches/?sport=football&limit=50&src=nemo-sports`;
-  const res = await fetchWithProtection<SportScoreMatchesEnvelope>(url, {
+}
+
+/**
+ * Fetches the live/rolling match feed, trying the documented endpoints in order. Records that
+ * fail validation or mapping are counted in `skippedRecords`; the rest are kept.
+ */
+export async function fetchSportScoreMatches(
+  options: SportScoreFetchOptions = {}
+): Promise<SportScoreMatchesFetchResult> {
+  const endpoints = options.endpoints || buildSportscoreMatchEndpoints(options.limit ?? 50);
+  const attempts: SportScoreMatchesFetchResult['attempts'] = [];
+  let totalLatency = 0;
+  let lastStatus: number | null = null;
+  let lastError: string | undefined;
+
+  for (const url of endpoints) {
+    const res = await fetchWithProtection<unknown>(url, {
+      timeoutMs: options.timeoutMs ?? 8000,
+      retries: options.retries ?? 1,
+      cacheTtlMs: options.cacheTtlMs ?? 45_000,
+      headers: sportscoreHeaders(),
+    });
+    totalLatency += res.latencyMs;
+    if (res.httpStatus) lastStatus = res.httpStatus;
+
+    const list = res.ok ? extractSportscoreMatchList(res.data) : null;
+    if (!res.ok || !list) {
+      attempts.push({
+        url,
+        ok: false,
+        httpStatus: res.httpStatus,
+        error: res.error || 'unusable_payload_shape',
+      });
+      lastError = res.error || 'unusable_payload_shape';
+      continue;
+    }
+
+    attempts.push({ url, ok: true, httpStatus: res.httpStatus });
+    const mapped: MatchRecord[] = [];
+    let skippedRecords = 0;
+    for (const raw of list) {
+      if (sportScoreSkipReason(raw)) {
+        skippedRecords += 1;
+        continue;
+      }
+      try {
+        mapped.push(mapSportScoreMatchToRecord(raw));
+      } catch {
+        skippedRecords += 1;
+      }
+    }
+    return {
+      ok: true,
+      httpStatus: res.httpStatus,
+      latencyMs: totalLatency,
+      matches: mapped,
+      skippedRecords,
+      endpoint: url,
+      attempts,
+    };
+  }
+
+  return {
+    ok: false,
+    httpStatus: lastStatus,
+    latencyMs: totalLatency,
+    matches: [],
+    skippedRecords: 0,
+    endpoint: null,
+    attempts,
+    error: lastError || 'All SportScore endpoints failed',
+  };
+}
+
+/**
+ * Fixtures/results for one calendar day. Used alongside the rolling widget so a full Egyptian
+ * matchday is not limited to whatever fits in the 50-match live window.
+ */
+export async function fetchSportScoreFixturesByDate(
+  date: string,
+  options: SportScoreFetchOptions = {}
+): Promise<SportScoreMatchesFetchResult> {
+  const url = buildSportscoreFixturesEndpoint(date);
+  const res = await fetchWithProtection<unknown>(url, {
     timeoutMs: options.timeoutMs ?? 8000,
     retries: options.retries ?? 1,
-    cacheTtlMs: options.cacheTtlMs ?? 45_000,
+    cacheTtlMs: options.cacheTtlMs ?? 60_000,
+    headers: sportscoreHeaders(),
   });
-
-  if (!res.ok || !res.data || !Array.isArray(res.data.matches)) {
+  const list = res.ok ? extractSportscoreMatchList(res.data) : null;
+  if (!res.ok || !list) {
     return {
       ok: false,
       httpStatus: res.httpStatus,
       latencyMs: res.latencyMs,
       matches: [],
       skippedRecords: 0,
-      error: res.error || 'Invalid SportScore matches payload',
+      endpoint: url,
+      attempts: [{ url, ok: false, httpStatus: res.httpStatus, error: res.error || 'unusable_payload_shape' }],
+      error: res.error || 'unusable_payload_shape',
     };
   }
-
   const mapped: MatchRecord[] = [];
   let skippedRecords = 0;
-  for (const raw of res.data.matches) {
+  for (const raw of list) {
     if (sportScoreSkipReason(raw)) {
       skippedRecords += 1;
       continue;
@@ -295,6 +459,8 @@ export async function fetchSportScoreMatches(options: SportScoreFetchOptions = {
     latencyMs: res.latencyMs,
     matches: mapped,
     skippedRecords,
+    endpoint: url,
+    attempts: [{ url, ok: true, httpStatus: res.httpStatus }],
   };
 }
 
@@ -310,13 +476,12 @@ export async function fetchSportScoreStandings(
   table: CompetitionStandingTable | null;
   error?: string;
 }> {
-  const url = `${SPORTSCORE_BASE_URL}/standings/?sport=football&slug=${encodeURIComponent(
-    sportscoreCompetitionSlug
-  )}&src=nemo-sports`;
+  const url = buildSportscoreStandingsEndpoint(sportscoreCompetitionSlug);
   const res = await fetchWithProtection<SportScoreStandingsEnvelope>(url, {
     timeoutMs: 8000,
     retries: 1,
     cacheTtlMs: 10 * 60_000,
+    headers: sportscoreHeaders(),
   });
 
   if (!res.ok || !res.data || !Array.isArray(res.data.tables)) {

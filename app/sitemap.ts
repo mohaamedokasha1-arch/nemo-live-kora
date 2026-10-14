@@ -5,7 +5,7 @@ import {
   isValidDateParam,
   shiftDateString,
 } from '@/lib/cairo-time';
-import { getGatewayDatabase, queryGatewayMatches } from '@/lib/db/store';
+import { getGatewayDatabase, hydrateStore, queryGatewayMatches } from '@/lib/db/store';
 import { getCatalogSitemapItems } from '@/lib/matches/match-catalog';
 import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
@@ -32,7 +32,8 @@ function mostRecentDate(dates: Array<Date | null>, fallback: Date): Date {
     : fallback;
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  await hydrateStore();
   const now = new Date();
   const todayCairo = getTodayCairoDate();
   const startDate = shiftDateString(todayCairo, -1);

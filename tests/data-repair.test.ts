@@ -56,8 +56,8 @@ test('Provider discovery persists a previously unknown competition without a cur
   try {
     const result = await fetchFootballDataSync();
     assert.equal(result.competitions.length, 1);
-    upsertCompetitionsInStore(result.competitions);
-    upsertCompetitionsInStore(result.competitions);
+    await upsertCompetitionsInStore(result.competitions);
+    await upsertCompetitionsInStore(result.competitions);
     assert.equal(getGatewayDatabase().competitions.filter((c) => c.sourceIds.footballDataCode === 'REPAIR_NEW').length, 1);
   } finally { stub.mock.restore(); }
 });

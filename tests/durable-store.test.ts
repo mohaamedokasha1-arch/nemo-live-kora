@@ -513,8 +513,11 @@ function stubProviders(realFetch: typeof fetch) {
     const url = String(input);
     if (url.includes('127.0.0.1')) return realFetch(input, init);
     if (url.includes('ceid=')) return new Response('<rss><channel></channel></rss>');
+    // Match SportScore by endpoint path: the gateway self-identifies with ?src=, which is not part
+    // of the provider's contract and has changed value over time.
+    const isMatchesEndpoint = url.includes('/api/widget/matches') || url.includes('/api/v1/matches');
     return Response.json({
-      matches: url.includes('src=nemo-sports') ? [sourceMatch] : [],
+      matches: isMatchesEndpoint ? [sourceMatch] : [],
       events: [],
       competitions: [],
       tables: [],

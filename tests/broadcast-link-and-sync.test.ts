@@ -230,7 +230,7 @@ test('Legacy kickoff migration preserves only evidence-backed times and guards u
   assert.equal(migratedRecord.nemoLink.url, null);
 });
 
-test('Deduplication: the same fixture from SportScore and TheSportsDB is stored once', () => {
+test('Deduplication: the same fixture from SportScore and TheSportsDB is stored once', async () => {
   const tsdb = mapTheSportsDBEventToRecord({
     idEvent: '9900001',
     strEvent: 'Smouha vs Ceramica Cleopatra',
@@ -253,9 +253,9 @@ test('Deduplication: the same fixture from SportScore and TheSportsDB is stored 
   assert.notEqual(tsdb.id, ss.id, 'provider ids differ');
   assert.equal(buildMatchDedupKey(tsdb), buildMatchDedupKey(ss), 'same competition/date/teams');
 
-  upsertMatchesInStore([tsdb]);
-  upsertMatchesInStore([ss]);
-  upsertMatchesInStore([ss]); // repeated sync must not duplicate
+  await upsertMatchesInStore([tsdb]);
+  await upsertMatchesInStore([ss]);
+  await upsertMatchesInStore([ss]); // repeated sync must not duplicate
   const stored = getGatewayDatabase().matches.filter(
     (match) => buildMatchDedupKey(match) === buildMatchDedupKey(ss)
   );
@@ -309,8 +309,8 @@ test('TheSportsDB endpoints: Egyptian rounds first, no baseball league, no fixed
   assert.ok(urls.every((url) => !url.includes('id=4830')));
 });
 
-test('Sync bookkeeping: attempt, last success, and failure are reported honestly', () => {
-  recordMatchesSyncAttempt({
+test('Sync bookkeeping: attempt, last success, and failure are reported honestly', async () => {
+  await recordMatchesSyncAttempt({
     ok: true,
     trigger: 'test',
     messageAr: 'ok',
@@ -324,7 +324,7 @@ test('Sync bookkeeping: attempt, last success, and failure are reported honestly
   assert.match(describeMatchesFreshness(meta) || '', /آخر تحديث للمباريات من المصادر/);
 
   const successAt = meta.lastSuccessfulMatchesSyncAt;
-  recordMatchesSyncAttempt({
+  await recordMatchesSyncAttempt({
     ok: false,
     trigger: 'test',
     messageAr: 'failed',
