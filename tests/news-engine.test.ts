@@ -360,7 +360,7 @@ test('A failed source does not wipe previously published news', () => {
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
-test('Cron and admin routes stay protected and do not leak secrets in public files', () => {
+test('Only the dedicated update-matches route is public; other cron routes stay protected', () => {
   const cronNews = fs.readFileSync(
     path.join(repoRoot, 'app/api/cron/sync-news/route.ts'),
     'utf-8'
@@ -369,12 +369,17 @@ test('Cron and admin routes stay protected and do not leak secrets in public fil
     path.join(repoRoot, 'app/api/cron/sync/route.ts'),
     'utf-8'
   );
+  const updateMatches = fs.readFileSync(
+    path.join(repoRoot, 'app/api/cron/update-matches/route.ts'),
+    'utf-8'
+  );
   const publicSources = fs.readFileSync(
     path.join(repoRoot, 'app/api/sources/route.ts'),
     'utf-8'
   );
   assert.match(cronNews, /requireCronAuth/);
   assert.match(cronSync, /requireCronAuth/);
+  assert.doesNotMatch(updateMatches, /requireCronAuth|CRON_SECRET|Authorization/);
   assert.doesNotMatch(publicSources, /CRON_SECRET/);
   assert.doesNotMatch(publicSources, /process\.env/);
   const envExample = fs.readFileSync(path.join(repoRoot, '.env.example'), 'utf-8');

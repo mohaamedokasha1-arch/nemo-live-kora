@@ -1,6 +1,6 @@
 > **تدقيق 2026-10-13:** الادعاءات التاريخية أدناه عن اتصال المصادر ليست إثباتًا حاليًا.
 > راجع [التقرير المقاس وحدود الإنجاز](docs/DATA-REPAIR-2026-10-13.md).
-> جميع مسارات الكرون محمية الآن؛ لا يوجد نشر إنتاجي لهذه التغييرات.
+> مسارا `/api/cron/sync` و`/api/cron/sync-news` ما زالا محميين؛ أما `/api/cron/update-matches` فأصبح متاحًا دون مصادقة. لم يُنشر هذا التغيير إلى الإنتاج.
 
 # بوابة مباريات NEMO Sports (`nemo-live-kora`)
 
@@ -184,14 +184,13 @@ npm run dev
   - `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
   - `FOOTBALL_DATA_API_KEY` (اختياري لتفعيل مسار المباريات في Football-Data.org)
   - `API_FOOTBALL_KEY` (اختياري لتفعيل الجلب المباشر من API-Football)
-- **`CRON_SECRET` مطلوب لتشغيل `/api/cron/update-matches`**، ويُستخدم أيضًا لحماية `/api/cron/sync`. اضبطه في متغيرات بيئة الاستضافة، ثم أعد النشر. احتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له.
+- **`CRON_SECRET` يحمي `/api/cron/sync` و`/api/cron/sync-news` ولوحة الإدارة**. اضبطه في متغيرات بيئة الاستضافة، واحتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له. مسار `/api/cron/update-matches` لا يتطلب سرًا.
 
 ---
 
 ## 7. تحديث المباريات والتحقق من التخزين
 
-`GET` أو `POST /api/cron/update-matches` يتطلب ترويسة `Authorization: Bearer <CRON_SECRET>`.
-لا ترسل السر في URL ولا تحفظه في Git أو سجل عام. عدم ضبط السر خطأ إعداد (500)، والرمز الخاطئ (401).
+`GET` أو `POST /api/cron/update-matches` متاحان مباشرةً دون ترويسة أو مفتاح؛ كل طلب يشغّل محاولة تحديث جديدة. **لأن المسار عام، يمكن لأي جهة تكرار تشغيله واستهلاك حصص مزودي البيانات أو موارد الخادم.**
 
 الاستجابة تتضمن `runId`, `startedAt`, `finishedAt`, `result`, `persistence` وعدّادات الجلب والإضافة والتعديل.
 الفشل الكامل أو التخزين غير الدائم يُرجع 503، وليس نجاحًا عامًا. نجاح HTTP محلي لا يثبت تنفيذ الجدولة أو الإنتاج.
