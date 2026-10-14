@@ -31,31 +31,14 @@ export default function Header() {
       <div className="kl-container kl-header-inner">
         <Link href="/" className="kl-brand" aria-label="نيمو كورة لايف - الرئيسية">
           <div className="kl-brand-crest" aria-hidden="true">
-            <svg
-              viewBox="0 0 40 40"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+            <img
+              src="/nemo-logo.png"
+              alt="NEMO Kora Live Logo"
+              width={40}
+              height={40}
               className="kl-brand-svg"
-            >
-              <defs>
-                <linearGradient id="nemoGold" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#D99B52" />
-                  <stop offset="100%" stopColor="#8B5E34" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M20 2L6 8V19C6 28.2 11.98 36.56 20 39C28.02 36.56 34 28.2 34 19V8L20 2Z"
-                fill="url(#nemoGold)"
-                stroke="rgba(255,255,255,0.28)"
-                strokeWidth="1.5"
-              />
-              <circle cx="20" cy="20" r="8.5" fill="#1B2432" stroke="#FFFFFF" strokeWidth="1.5" />
-              <path
-                d="M20 14.2L22.6 16.1L21.6 19.2H18.4L17.4 16.1L20 14.2Z"
-                fill="#D99B52"
-              />
-              <circle cx="20" cy="20" r="2.2" fill="#FFFFFF" />
-            </svg>
+              style={{ borderRadius: '50%', objectFit: 'cover' }}
+            />
           </div>
           <div className="kl-brand-titles">
             <span className="kl-brand-ar">نيمو كورة لايف</span>
