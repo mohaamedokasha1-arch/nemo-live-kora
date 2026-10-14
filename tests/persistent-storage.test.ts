@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { FileStorageDriver, MemoryStorageDriver } from '../lib/storage/file-driver';
+import { FileStorageDriver } from '../lib/storage/file-driver';
 import { TursoStorageDriver } from '../lib/storage/turso-driver';
 import { UpstashStorageDriver } from '../lib/storage/upstash-driver';
 import { VercelBlobStorageDriver } from '../lib/storage/vercel-blob-driver';
@@ -321,90 +321,193 @@ test('describeStorage never leaks a secret', () => {
 // ---------------------------------------------------------------------------------------------
 // 6. Store hydration: a write by one "process" is what the next reader sees.
 // ---------------------------------------------------------------------------------------------
-function withPersistenceOn(body: () => Promise<void>): Promise<void> {
-  const previous = process.env.NEMO_GATEWAY_STORE_PERSIST;
-  process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
-  return body().finally(() => {
-    if (previous === undefined) delete process.env.NEMO_GATEWAY_STORE_PERSIST;
-    else process.env.NEMO_GATEWAY_STORE_PERSIST = previous;
+// 7. The store that actually serves the request path: lib/db/store.ts over lib/db/durable-store.ts.
+//    These run against a real local HTTP snapshot endpoint, so they prove a genuine read-back
+//    rather than a mock agreeing with itself. lib/storage/ above is migration/audit tooling.
+// ---------------------------------------------------------------------------------------------
+
+import http from 'node:http';
+
+/** A real snapshot endpoint: GET returns the stored payload, PUT overwrites it. */
+async function startSnapshotServer(): Promise<{ url: string; close: () => Promise<void>; get: () => string | null; hits: () => number }> {
+  let stored: string | null = null;
+  let hits = 0;
+  const server = http.createServer((req, res) => {
+    hits += 1;
+    if (req.method === 'GET') {
+      if (stored === null) {
+        res.writeHead(404).end();
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(stored);
+      return;
+    }
+    if (req.method === 'PUT') {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk) => chunks.push(chunk as Buffer));
+      req.on('end', () => {
+        stored = Buffer.concat(chunks).toString('utf-8');
+        res.writeHead(204).end();
+      });
+      return;
+    }
+    res.writeHead(405).end();
   });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  return {
+    url: `http://127.0.0.1:${port}/snapshot`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    get: () => stored,
+    hits: () => hits,
+  };
 }
 
-test('the store hydrates from the driver, so a cron write survives a cold start', async () => {
-  const driver = new MemoryStorageDriver();
-  setStorageDriverForTesting(driver);
+async function withDurableBackend<T>(url: string, run: () => Promise<T>): Promise<T> {
+  const previous = {
+    url: process.env.NEMO_DURABLE_STORE_URL,
+    token: process.env.NEMO_DURABLE_STORE_TOKEN,
+    selector: process.env.NEMO_DURABLE_STORE,
+    persist: process.env.NEMO_GATEWAY_STORE_PERSIST,
+    skip: process.env.NEMO_SKIP_STORE_HYDRATION,
+  };
+  process.env.NEMO_DURABLE_STORE_URL = url;
+  process.env.NEMO_DURABLE_STORE = 'http';
+  process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
+  delete process.env.NEMO_DURABLE_STORE_TOKEN;
+  delete process.env.NEMO_SKIP_STORE_HYDRATION;
+  try {
+    return await run();
+  } finally {
+    for (const [key, value] of Object.entries({
+      NEMO_DURABLE_STORE_URL: previous.url,
+      NEMO_DURABLE_STORE_TOKEN: previous.token,
+      NEMO_DURABLE_STORE: previous.selector,
+      NEMO_GATEWAY_STORE_PERSIST: previous.persist,
+      NEMO_SKIP_STORE_HYDRATION: previous.skip,
+    })) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+test('with no durable backend configured the round trip says so instead of claiming durability', async () => {
+  for (const key of ['NEMO_DURABLE_STORE_URL', 'KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL']) delete process.env[key];
   const storeModule = await import('../lib/db/store');
   storeModule.resetStoreForTesting();
-  await withPersistenceOn(async () => {
-
-  const database = makeDatabase();
-  await storeModule.persistGatewayDatabase(database);
-  assert.equal(driver.writes.length, 1);
-
-  // Simulate a cold start: forget the in-memory copy and hydrate from the backend.
-  storeModule.resetStoreForTesting();
-  const hydrated = await storeModule.hydrateStore();
-  assert.equal(hydrated.matches.length, database.matches.length);
-  assert.equal(storeModule.getPersistenceState().hydrated, true);
 
   const roundTrip = await storeModule.verifyStorageRoundTrip();
-  assert.equal(roundTrip.ok, true);
-  assert.equal(roundTrip.matchesReadBack, database.matches.length);
-  });
+  assert.equal(roundTrip.ok, false);
+  assert.equal(roundTrip.error, 'no_durable_backend');
+  assert.equal(roundTrip.matchesReadBack, 0);
+  // This is the value the cron gate reads: nothing shared means no success may be reported.
+  assert.equal(storeModule.getPersistenceState().durableConfigured, false);
 
   storeModule.resetStoreForTesting();
-  setStorageDriverForTesting(null);
 });
 
-test('hydration seeds an empty cloud store from the committed snapshot', async () => {
-  const driver = new MemoryStorageDriver();
-  setStorageDriverForTesting(driver);
+test('hydrateStore adopts the shared snapshot, so a cold instance serves what the cron wrote', async () => {
+  const server = await startSnapshotServer();
   const storeModule = await import('../lib/db/store');
-  storeModule.resetStoreForTesting();
-
-  await withPersistenceOn(async () => {
-    const hydrated = await storeModule.hydrateStore();
-    assert.ok(hydrated.matches.length > 0, 'the committed snapshot seeded the empty store');
-    assert.equal(driver.writes.length, 1, 'and was written back so the next cold start is fast');
-  });
-
-  storeModule.resetStoreForTesting();
-  setStorageDriverForTesting(null);
-});
-
-test('persistence off means the state says so instead of pretending to be durable', async () => {
-  const driver = new MemoryStorageDriver();
-  setStorageDriverForTesting(driver);
-  const previous = process.env.NEMO_GATEWAY_STORE_PERSIST;
-  process.env.NEMO_GATEWAY_STORE_PERSIST = 'off';
   try {
-    const storeModule = await import('../lib/db/store');
-    storeModule.resetStoreForTesting();
-    const state = await storeModule.persistGatewayDatabase(makeDatabase());
-    assert.equal(state.ok, false);
-    assert.equal(state.durable, false);
-    assert.equal(state.error, 'persistence_disabled');
-    assert.equal(driver.writes.length, 0);
-    storeModule.resetStoreForTesting();
+    // Instance A writes its snapshot to the shared endpoint. Production always adopts the remote
+    // state first (ensureFreshMatches -> hydrateGatewayDatabase), and the store refuses to push a
+    // snapshot from an instance that never read the shared copy.
+    await withDurableBackend(server.url, async () => {
+      storeModule.resetStoreForTesting();
+      await storeModule.hydrateGatewayDatabase();
+      const database = makeDatabase();
+      storeModule.persistGatewayDatabase(database);
+      const state = await storeModule.flushDurableStore({ force: true });
+      assert.equal(state.ok, true, `flush reported: ${state.error}`);
+      assert.equal(state.durable, true);
+    });
+    assert.ok(server.get(), 'the snapshot reached the endpoint');
+
+    // Instance B boots empty (as a cold lambda does) and must adopt the shared copy.
+    await withDurableBackend(server.url, async () => {
+      storeModule.resetStoreForTesting();
+      const hydrated = await storeModule.hydrateStore();
+      assert.equal(hydrated.matches.length > 0, true);
+      assert.equal(storeModule.getDurableStoreStatus().hydrated, true);
+
+      const roundTrip = await storeModule.verifyStorageRoundTrip();
+      assert.equal(roundTrip.ok, true);
+      assert.equal(roundTrip.durable, true);
+      assert.equal(roundTrip.matchesReadBack, hydrated.matches.length);
+      assert.equal(roundTrip.error, null);
+    });
   } finally {
-    if (previous === undefined) delete process.env.NEMO_GATEWAY_STORE_PERSIST;
-    else process.env.NEMO_GATEWAY_STORE_PERSIST = previous;
-    setStorageDriverForTesting(null);
+    storeModule.resetStoreForTesting();
+    await server.close();
   }
 });
 
-// ---------------------------------------------------------------------------------------------
-// 7. A failing backend must not be reported as success by the cron endpoint.
-// ---------------------------------------------------------------------------------------------
-test('a backend that fails its write makes the matches cron return 503', async () => {
-  const failing: FetchLike = async () => ({ ok: false, status: 500, text: async () => 'boom', json: async () => ({}) });
-  const driver = new TursoStorageDriver({ url: 'https://broken.turso.io', token: 't', fetchImpl: failing });
-  setStorageDriverForTesting(driver);
+test('an unhydrated instance refuses to overwrite newer shared data', async () => {
+  const server = await startSnapshotServer();
   const storeModule = await import('../lib/db/store');
-  storeModule.resetStoreForTesting();
-  const roundTrip = await storeModule.verifyStorageRoundTrip();
-  assert.equal(roundTrip.ok, false);
-  assert.equal(roundTrip.matchesReadBack, 0);
-  storeModule.resetStoreForTesting();
-  setStorageDriverForTesting(null);
+  try {
+    await withDurableBackend(server.url, async () => {
+      storeModule.resetStoreForTesting();
+      const before = server.get();
+      const state = await storeModule.flushDurableStore({ force: true });
+      assert.equal(state.ok, false);
+      assert.equal(state.error, 'store_not_hydrated');
+      assert.equal(server.get(), before, 'the shared snapshot was left untouched');
+    });
+  } finally {
+    storeModule.resetStoreForTesting();
+    await server.close();
+  }
+});
+
+test('a snapshot endpoint that fails its read is reported, not swallowed', async () => {
+  const server = await startSnapshotServer();
+  const storeModule = await import('../lib/db/store');
+  try {
+    await withDurableBackend('http://127.0.0.1:1/snapshot', async () => {
+      storeModule.resetStoreForTesting();
+      const roundTrip = await storeModule.verifyStorageRoundTrip();
+      assert.equal(roundTrip.ok, false);
+      assert.equal(roundTrip.matchesReadBack, 0);
+      assert.ok(roundTrip.error, 'the failure carries a reason');
+    });
+  } finally {
+    storeModule.resetStoreForTesting();
+    await server.close();
+  }
+});
+
+test('a corrupted value in the store is rejected instead of loaded as the database', async () => {
+  const server = await startSnapshotServer();
+  const storeModule = await import('../lib/db/store');
+  try {
+    // Seed a valid snapshot, then corrupt it behind the store's back.
+    await withDurableBackend(server.url, async () => {
+      storeModule.resetStoreForTesting();
+      await storeModule.hydrateGatewayDatabase();
+      storeModule.persistGatewayDatabase(makeDatabase());
+      await storeModule.flushDurableStore({ force: true });
+    });
+    await new Promise<void>((resolve, reject) => {
+      const req = http.request(server.url, { method: 'PUT' }, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      });
+      req.on('error', reject);
+      req.end('not-a-snapshot');
+    });
+
+    await withDurableBackend(server.url, async () => {
+      storeModule.resetStoreForTesting();
+      const roundTrip = await storeModule.verifyStorageRoundTrip();
+      assert.equal(roundTrip.ok, false);
+      assert.equal(roundTrip.error, 'store_snapshot_invalid');
+    });
+  } finally {
+    storeModule.resetStoreForTesting();
+    await server.close();
+  }
 });

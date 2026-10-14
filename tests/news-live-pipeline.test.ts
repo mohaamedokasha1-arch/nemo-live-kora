@@ -1,11 +1,10 @@
 import test, { after, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import type { GatewayDatabase } from '../lib/types';
-import { setStorageDriverForTesting } from '../lib/storage';
 import { clearHttpCache } from '../lib/sources/http-client';
-import { MemoryStorageDriver } from '../lib/storage/file-driver';
 
 /**
  * End-to-end news pipeline test.
@@ -87,10 +86,16 @@ function articleHtml(article: (typeof ARTICLES)[number]): string {
 </head><body><p>${article.description}</p></body></html>`;
 }
 
+/** Captured before any mock is installed: the snapshot server must be reachable for real. */
+const realFetch = globalThis.fetch;
+
 let workspace: string;
 let engine: typeof import('../lib/sync/engine');
 let store: typeof import('../lib/db/store');
-let driver: MemoryStorageDriver;
+/** Stands in for shared storage: GET returns the snapshot, PUT overwrites it. */
+const shared = { stored: null as string | null };
+let snapshotServer: http.Server;
+let snapshotUrl: string;
 
 before(async () => {
   const cacheDirectory = path.join(projectRoot, '.cache');
@@ -103,22 +108,49 @@ before(async () => {
   );
   process.chdir(workspace);
 
-  driver = new MemoryStorageDriver();
-  setStorageDriverForTesting(driver);
+  snapshotServer = http.createServer((req, res) => {
+    if (req.method === 'GET') {
+      if (shared.stored === null) {
+        res.writeHead(404).end();
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(shared.stored);
+      return;
+    }
+    if (req.method === 'PUT') {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk) => chunks.push(chunk as Buffer));
+      req.on('end', () => {
+        shared.stored = Buffer.concat(chunks).toString('utf-8');
+        res.writeHead(204).end();
+      });
+      return;
+    }
+    res.writeHead(405).end();
+  });
+  await new Promise<void>((resolve) => snapshotServer.listen(0, '127.0.0.1', resolve));
+  const address = snapshotServer.address();
+  snapshotUrl = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/snapshot`;
+
   engine = await import('../lib/sync/engine');
   store = await import('../lib/db/store');
   store.resetStoreForTesting();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
   process.env.NEMO_NEWS_ENRICH = 'on';
+  process.env.NEMO_DURABLE_STORE = 'http';
+  process.env.NEMO_DURABLE_STORE_URL = snapshotUrl;
+  shared.stored = null;
   store.resetStoreForTesting();
-  driver.writes.length = 0;
+  // Production always adopts the shared snapshot before mutating it.
+  await store.hydrateGatewayDatabase();
   clearHttpCache();
 
-  mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0]) => {
+  mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const url = new URL(String(input));
+    if (url.hostname === '127.0.0.1') return realFetch(input, init);
 
     // 1) The RSS feeds themselves.
     if (url.hostname === 'news.google.com' && url.searchParams.has('ceid')) {
@@ -147,11 +179,13 @@ beforeEach(() => {
   });
 });
 
-after(() => {
+after(async () => {
   mock.restoreAll();
   process.chdir(projectRoot);
   store.resetStoreForTesting();
-  setStorageDriverForTesting(null);
+  await new Promise<void>((resolve) => snapshotServer.close(() => resolve()));
+  delete process.env.NEMO_DURABLE_STORE;
+  delete process.env.NEMO_DURABLE_STORE_URL;
   for (const [key, value] of originalEnvironment) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -210,7 +244,9 @@ test('published news survives a cold start because it was written to the backend
   await engine.runNewsSync('اختبار دوام الأخبار');
   const before = store.getGatewayDatabase().news.filter((n) => n.publishStatus === 'published').length;
   assert.ok(before > 0);
-  assert.ok(driver.writes.length > 0, 'the store wrote to the backend');
+  const flush = await store.flushDurableStore({ force: true });
+  assert.equal(flush.ok, true, `durable write reported: ${flush.error}`);
+  assert.ok(shared.stored, 'the store wrote to the backend');
 
   // Cold start: forget the in-memory copy and hydrate from the backend only.
   store.resetStoreForTesting();
@@ -232,7 +268,10 @@ test('a news sync failure keeps previously published news and is recorded honest
 
   mock.restoreAll();
   clearHttpCache(); // a cached feed inside its TTL would otherwise be served as a success
-  mock.method(globalThis, 'fetch', async () => {
+  // Providers are unreachable; the local snapshot backend must stay reachable so the run can still
+  // record its own failure.
+  mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    if (String(input).includes('127.0.0.1')) return realFetch(input, init);
     throw new Error('network unreachable');
   });
 
@@ -259,8 +298,14 @@ test('the news sync record stored in the database carries the resolution evidenc
   assert.ok(record.resolutionReport);
   assert.ok(record.resolutionReport!.attempted > 0);
   assert.equal(record.resolutionReport!.resolved + record.resolutionReport!.unresolved, record.resolutionReport!.attempted);
-  const persisted = (await driver.read()).database;
-  assert.ok(persisted?.newsSourceSyncs[0].resolutionReport, 'the evidence is persisted, not just in memory');
+  const flush = await store.flushDurableStore({ force: true });
+  assert.equal(flush.ok, true, `durable write reported: ${flush.error}`);
+  store.resetStoreForTesting();
+  const persisted = await store.hydrateStore();
+  assert.ok(
+    persisted.newsSourceSyncs[0]?.resolutionReport,
+    'the evidence is persisted in shared storage, not just in memory'
+  );
 });
 
 /** Guards the store shape the pages depend on after a real sync. */

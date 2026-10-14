@@ -84,7 +84,7 @@ export default async function SourcesPage() {
             </p>
             <p dir="ltr" style={{ marginBottom: '0.5rem' }}>
               driver={storage.kind} · target={storage.target} · durable={String(storage.durable)} · lastWrite=
-              {persistence.writtenAt ?? 'never'}
+              {persistence.at ?? 'never'}
             </p>
             <p style={{ marginBottom: '0.5rem' }}>{storage.reasonAr}</p>
             {storage.cloudConfigured ? null : (
