@@ -1,6 +1,7 @@
 > **تدقيق 2026-10-13:** الادعاءات التاريخية أدناه عن اتصال المصادر ليست إثباتًا حاليًا.
 > راجع [التقرير المقاس وحدود الإنجاز](docs/DATA-REPAIR-2026-10-13.md).
 > مسارا `/api/cron/sync` و`/api/cron/sync-news` ما زالا محميين؛ أما `/api/cron/update-matches` فأصبح متاحًا دون مصادقة. لم يُنشر هذا التغيير إلى الإنتاج.
+> **تغيير 2026-10-14:** صار للمخزن طبقة تخزين دائم خارجي (Redis REST أو أي نقطة HTTP)، والكرون لا يعلن النجاح إلا بعد تأكيد الكتابة فيه. التفاصيل في [docs/DURABLE-STORE-2026-10-14.md](docs/DURABLE-STORE-2026-10-14.md).
 
 # بوابة مباريات NEMO Sports (`nemo-live-kora`)
 
@@ -97,6 +98,7 @@
 │   │   ├── metadata.ts             # الوسوم المعيارية ووسوم المشاركة لكل نوع صفحة
 │   │   └── match-structured-data.ts# ItemList لصفحات الجداول
 │   ├── db/
+│   │   ├── durable-store.ts        # نقل اللقطة إلى مخزن خارجي (Redis REST أو HTTP) + مظروف مضغوط
 │   │   ├── seed-data.ts
 │   │   └── store.ts
 │   ├── sources/
@@ -113,11 +115,14 @@
 │   ├── nemo-resolver.ts
 │   └── types.ts
 ├── scripts/
+│   ├── check-store.ts              # فحص قراءة فقط لجاهزية التخزين الدائم (npm run store:check)
 │   └── run-sync.ts
 ├── tests/
+│   ├── durable-store.test.ts
 │   ├── gateway.test.ts
 │   └── update-matches.test.ts
 ├── .env.example
+├── instrumentation.ts             # قراءة اللقطة المشتركة عند إقلاع كل عملية قبل خدمة الطلبات
 ├── next.config.mjs
 ├── package.json
 └── tsconfig.json
@@ -184,6 +189,7 @@ npm run dev
   - `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
   - `FOOTBALL_DATA_API_KEY` (اختياري لتفعيل مسار المباريات في Football-Data.org)
   - `API_FOOTBALL_KEY` (اختياري لتفعيل الجلب المباشر من API-Football)
+  - **التخزين الدائم (مطلوب لنجاح الكرون على Vercel):** `KV_REST_API_URL` + `KV_REST_API_TOKEN` (Upstash Redis عبر Vercel Marketplace) أو `NEMO_DURABLE_STORE_URL` (+ `NEMO_DURABLE_STORE_TOKEN`) لأي نقطة HTTP. معها `NEMO_DURABLE_STORE` و`NEMO_DURABLE_STORE_KEY` و`NEMO_DURABLE_STORE_TIMEOUT_MS` اختيارية. الفحص: `npm run store:check`.
 - **`CRON_SECRET` يحمي `/api/cron/sync` و`/api/cron/sync-news` ولوحة الإدارة**. اضبطه في متغيرات بيئة الاستضافة، واحتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له. مسار `/api/cron/update-matches` لا يتطلب سرًا.
 
 ---
@@ -195,15 +201,36 @@ npm run dev
 الاستجابة تتضمن `runId`, `startedAt`, `finishedAt`, `result`, `persistence` وعدّادات الجلب والإضافة والتعديل.
 الفشل الكامل أو التخزين غير الدائم يُرجع 503، وليس نجاحًا عامًا. نجاح HTTP محلي لا يثبت تنفيذ الجدولة أو الإنتاج.
 
-**عائق الإنتاج:** التخزين الحالي ملف JSON مع ذاكرة خاصة بكل عملية. على Vercel لا يُعد دائمًا أو مشتركًا؛
-يلزم مخزن خارجي مع معاملات وقفل موزع قبل اعتماد المزامنة الإنتاجية. لم يُنشأ حساب أو اشتراك ولم تتغير إعدادات الاستضافة.
-الجدولة القائمة لم تتغير وما زالت تستدعي تحديث المباريات فقط. الأخبار ليست مجدولة بهذا المسار.
+**طبقة التخزين الدائم:** ملف `data/gateway-store.json` داخل حزمة النشر ليس مخزنًا مشتركًا؛ لذلك يُنقل كامل
+اللقطة إلى مخزن خارجي عبر `lib/db/durable-store.ts`:
+
+- `redis` — Upstash Redis REST (`KV_REST_API_URL` / `KV_REST_API_TOKEN` أو أسماء Upstash) عبر أوامر `GET`/`SET`.
+- `http` — أي نقطة (`NEMO_DURABLE_STORE_URL`) تقرأ بـ `GET` وتكتب بـ `PUT`.
+- اللقطة تُضغط `gzip` وتُغلَّف في مظروف مُصدَّر (`v: 1`)؛ نحو 134KB تصبح ~24KB، وأي قيمة غريبة أو تالفة
+  تُرفض (`store_snapshot_invalid`) بدلًا من تحميلها كقاعدة بيانات.
+
+آلية الأمان والدوام:
+
+1. عند إقلاع كل عملية (نسخة lambda) يقرأ `instrumentation.ts` أحدث لقطة مشتركة قبل خدمة أي طلب؛
+   ومع كل مزامنة عند الطلب يُقرأ المخزن أولًا عبر `hydrateGatewayDatabase()`.
+2. لا تُكتب اللقطة إلى المخزن الخارجي إلا بعد نجاح القراءة (`store_not_hydrated` يمنع الكتابة) حتى لا
+   تستبدل نسخة قديمة مضمّنة بيانات أحدث في الإنتاج.
+3. الكرون ينتظر تأكيد الكتابة (`flushDurableStore({ force: true })`)؛ بقية المسارات تكتب بعد إرسال الرد
+   عبر `after()` مرة واحدة لكل دفعة تغييرات.
+
+بهذا يعيد `GET/POST /api/cron/update-matches` الحالة `200` و`status: "ok"` فقط بعد وصول البيانات إلى
+تخزين مشترك حقيقي؛ وبدون مخزن مهيأ يعيد `503` مع `persistence.durableConfigured: false` و`storageReason`
+عربي يشرح الإعداد المطلوب. الجدولة القائمة لم تتغير وما زالت تستدعي تحديث المباريات فقط، والأخبار ليست مجدولة بهذا المسار.
+
+**ما بقي غير مكتمل:** القفل الموزع ومعاملات الكتابة المتزامنة (الكتابة الأخيرة تفوز) ومراجعة الحصص والحدود
+لكل مزوّد — التفاصيل والحدود في [تقرير التخزين الدائم](docs/DURABLE-STORE-2026-10-14.md).
 
 ```bash
 npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run store:check
 NEMO_GATEWAY_STORE_PERSIST=off node --import tsx scripts/audit-connectivity.ts
 ```
 

@@ -1,0 +1,117 @@
+{
+  "recordedAt": "2026-10-14T00:32:00Z",
+  "kind": "local_end-to-end_against_next_start_with_fake_kv_and_providers",
+  "caveat": "مخزن KV ومصادر المزوّدين وهمية محليًا؛ يثبت سلوك الشيفرة وليس شبكة الإنتاج أو حصص المزوّدين.",
+  "build": {
+    "command": "npx next start -H 0.0.0.0 -p 3100",
+    "nextVersion": "16.4.0",
+    "env": {
+      "VERCEL": "1",
+      "KV_REST_API_URL": "http://127.0.0.1:4700",
+      "KV_REST_API_TOKEN": "<redacted>"
+    }
+  },
+  "cronAfter": {
+    "note": "الرد بعد إصلاح التخزين (كان 503 مع store_write_failed)",
+    "httpStatus": 200,
+    "status": "ok",
+    "ok": true,
+    "runId": "sync-1791937799126",
+    "result": {
+      "ok": true,
+      "trigger": "API /api/cron/update-matches (live)",
+      "messageAr": "جُلبت 1 مباراة من 1 مصدر.",
+      "matchesFetched": 1,
+      "sourcesOk": [
+        "sportscore"
+      ],
+      "sourcesFailed": [],
+      "matchesInserted": 1,
+      "matchesUpdated": 0,
+      "recordsSkipped": 0,
+      "sourceStatus": {
+        "sportscore": {
+          "httpStatus": 200,
+          "ok": true
+        },
+        "thesportsdb": {
+          "httpStatus": 200,
+          "ok": true
+        }
+      }
+    },
+    "persistence": {
+      "mode": "redis",
+      "ok": true,
+      "durable": true,
+      "durableConfigured": true,
+      "error": null,
+      "at": "2026-10-14T00:29:59.132Z"
+    },
+    "durableStorageRequired": true
+  },
+  "snapshotEnvelope": {
+    "rawBytes": 134147,
+    "encodedLength": 24665,
+    "compressionRatio": 0.184,
+    "matches": 38,
+    "news": 6,
+    "syncLogs": 4,
+    "envelopeVersion": 1,
+    "algorithm": "gzip+base64"
+  },
+  "pageTriggeredFlush": {
+    "path": "/",
+    "httpStatus": 200,
+    "kvSets": 1,
+    "kvGets": 5,
+    "markerMatchPresent": true,
+    "lastMatchesSyncAttemptAt": "2026-10-14T00:31:56.066Z"
+  },
+  "coldStartDurability": {
+    "bundledFileMatches": 37,
+    "markerPresentInBundledFile": false,
+    "afterRestart_totalInStore": 38,
+    "afterRestart_markerMatchFound": true,
+    "afterRestart_match": {
+      "home": "E2E Durable Home",
+      "away": "E2E Durable Away",
+      "score": "3-1",
+      "cairoDate": "2026-10-12",
+      "cairoTime": "٠٨:٠٠ م"
+    },
+    "instrumentationLog": "[instrumentation] durable_store_ready {\"backend\":\"redis\",\"persistence\":{\"mode\":\"redis\",\"ok\":true,\"durable\":true,\"durableConfigured\":true}}"
+  },
+  "negativeCase": {
+    "env": {
+      "VERCEL": "1",
+      "durableStore": "none"
+    },
+    "httpStatus": 503,
+    "persistence": {
+      "mode": "memory",
+      "ok": false,
+      "durable": false,
+      "durableConfigured": false
+    },
+    "storageReasonMentionsKV_REST_API_URL": true
+  },
+  "checks": {
+    "tests": "86/86 pass (15 new in tests/durable-store.test.ts)",
+    "typecheck": "pass",
+    "lint": "pass",
+    "build": "pass"
+  },
+  "reportedIncident": {
+    "status": "ok",
+    "persistence": {
+      "mode": "redis",
+      "ok": true,
+      "durable": true,
+      "durableConfigured": true,
+      "error": null,
+      "at": "2026-10-14T00:28:58.224Z"
+    },
+    "httpStatus": 503
+  }
+}

@@ -2,6 +2,7 @@ import { getTodayCairoDate, shiftDateString } from '../cairo-time';
 import {
   getEgyptianRoundWindow,
   getGatewayDatabase,
+  hydrateGatewayDatabase,
   ingestNewsCandidatesInStore,
   MatchUpsertStats,
   recordMatchesSyncAttempt,
@@ -168,6 +169,8 @@ let newsRefreshInFlight: Promise<NewsSourceSyncRecord> | null = null;
 export async function ensureFreshNews(
   maxAgeMs = 15 * 60 * 1000
 ): Promise<NewsSourceSyncRecord | null> {
+  // Adopt the shared snapshot before syncing so this instance flushes a superset, never a stale copy.
+  await hydrateGatewayDatabase();
   const db = getGatewayDatabase();
   const lastAttempt = db.meta.lastNewsSyncAt || db.meta.lastSuccessfulNewsSyncAt;
   if (lastAttempt) {
@@ -206,6 +209,8 @@ export async function ensureFreshMatches(
   maxAgeMs = MATCHES_FRESHNESS_MAX_AGE_MS,
   trigger = 'تحديث مباريات عند الطلب'
 ): Promise<SyncLogEntry | null> {
+  // Adopt the shared snapshot before syncing so this instance flushes a superset, never a stale copy.
+  await hydrateGatewayDatabase();
   const db = getGatewayDatabase();
   const lastAttempt = db.meta.lastMatchesSyncAttemptAt;
   if (lastAttempt) {
