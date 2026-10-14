@@ -1,0 +1,278 @@
+{
+  "testedAt": "2026-10-14T16:43:32.037Z",
+  "todayCairo": "2026-10-14",
+  "keys": [
+    {
+      "sourceId": "sportscore",
+      "envVar": "SPORTSCORE_API_KEY",
+      "state": "missing",
+      "fingerprint": "",
+      "usable": true,
+      "effectiveAr": "لا يحتاج مفتاحًا — يعمل مباشرة",
+      "noteAr": "المصدر مجاني بدون مفتاح؛ المفتاح اختياري لرفع الحصة."
+    },
+    {
+      "sourceId": "thesportsdb",
+      "envVar": "THESPORTSDB_API_KEY",
+      "state": "missing",
+      "fingerprint": "",
+      "usable": true,
+      "effectiveAr": "سيُستخدم المفتاح المجاني العام 123 ثم 3 — المصدر يعمل بدون إعداد",
+      "noteAr": "يعمل بالمفتاح المجاني العام 123. ضع مفتاحك المدفوع في THESPORTSDB_API_KEY للحصول على أكثر من نتيجة واحدة لكل نداء."
+    },
+    {
+      "sourceId": "football-data",
+      "envVar": "FOOTBALL_DATA_API_KEY",
+      "state": "missing",
+      "fingerprint": "",
+      "usable": true,
+      "effectiveAr": "سيُجلب فهرس البطولات والمواسم فقط (partial_keyless) دون مباريات أو ترتيب",
+      "noteAr": "/v4/competitions يعمل بدون مفتاح؛ مسارات المباريات والترتيب تتطلب مفتاحًا مجانيًا من football-data.org."
+    },
+    {
+      "sourceId": "api-football",
+      "envVar": "API_FOOTBALL_KEY",
+      "state": "missing",
+      "fingerprint": "",
+      "usable": true,
+      "effectiveAr": "لن يُجلب شيء من هذا المصدر حتى يُضبط مفتاح (requires_api_key)",
+      "noteAr": "يتطلب مفتاحًا من api-sports.io أو RapidAPI لتفعيل جلب المباريات والترتيب."
+    },
+    {
+      "sourceId": "google-news-rss",
+      "envVar": "GOOGLE_NEWS_RSS_BASE_URL",
+      "state": "missing",
+      "fingerprint": "",
+      "usable": true,
+      "effectiveAr": "لا يحتاج مفتاحًا — يعمل مباشرة",
+      "noteAr": "لا يحتاج مفتاحًا؛ يمكن override عنوان الخلاصة للاختبار."
+    }
+  ],
+  "storage": {
+    "kind": "file",
+    "target": "/home/user/nemo-live-kora/data/gateway-store.json",
+    "durable": true,
+    "labelAr": "ملف محلي (data/gateway-store.json)",
+    "reason": "local structured JSON in data/ (persists on this host)",
+    "reasonAr": "ملف JSON محلي مهيكل في مجلد data/ — يبقى بعد إعادة التشغيل على هذا الخادم.",
+    "cloudConfigured": false,
+    "missingForCloud": [],
+    "roundTrip": {
+      "durable": false,
+      "driver": "file",
+      "target": "/home/user/nemo-live-kora/data/gateway-store.json",
+      "latencyMs": 2,
+      "ok": true,
+      "matchesReadBack": 37,
+      "newsReadBack": 0,
+      "error": null
+    },
+    "driver": "file"
+  },
+  "thesportsdbKeyProbes": [
+    {
+      "key": "123",
+      "ok": false,
+      "httpStatus": null,
+      "error": "fetch failed"
+    }
+  ],
+  "results": [
+    {
+      "source": "sportscore",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 1038,
+      "matches": 0,
+      "competitions": 0,
+      "standings": 0,
+      "news": 0,
+      "newsResolved": 0,
+      "newsPublishedCandidates": 0,
+      "endpoints": [
+        {
+          "url": "https://sportscore.com/api/widget/matches/?sport=football&limit=50&src=nemo-live-kora",
+          "ok": false,
+          "httpStatus": null,
+          "error": "fetch failed"
+        },
+        {
+          "url": "https://sportscore.com/api/v1/matches/?sport=football&limit=50&src=nemo-live-kora",
+          "ok": false,
+          "httpStatus": null,
+          "error": "fetch failed"
+        },
+        {
+          "url": "https://sportscore.com/api/widget/matches?sport=football&limit=50&src=nemo-live-kora",
+          "ok": false,
+          "httpStatus": null,
+          "error": "fetch failed"
+        }
+      ],
+      "error": "fetch failed"
+    },
+    {
+      "source": "sportscore-fixtures",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 23,
+      "matches": 0,
+      "competitions": 0,
+      "standings": 0,
+      "news": 0,
+      "newsResolved": 0,
+      "newsPublishedCandidates": 0,
+      "endpoints": [
+        {
+          "url": "https://sportscore.com/api/v1/fixtures/?sport=football&date=2026-10-14&src=nemo-live-kora",
+          "ok": false,
+          "httpStatus": null,
+          "error": "fetch failed"
+        }
+      ],
+      "error": "fetch failed"
+    },
+    {
+      "source": "thesportsdb",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 2547,
+      "matches": 0,
+      "competitions": 0,
+      "standings": 0,
+      "news": 0,
+      "newsResolved": 0,
+      "newsPublishedCandidates": 0,
+      "endpoints": [
+        {
+          "endpoint": "/eventsnextleague.php?id=4829",
+          "labelAr": "الدوري المصري الممتاز — المباريات القادمة",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 334,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventspastleague.php?id=4829",
+          "labelAr": "الدوري المصري الممتاز — آخر النتائج",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 330,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventsnextleague.php?id=5185",
+          "labelAr": "كأس الرابطة المصرية — المباريات القادمة",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 310,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventspastleague.php?id=5185",
+          "labelAr": "كأس الرابطة المصرية — آخر النتائج",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 312,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventsnextleague.php?id=5057",
+          "labelAr": "كأس الكونفدرالية الأفريقية — المباريات القادمة",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 323,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventspastleague.php?id=5057",
+          "labelAr": "كأس الكونفدرالية الأفريقية — آخر النتائج",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 319,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventsday.php?d=2026-10-14&s=Soccer",
+          "labelAr": "مباريات يوم 2026-10-14",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 309,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        },
+        {
+          "endpoint": "/eventsday.php?d=2026-10-15&s=Soccer",
+          "labelAr": "مباريات يوم 2026-10-15",
+          "ok": false,
+          "httpStatus": null,
+          "latencyMs": 310,
+          "fromCache": false,
+          "eventsCount": 0,
+          "error": "fetch failed"
+        }
+      ],
+      "error": "fetch failed"
+    },
+    {
+      "source": "football-data",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 374,
+      "matches": 0,
+      "competitions": 0,
+      "standings": 0,
+      "news": 0,
+      "newsResolved": 0,
+      "newsPublishedCandidates": 0,
+      "error": "fetch failed"
+    },
+    {
+      "source": "api-football",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 29,
+      "matches": 0,
+      "competitions": 0,
+      "standings": 0,
+      "news": 0,
+      "newsResolved": 0,
+      "newsPublishedCandidates": 0,
+      "error": "MISSING_API_FOOTBALL_KEY"
+    },
+    {
+      "source": "google-news-rss",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 962,
+      "matches": 0,
+      "competitions": 0,
+      "standings": 0,
+      "news": 0,
+      "newsResolved": 0,
+      "newsPublishedCandidates": 0,
+      "error": "fetch failed"
+    }
+  ],
+  "summary": {
+    "matchSourcesOk": 0,
+    "newsSourceOk": false,
+    "newsItemsFetched": 0,
+    "newsRelayLinksResolved": 0,
+    "storageVerified": true,
+    "storageDurable": false
+  }
+}

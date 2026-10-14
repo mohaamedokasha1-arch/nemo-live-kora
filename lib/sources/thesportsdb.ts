@@ -346,7 +346,13 @@ export interface TheSportsDBRoundWindow {
 export function buildTheSportsDBEndpoints(
   dates: string[],
   rounds?: TheSportsDBRoundWindow | null,
-  apiKey: string = THESPORTSDB_API_KEY
+  apiKey: string = THESPORTSDB_API_KEY,
+  /**
+   * أقصى عدد من طلبات `eventsday.php` (طلب واحد لكل يوم). الافتراضي 3 للتوافق مع المسار السريع؛
+   * المزامنة المجدولة تمرّر كل أيام النافذة. لم يعد هذا الحد يُسقط الأيام بصمت: الأيام الزائدة
+   * تُسجَّل في السجل بعد الجلب (انظر `dayCallsSkipped` في الاستجابة).
+   */
+  maxDayCalls = 3
 ): Array<{ url: string; labelAr: string; kind: 'round' | 'season' | 'league' | 'day' }> {
   const base = `${THESPORTSDB_BASE_URL}/${apiKey}`;
   const leagueId = THESPORTSDB_LEAGUES.egyptianPremierLeague;
@@ -369,7 +375,7 @@ export function buildTheSportsDBEndpoints(
     { url: `${base}/eventsnextleague.php?id=${league.id}`, labelAr: `${league.labelAr} — المباريات القادمة`, kind: 'league' as const },
     { url: `${base}/eventspastleague.php?id=${league.id}`, labelAr: `${league.labelAr} — آخر النتائج`, kind: 'league' as const },
   ]);
-  const dayUrls = dates.slice(0, 3).map((d) => ({
+  const dayUrls = dates.slice(0, Math.max(0, maxDayCalls)).map((d) => ({
     url: `${base}/eventsday.php?d=${encodeURIComponent(d)}&s=Soccer`,
     labelAr: `مباريات يوم ${d}`,
     kind: 'day' as const,
@@ -384,6 +390,8 @@ export interface TheSportsDBFetchOptions {
   /** Total wall-clock budget for this fetch. Endpoints that would start after it are skipped. */
   budgetMs?: number;
   rounds?: TheSportsDBRoundWindow | null;
+  /** أقصى عدد من طلبات eventsday (انظر buildTheSportsDBEndpoints). */
+  maxDayCalls?: number;
 }
 
 export interface TheSportsDBFetchResult {
@@ -396,6 +404,8 @@ export interface TheSportsDBFetchResult {
   skippedRecords: number;
   /** Endpoints not requested because the time budget was used up. */
   skippedEndpoints: number;
+  /** أيام من النافذة لم تُطلب لأن أقصى عدد لطلبات eventsday أقل من طول النافذة. */
+  dayCallsSkipped: number;
   /** Which API keys were tried and what the provider answered (masked). */
   apiKeyProbes: TheSportsDBKeyProbe[];
   error?: string;
@@ -416,7 +426,9 @@ export async function fetchTheSportsDBMatches(
   // One probe per process: a bad premium key must not take the whole Egyptian schedule offline.
   const keyResolution = await resolveTheSportsDBApiKey({ timeoutMs: options.timeoutMs ?? 6000 });
   const apiKey = keyResolution.key;
-  const endpoints = buildTheSportsDBEndpoints(dates, options.rounds, apiKey);
+  const endpoints = buildTheSportsDBEndpoints(dates, options.rounds, apiKey, options.maxDayCalls ?? 3);
+  const requestedDayCount = Math.min(dates.length, Math.max(0, options.maxDayCalls ?? 3));
+  const dayCallsSkipped = Math.max(0, dates.length - requestedDayCount);
 
   const collected: MatchRecord[] = [];
   const seenEventIds = new Set<string>();
@@ -497,6 +509,7 @@ export async function fetchTheSportsDBMatches(
     endpoints: results,
     skippedRecords,
     skippedEndpoints,
+    dayCallsSkipped,
     apiKeyProbes: keyResolution.probes,
     error: anyOk ? undefined : lastError || 'Failed to reach TheSportsDB endpoints',
   };

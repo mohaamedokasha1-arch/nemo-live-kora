@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test": "NEMO_GATEWAY_STORE_PERSIST=off node --import tsx --test tests/*.test.ts",
     "sync": "node --import tsx scripts/run-sync.ts",
+    "coverage:compare": "node --import tsx scripts/coverage-compare.ts",
     "store:check": "node --import tsx scripts/check-store.ts",
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev --audit-level=low",
