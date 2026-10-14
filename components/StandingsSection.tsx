@@ -19,7 +19,7 @@ export default function StandingsSection({
     <section id="standings" className="standings-section" aria-label="جدول ترتيب البطولات">
       <div className="section-header-bar">
         <div>
-          <h2 className="kl-section-title">📊 جدول ترتيب الدوري المصري والبطولات الكبرى</h2>
+          <h2 className="section-title">📊 جدول ترتيب الدوري المصري والبطولات الكبرى</h2>
           <p className="section-subtitle">
             بيانات حقيقية موثقة من مصدر SportScore مع روابط مباشرة لصفحات الأندية والبطولات على NEMO Sports
           </p>

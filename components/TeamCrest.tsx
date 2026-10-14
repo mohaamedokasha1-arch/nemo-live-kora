@@ -40,37 +40,22 @@ export default function TeamCrest({
               y2="48"
               gradientUnits="userSpaceOnUse"
             >
-              <stop offset="0%" stopColor={isEgyptian ? '#B71C1C' : '#0D47A1'} />
-              <stop offset="100%" stopColor={isEgyptian ? '#7F1D1D' : '#0A0E27'} />
-            </linearGradient>
-            <linearGradient
-              id={isEgyptian ? 'shieldEgStroke' : 'shieldGlobalStroke'}
-              x1="0"
-              y1="0"
-              x2="48"
-              y2="48"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0%" stopColor="#FFD700" />
-              <stop offset="100%" stopColor="#E6A817" />
+              <stop offset="0%" stopColor={isEgyptian ? '#991B1B' : '#1E3A8A'} />
+              <stop offset="100%" stopColor={isEgyptian ? '#7F1D1D' : '#172554'} />
             </linearGradient>
           </defs>
-          {/* Shield outer */}
           <path
-            d="M24 3L7 10V22C7 33.2 14.4 42.5 24 45.5C33.6 42.5 41 33.2 41 22V10L24 3Z"
+            d="M24 4L8 10.5V22.5C8 33.4 14.82 42.8 24 45.5C33.18 42.8 40 33.4 40 22.5V10.5L24 4Z"
             fill={`url(#${isEgyptian ? 'shieldEg' : 'shieldGlobal'})`}
-            stroke={`url(#${isEgyptian ? 'shieldEgStroke' : 'shieldGlobalStroke'})`}
-            strokeWidth="1.5"
+            stroke="#D99B52"
+            strokeWidth="2"
           />
-          {/* Shield inner highlight */}
           <path
-            d="M24 7L11 12.5V22C11 31 16.8 38.2 24 41C31.2 38.2 37 31 37 22V12.5L24 7Z"
-            fill="rgba(255,255,255,0.06)"
+            d="M24 9L13 13.5V22.2C13 30.2 17.68 37.2 24 39.5C30.32 37.2 35 30.2 35 22.2V13.5L24 9Z"
+            fill="rgba(255,255,255,0.08)"
           />
-          {/* Football icon */}
-          <circle cx="24" cy="22" r="8" fill="none" stroke="#FFD700" strokeWidth="1.4" opacity="0.7" />
-          <path d="M24 14L27 18H21L24 14Z" fill="#FFD700" opacity="0.5" />
-          <circle cx="24" cy="22" r="2.5" fill="#FFD700" opacity="0.8" />
+          <circle cx="24" cy="23" r="6.5" fill="none" stroke="#FDE68A" strokeWidth="1.6" />
+          <circle cx="24" cy="23" r="2.2" fill="#FDE68A" />
         </svg>
       ) : (
         <Image

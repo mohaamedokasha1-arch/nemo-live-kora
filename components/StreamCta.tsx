@@ -21,8 +21,8 @@ export default function StreamCta({
   const label = view.isFinished
     ? 'النتيجة والملخص — صفحة المشاهدة'
     : view.isLive
-    ? '🔴 المباراة جارية الآن — ادخل صفحة المشاهدة'
-    : '🔴 شاهد البث المباشر الآن';
+    ? 'المباراة جارية الآن — ادخل صفحة المشاهدة'
+    : 'شاهد البث المباشر الآن';
 
   const note = view.verifiedBroadcastUrl
     ? `بث مُتحقَّق منه${entry.broadcast.isFree === false ? ' (باشتراك)' : ' ومجاني'} — ${entry.broadcast.labelAr}`
