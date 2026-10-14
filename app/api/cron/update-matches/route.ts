@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireCronAuth } from '@/lib/auth/cron-auth';
+import { NextResponse } from 'next/server';
 import { getGatewayDatabase, getPersistenceState, hydrateStore, verifyStorageRoundTrip } from '@/lib/db/store';
 import { describeStorage } from '@/lib/storage';
 import { ensureFreshMatches } from '@/lib/sync/engine';
@@ -11,14 +10,17 @@ export const maxDuration = 60;
 /**
  * Matches refresh (Vercel cron / external scheduler / manual trigger).
  *
+ * Public endpoint by design: GET and POST trigger a sync without cron credentials. The other cron
+ * routes and the admin panel stay behind the shared cron auth guard. Repeated requests here spend
+ * server time and provider quota, so the engine's own freshness window decides whether a call
+ * actually re-fetches.
+ *
  * Contract: HTTP 200 is returned ONLY when (a) at least one source returned matches and (b) the
  * write was verified by reading it back from the configured storage backend AND that backend is
  * durable (shared across instances and persistent across restarts). A lambda-local file, or a
  * failed read-back, is a 503 — a green cron log must mean the data is actually there.
  */
-async function updateMatches(request: NextRequest) {
-  const denied = requireCronAuth(request);
-  if (denied) return denied;
+async function updateMatches() {
   try {
     await hydrateStore();
     const log = await ensureFreshMatches(0, 'API /api/cron/update-matches (live)');

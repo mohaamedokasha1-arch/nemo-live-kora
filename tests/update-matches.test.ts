@@ -2,7 +2,8 @@ import test, { after, afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { clearHttpCache } from '../lib/sources/http-client';
 import type { GatewayDatabase } from '../lib/types';
 
 const projectRoot = process.cwd();
@@ -51,9 +52,10 @@ before(async () => {
 beforeEach(async () => {
   for (const key of environmentKeys) delete process.env[key];
   // These tests assert the real write to the disposable workspace copy, so persistence is on here
-  // (npm test turns it off for every other file).
+  // (npm test turns it off for every other file). The route is public by design and must work with
+  // no cron secret at all.
   process.env.NEMO_GATEWAY_STORE_PERSIST = 'on';
-  process.env.CRON_SECRET = 'test-only-secret';
+  assert.equal(process.env.CRON_SECRET, undefined);
   await store.persistGatewayDatabase(structuredClone(initialDatabase));
 
   // Exercise the real sync pipeline without contacting third-party services.
@@ -62,8 +64,8 @@ beforeEach(async () => {
     if (url.searchParams.has('ceid')) {
       return new Response('<rss><channel></channel></rss>');
     }
-    // Simulate SportScore by endpoint path (the gateway tries several documented routes and
-    // self-identifies with ?src=, which is not part of the contract).
+    // Simulate SportScore by endpoint path: the gateway tries several documented routes and
+    // self-identifies with ?src=, which is not part of the provider's contract.
     const isMatchesEndpoint =
       url.pathname.includes('/api/widget/matches') || url.pathname.includes('/api/v1/matches');
     return Response.json({
@@ -91,9 +93,9 @@ after(() => {
 
 async function assertVisitingUpdatesMatches(response: NextResponse) {
   assert.equal(response.status, 200);
-  // الاستجابة المطلوبة بالضبط — بدون أي حقول إضافية
   const body = await response.json();
   assert.equal(body.status, 'ok');
+  assert.equal(body.ok, true);
   assert.equal(body.result.matchesFetched > 0, true);
   assert.equal(body.persistence.ok, true);
   // The write is verified by reading it back from the backend, not just asserted.
@@ -130,17 +132,43 @@ test('Daily Vercel cron is configured for the update-matches route', () => {
   assert.equal(route.runtime, 'nodejs');
 });
 
-const authorizedRequest = () => new NextRequest('http://localhost/api/cron/update-matches', { headers: { authorization: 'Bearer test-only-secret' } });
-
-test('Authorized GET persists fetched matches and reports counts', async () => {
-  await assertVisitingUpdatesMatches(await route.GET(authorizedRequest()));
+test('Unauthenticated GET persists fetched matches and reports counts', async () => {
+  await assertVisitingUpdatesMatches(await route.GET());
 });
 
-test('POST also updates matches and replies {"status":"ok"}', async () => {
-  await assertVisitingUpdatesMatches(await route.POST(authorizedRequest()));
+test('Unauthenticated POST also updates matches and replies {"status":"ok"}', async () => {
+  await assertVisitingUpdatesMatches(await route.POST());
 });
 
-test('Unauthorized request cannot start a sync', async () => {
-  const response = await route.GET(new NextRequest('http://localhost/api/cron/update-matches'));
-  assert.equal(response.status, 401);
+test('a degraded sync is a 503, never a green cron log', async () => {
+  // No source returns matches: the route must not claim success. The cache must be emptied first,
+  // because the tests above cached a successful SportScore response and the HTTP client would
+  // serve it from memory inside its TTL without ever calling the mock.
+  clearHttpCache();
+  mock.restoreAll();
+  mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0]) => {
+    const url = new URL(String(input));
+    if (url.searchParams.has('ceid')) return new Response('<rss><channel></channel></rss>');
+    return Response.json({ matches: [], events: [], competitions: [], tables: [] });
+  });
+
+  const response = await route.GET();
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.status, 'degraded');
+  assert.equal(body.result.matchesFetched, 0);
+  // Previous data is preserved rather than wiped by a failed fetch.
+  const db = store.getGatewayDatabase();
+  assert.equal(db.matches.length >= initialDatabase.matches.length, true);
+});
+
+test('an undurable backend is a 503 even when sources returned matches', async () => {
+  // A lambda-local disk is not shared, durable storage; success must not be reported.
+  process.env.VERCEL = '1';
+  const response = await route.GET();
+  const body = await response.json();
+  assert.equal(body.storageRoundTrip.durable, false);
+  assert.equal(body.ok, false);
+  assert.equal(response.status, 503);
 });

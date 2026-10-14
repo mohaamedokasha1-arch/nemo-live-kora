@@ -1,6 +1,6 @@
 > **تدقيق 2026-10-13:** الادعاءات التاريخية أدناه عن اتصال المصادر ليست إثباتًا حاليًا.
 > راجع [التقرير المقاس وحدود الإنجاز](docs/DATA-REPAIR-2026-10-13.md).
-> جميع مسارات الكرون محمية الآن؛ لا يوجد نشر إنتاجي لهذه التغييرات.
+> مسارا `/api/cron/sync` و`/api/cron/sync-news` ما زالا محميين؛ أما `/api/cron/update-matches` فأصبح متاحًا دون مصادقة. لم يُنشر هذا التغيير إلى الإنتاج.
 
 # بوابة مباريات NEMO Sports (`nemo-live-kora`)
 
@@ -199,15 +199,14 @@ npm run dev
   - **التخزين الدائم (مطلوب للإنتاج):** `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (أو `LIBSQL_URL` + `LIBSQL_AUTH_TOKEN`)
   - بدائل التخزين: `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`، أو `KV_REST_API_URL` + `KV_REST_API_TOKEN`، أو `BLOB_READ_WRITE_TOKEN`
   - **مفاتيح المصادر:** `API_FOOTBALL_KEY` (مطلوب لـ API-Football)، `FOOTBALL_DATA_API_KEY` (اختياري)، `THESPORTSDB_API_KEY` (افتراضيًا `123`)
-  - **الروابط:** `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`، `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app`
-- **`CRON_SECRET` مطلوب لتشغيل `/api/cron/update-matches`**، ويُستخدم أيضًا لحماية `/api/cron/sync`. اضبطه في متغيرات بيئة الاستضافة، ثم أعد النشر. احتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له.
+  - **الروابط:** `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`، `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
+- **`CRON_SECRET` يحمي `/api/cron/sync` و`/api/cron/sync-news` ولوحة الإدارة**. اضبطه في متغيرات بيئة الاستضافة، واحتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له. مسار `/api/cron/update-matches` لا يتطلب سرًا.
 
 ---
 
 ## 7. تحديث المباريات والتحقق من التخزين
 
-`GET` أو `POST /api/cron/update-matches` يتطلب ترويسة `Authorization: Bearer <CRON_SECRET>`.
-لا ترسل السر في URL ولا تحفظه في Git أو سجل عام. عدم ضبط السر خطأ إعداد (500)، والرمز الخاطئ (401).
+`GET` أو `POST /api/cron/update-matches` متاحان مباشرةً دون ترويسة أو مفتاح؛ كل طلب يشغّل محاولة تحديث جديدة. **لأن المسار عام، يمكن لأي جهة تكرار تشغيله واستهلاك حصص مزودي البيانات أو موارد الخادم.**
 
 الاستجابة تتضمن `runId`, `startedAt`, `finishedAt`, `result`, `persistence` وعدّادات الجلب والإضافة والتعديل.
 الفشل الكامل أو التخزين غير الدائم يُرجع 503، وليس نجاحًا عامًا. نجاح HTTP محلي لا يثبت تنفيذ الجدولة أو الإنتاج.
