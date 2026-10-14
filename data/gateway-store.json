@@ -4,11 +4,11 @@
     "gatewayName": "بوابة مباريات NEMO Sports",
     "mainSiteUrl": "https://nemo-sports.vercel.app",
     "timezone": "Africa/Cairo",
-    "lastFullSyncAt": "2026-10-14T00:58:05.595Z",
+    "lastFullSyncAt": "2026-10-14T03:14:54.789Z",
     "lastLiveSyncAt": "2026-10-12T00:35:00Z",
-    "lastNewsSyncAt": "2026-10-12T07:07:53.622Z",
+    "lastNewsSyncAt": "2026-10-14T03:10:27.805Z",
     "lastSuccessfulNewsSyncAt": null,
-    "lastMatchesSyncAttemptAt": "2026-10-14T00:58:05.594Z",
+    "lastMatchesSyncAttemptAt": "2026-10-14T03:14:54.784Z",
     "lastMatchesSyncResult": {
       "ok": false,
       "trigger": "تحديث مباريات عند الطلب",
@@ -62,11 +62,11 @@
         "GET /api/widget/standings/?sport=football&slug=egyptian-premier-league",
         "GET /api/widget/standings/?sport=football&slug=caf-champions-league"
       ],
-      "lastSyncAt": "2026-10-14T00:58:05.595Z",
+      "lastSyncAt": "2026-10-14T03:14:54.789Z",
       "lastHttpStatus": null,
-      "lastLatencyMs": 140,
+      "lastLatencyMs": 54,
       "recordsImported": 65,
-      "errorCount": 3,
+      "errorCount": 6,
       "notesAr": "يعمل بدون مفتاح سري؛ يغذي مسارات المباريات المباشرة المتوافقة مع NEMO Sports وجداول الترتيب.",
       "providesMatches": true,
       "providesStandings": true,
@@ -74,7 +74,7 @@
       "lastSuccessfulNewsSyncAt": null,
       "newsImportedCount": 0,
       "newsPublishedCount": 0,
-      "lastFailedDataAt": "2026-10-14T00:58:05.595Z"
+      "lastFailedDataAt": "2026-10-14T03:14:54.789Z"
     },
     "football-data": {
       "id": "football-data",
@@ -137,11 +137,11 @@
         "GET /api/v1/json/3/eventsday.php?d=2026-10-12&s=Soccer",
         "GET /api/v1/json/3/search_all_teams.php?l=Egyptian%20Premier%20League"
       ],
-      "lastSyncAt": "2026-10-14T00:58:05.595Z",
+      "lastSyncAt": "2026-10-14T03:14:54.789Z",
       "lastHttpStatus": null,
-      "lastLatencyMs": 144,
+      "lastLatencyMs": 180,
       "recordsImported": 42,
-      "errorCount": 3,
+      "errorCount": 6,
       "notesAr": "المصدر الأساسي لجدول مباريات الدوري المصري الممتاز (اليوم والأمس والجولات القادمة) وكأس الرابطة المصرية والكونفدرالية الأفريقية.",
       "providesMatches": true,
       "providesStandings": false,
@@ -157,7 +157,7 @@
           "error": "fetch failed"
         }
       ],
-      "lastFailedDataAt": "2026-10-14T00:58:05.595Z"
+      "lastFailedDataAt": "2026-10-14T03:14:54.789Z"
     },
     "api-football": {
       "id": "api-football",
@@ -201,8 +201,8 @@
       "requiresKey": false,
       "keyEnvVar": null,
       "isKeyConfigured": true,
-      "status": "active",
-      "statusLabelAr": "متصل ومفعّل بالكامل (200 OK)",
+      "status": "degraded",
+      "statusLabelAr": "تعذر جلب الأخبار من المصدر — لم تُحذف الأخبار المنشورة سابقًا ولم يُعرض فشل HTTP باعتباره نجاحًا",
       "dataTypesProvided": [
         "عناوين الأخبار الرياضية العربية والإنجليزية",
         "اسم الناشر الأصلي والرابط المباشر وتاريخ النشر بتوقيت القاهرة"
@@ -212,17 +212,17 @@
         "GET /rss/search?q=الدوري+المصري&hl=ar&gl=EG&ceid=EG:ar",
         "GET /rss/search?q=Egyptian+Premier+League&hl=en&gl=EG&ceid=EG:en"
       ],
-      "lastSyncAt": "2026-10-12T00:35:00Z",
-      "lastHttpStatus": 200,
-      "lastLatencyMs": 215,
-      "recordsImported": 6,
-      "errorCount": 0,
+      "lastSyncAt": "2026-10-14T03:10:27.805Z",
+      "lastHttpStatus": null,
+      "lastLatencyMs": 48,
+      "recordsImported": 0,
+      "errorCount": 1,
       "notesAr": "يعرض عناوين الأخبار مع نسبتها الكاملة لمصادرها الأصلية دون نسخ المحتوى الكامل.",
       "providesMatches": false,
       "providesStandings": false,
       "providesNews": true,
       "lastSuccessfulNewsSyncAt": null,
-      "newsImportedCount": 0,
+      "newsImportedCount": 6,
       "newsPublishedCount": 0
     }
   },
@@ -4098,6 +4098,522 @@
   ],
   "syncLogs": [
     {
+      "id": "sync-1791947694789",
+      "startedAt": "2026-10-14T03:14:52.493Z",
+      "finishedAt": "2026-10-14T03:14:54.789Z",
+      "mode": "live",
+      "trigger": "تحديث مباريات عند الطلب",
+      "sourceResults": [
+        {
+          "sourceId": "sportscore",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 54,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب المباريات من SportScore (fetch failed بعد تجربة 3 نقطة نهاية). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        },
+        {
+          "sourceId": "thesportsdb",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 180,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب بيانات الدوري المصري من TheSportsDB (fetch failed). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "endpoints": [
+            {
+              "endpoint": "/eventsround.php?id=4829&r=6&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 6",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 25,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=7&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 7",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 17,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=8&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 8",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 16,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsseason.php?id=4829&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — موسم 2026-2027 كاملًا",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 18,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 19,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 10,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 9,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 8,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 10,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 22,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-13&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-13",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 8,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-14&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-14",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 10,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-15&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-15",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 8,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            }
+          ],
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        }
+      ],
+      "totalMatchesInStore": 37,
+      "totalStandingsInStore": 3,
+      "totalNewsInStore": 6
+    },
+    {
+      "id": "sync-1791947008896",
+      "startedAt": "2026-10-14T03:03:26.588Z",
+      "finishedAt": "2026-10-14T03:03:28.896Z",
+      "mode": "live",
+      "trigger": "تحديث مباريات عند الطلب",
+      "sourceResults": [
+        {
+          "sourceId": "sportscore",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 63,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب المباريات من SportScore (fetch failed بعد تجربة 3 نقطة نهاية). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        },
+        {
+          "sourceId": "thesportsdb",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 193,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب بيانات الدوري المصري من TheSportsDB (fetch failed). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "endpoints": [
+            {
+              "endpoint": "/eventsround.php?id=4829&r=6&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 6",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 11,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=7&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 7",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 17,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=8&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 8",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 23,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsseason.php?id=4829&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — موسم 2026-2027 كاملًا",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 29,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 14,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 10,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 13,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 20,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 10,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 8,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-13&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-13",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 20,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-14&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-14",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 9,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-15&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-15",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 9,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            }
+          ],
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        }
+      ],
+      "totalMatchesInStore": 37,
+      "totalStandingsInStore": 3,
+      "totalNewsInStore": 6
+    },
+    {
+      "id": "sync-1791945080071",
+      "startedAt": "2026-10-14T02:31:17.758Z",
+      "finishedAt": "2026-10-14T02:31:20.071Z",
+      "mode": "live",
+      "trigger": "تحديث مباريات عند الطلب",
+      "sourceResults": [
+        {
+          "sourceId": "sportscore",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 65,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب المباريات من SportScore (fetch failed بعد تجربة 3 نقطة نهاية). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        },
+        {
+          "sourceId": "thesportsdb",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 209,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب بيانات الدوري المصري من TheSportsDB (fetch failed). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "endpoints": [
+            {
+              "endpoint": "/eventsround.php?id=4829&r=6&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 6",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 20,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=7&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 7",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 9,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=8&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 8",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 19,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsseason.php?id=4829&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — موسم 2026-2027 كاملًا",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 15,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 17,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 17,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 8,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 16,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 18,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 23,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-13&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-13",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 15,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-14&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-14",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 16,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-15&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-15",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 16,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            }
+          ],
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        }
+      ],
+      "totalMatchesInStore": 37,
+      "totalStandingsInStore": 3,
+      "totalNewsInStore": 6
+    },
+    {
       "id": "sync-1791939485595",
       "startedAt": "2026-10-14T00:58:03.309Z",
       "finishedAt": "2026-10-14T00:58:05.595Z",
@@ -4750,6 +5266,30 @@
   ],
   "sourceErrors": [],
   "newsSourceSyncs": [
+    {
+      "id": "news-sync-1791947427805",
+      "sourceId": "google-news-rss",
+      "startedAt": "2026-10-14T03:10:27.755Z",
+      "finishedAt": "2026-10-14T03:10:27.805Z",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 48,
+      "fetchedCount": 0,
+      "importedCount": 0,
+      "publishedCount": 0,
+      "duplicateCount": 0,
+      "rejectedCount": 0,
+      "updatedCount": 0,
+      "errorCount": 1,
+      "messageAr": "تعذر جلب خلاصة Google News RSS. تم الاحتفاظ بالأخبار المنشورة سابقًا.",
+      "resolutionReport": {
+        "attempted": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "strategies": {},
+        "errors": {}
+      }
+    },
     {
       "id": "news-sync-1791788873622",
       "sourceId": "google-news-rss",
