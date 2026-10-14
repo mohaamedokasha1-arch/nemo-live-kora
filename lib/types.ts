@@ -164,6 +164,12 @@ export interface MatchIncidentSummary {
 
 export interface MatchRecord {
   fieldProvenance?: Record<string, { source: SourceId; observedAt: string }>;
+  /**
+   * من أين جاء السجل: مصدر خارجي، أو إدخال إداري يدوي.
+   * الوسم صريح حتى لا تعتمد إزالة مباريات الإدارة على ذاكرة العملية (وهي وسيلة فقدت
+   * البيانات فعلًا: سجل يُحذف من اللوحة يبقى في اللقطة المخزَّنة بعد إعادة التشغيل).
+   */
+  origin?: 'source' | 'manual';
   id: string;
   competitionId: string;
   competitionCode: string;
@@ -263,6 +269,13 @@ export interface RawNewsCandidate {
 }
 
 export interface NewsItemRecord {
+  /** من أين جاء الخبر: مصدر خارجي أو كتابة إدارية يدوية (يُستثنى من اللقطة المخزَّنة). */
+  origin?: 'source' | 'manual';
+  /**
+   * نصّ الخبر المكتوب في لوحة الإدارة (يوجد على سجلات الإدارة وحدها).
+   * أخبار المصادر لا تحمل نصًّا كاملًا — المقتطف هو كل ما نُشر لنا، ولا نولّد نصًّا ليس لدينا.
+   */
+  bodyText?: string | null;
   id: string;
   sourceItemId: string | null;
   sourceId: SourceId;

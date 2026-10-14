@@ -10,7 +10,7 @@ import {
 } from '@/lib/cairo-time';
 import { hydrateStore, queryGatewayMatches } from '@/lib/db/store';
 import { describeMatchesFreshness } from '@/lib/freshness';
-import { findCatalogEntryById, findCatalogEntryForMatch } from '@/lib/matches/match-links';
+import { findServedCatalogEntryById, findServedCatalogEntryForMatch } from '@/lib/admin/served-catalog';
 import { resolveMatchView, resolveUpcomingMatchViews } from '@/lib/matches/match-catalog';
 import { getLatestNews } from '@/lib/news/query';
 import { buildMatchLandingMetadata } from '@/lib/seo/metadata';
@@ -63,10 +63,10 @@ export async function generateMetadata({
     return buildDateMetadata(id);
   }
 
-  const entry = findCatalogEntryById(id);
+  const entry = findServedCatalogEntryById(id);
   if (!entry) {
     const match = (await hydrateStore()).matches.find((m) => m.id === id);
-    if (match && findCatalogEntryForMatch(match)) return buildMatchLandingMetadata(resolveMatchView(findCatalogEntryForMatch(match)!));
+    if (match && findServedCatalogEntryForMatch(match)) return buildMatchLandingMetadata(resolveMatchView(findServedCatalogEntryForMatch(match)!));
     if (match) return { title: `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`, description: `تفاصيل المباراة بتاريخ ${match.cairoDate}، النتيجة والحالة المتاحة من المصادر.`, alternates: { canonical: `/matches/${match.id}` }, robots: { index: match.kickoffConfirmed === true, follow: true } };
     return {
       title: 'الصفحة غير موجودة',
@@ -121,11 +121,11 @@ export default async function MatchRoutePage({
   }
 
   /* ---------- الحالة ②: صفحة هبوط مباراة من كتالوج data/matches.ts ---------- */
-  const entry = findCatalogEntryById(id);
+  const entry = findServedCatalogEntryById(id);
   if (!entry) {
     const match = (await hydrateStore()).matches.find((m) => m.id === id);
     if (!match) notFound();
-    const canonicalEntry = findCatalogEntryForMatch(match);
+    const canonicalEntry = findServedCatalogEntryForMatch(match);
     if (canonicalEntry) redirect(`/matches/${canonicalEntry.id}`);
     return <SourceMatchDetails record={match} />;
   }

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { readSignedSessionCookie } from './admin-session-cookie';
 
 export const ADMIN_COOKIE = 'nemo_admin_session';
 
@@ -63,20 +64,28 @@ export function requireCronAuth(request: NextRequest): NextResponse | null {
   return null;
 }
 
+/**
+ * حماية مسارات لوحة الأخبار القديمة. تقبل ثلاثة أشياء فقط:
+ *   1) ترويسة `Authorization: Bearer <CRON_SECRET>` (كما كان — للكرون والأدوات).
+ *   2) الكوكي المشترك القديم بقيمته كما هي (توافقية كاملة مع ما كان يعمل).
+ *   3) كوكي **الجلسة الموقَّعة** الجديد للوحة الإدارة (بعد التحقق من التوقيع والانتهاء)،
+ *      حتى تعمل لوحة الأخبار لمن دخل بحساب وكلمة مرور بلا حاجة للسر المشترك.
+ * لا يُقبل أي شيء غير موقَّع أو مطابق، والفحص كله على الخادم.
+ */
 export function requireAdminRequest(request: NextRequest): NextResponse | null {
-  if (!hasConfiguredAdminSecret()) {
-    console.error('[auth] sync_auth_not_configured');
+  if (!hasConfiguredAdminSecret() && !readSignedSessionCookie(request.cookies.get(ADMIN_COOKIE)?.value)) {
+    console.error('[auth] admin_auth_not_configured');
     return unauthorizedJson(
-      'لوحة الأخبار محمية. اضبط CRON_SECRET أو NEMO_INGEST_TOKEN في بيئة الاستضافة.',
+      'لوحة الأخبار محمية. اضبط NEMO_ADMIN_PASSWORD_HASH أو CRON_SECRET أو NEMO_INGEST_TOKEN في بيئة الاستضافة.',
       500
     );
   }
   const bearer = readBearerToken(request);
   const cookie = request.cookies.get(ADMIN_COOKIE)?.value || '';
-  if (isValidAdminSecret(bearer) || isValidAdminSecret(cookie)) {
+  if (isValidAdminSecret(bearer) || isValidAdminSecret(cookie) || readSignedSessionCookie(cookie)) {
     return null;
   }
-  return unauthorizedJson('غير مصرح — سجّل الدخول إلى لوحة الأخبار أو أرسل رمزًا صالحًا.');
+  return unauthorizedJson('غير مصرح — سجّل الدخول إلى لوحة الإدارة أو أرسل رمزًا صالحًا.');
 }
 
 export function adminCookieOptions() {

@@ -1,4 +1,5 @@
-import { buildMatchLandingPath, findCatalogEntryForMatch } from '../matches/match-links';
+import { buildMatchLandingPath } from '../matches/match-links';
+import { findServedCatalogEntryForMatch } from '../admin/served-catalog';
 import { GATEWAY_SITE_URL } from '../site-url';
 import type { MatchRecord } from '../types';
 
@@ -29,17 +30,25 @@ export function createMatchScheduleStructuredData(
     itemListOrder: 'https://schema.org/ItemListOrderAscending',
     numberOfItems: matches.length,
     itemListElement: matches.slice(0, 20).map((match, index) => {
-      const entry = findCatalogEntryForMatch(match);
-      const item: Record<string, unknown> = {
+      const entry = findServedCatalogEntryForMatch(match);
+      /*
+       * كل عنصر في القائمة يحمل رابطًا — بلا استثناء.
+       *
+       * كان الرابط يُضاف لمباريات الكتالوج فقط، فتبقى سجلات المصادر بلا `url`؛ وهذا
+       * ناقص وفق توصية Google لـ ItemList (كل ListItem يُفضّل أن يحمل رابط الصفحة
+       * المقابلة له)، خصوصًا بعد أن أصبح لكل مباراة صفحة تفاصيل ديناميكية `/matches/[id]`
+       * — سواء كانت من الكتالوج أو من سجلات المصادر.
+       *
+       * والرابط داخلي دائمًا (لا رابط خارجي هنا): صفحة التفاصيل هي الصفحة المعيارية
+       * للحدث، وهي التي تحمل زر المشاهدة ومساحات الإعلان.
+       */
+      const landingId = entry ? entry.id : match.id;
+      return {
         '@type': 'ListItem',
         position: index + 1,
         name: `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`,
+        url: `${GATEWAY_SITE_URL}${buildMatchLandingPath(landingId)}`,
       };
-      if (entry) {
-        // الرابط المعياري لصفحة الحدث الكاملة على البوابة (لا رابط خارجي هنا).
-        item.url = `${GATEWAY_SITE_URL}${buildMatchLandingPath(entry.id)}`;
-      }
-      return item;
     }),
   };
 }

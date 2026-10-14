@@ -36,6 +36,7 @@ import { mergeMatchRecords } from '../lib/db/seed-data';
 import { parseGoogleNewsRssXml, resolveGoogleNewsArticleUrl } from '../lib/sources/google-news-rss';
 import { validateNewsCandidate } from '../lib/news/validate';
 import { MatchRecord, RawNewsCandidate } from '../lib/types';
+import { scanForbiddenPatterns } from './helpers/source-scan';
 import { getVerifiedNemoMatchPageUrl, VERIFIED_NEMO_MAPPING_TABLE } from '../lib/nemo-resolver';
 
 // Never write the committed store from this file, whichever way it is run (test 8 mutates memory).
@@ -163,7 +164,8 @@ test('3. not_started after kick-off: stale record is downgraded and the finished
   const now = new Date('2026-10-12T20:00:00Z');
   const guarded = guardStaleLiveStatus(stale, now);
   assert.equal(guarded.status, 'unconfirmed');
-  assert.match(guarded.statusNoteAr || "", /موعد انطلاق/);
+  // الحالة تبقى صادقة (unconfirmed) والنص المعروض محايد بلا تشكيك للزائر
+  assert.match(guarded.statusNoteAr || "", /تُحدَّث حالة المباراة تلقائيًا/);
 
   // Within the grace period the status is still believed.
   const justStarted = new Date(Date.parse(stale.utcKickoff) + NOT_STARTED_GRACE_MS - 60_000);
@@ -409,36 +411,49 @@ test('10c. News: a relay that answers with a publisher Location resolves; a head
 });
 
 // ---------------------------------------------------------------------------------------------
-// 11. Source scan: generic and guessed match destinations must not be built into public code.
+// 11. Source scan: guessed match destinations must not be built into public code.
+//
+// ⚠️ تحديث السياسة (2026-10-14) — بطلب صريح من صاحب المنتج:
+// كان هذا الفحص يمنع أي إشارة إلى بوابة المشاهدة `/watch` على المنصة، بناءً على
+// `docs/AUDIT-2026-10-12-BROADCAST-LINK.md` الذي سجّل أن `/watch` صفحة دليل عامة
+// لا تختار مباراة بعينها. وقد تقرّر الآن اعتمادها كوجهة موحّدة لكل مباراة
+// (انظر `lib/nemo-watch.ts`) لإيصال الزائر إلى المنصة الرئيسية.
+//
+// لذلك تغيّر الفحص من «منع البوابة» إلى **حصرها في مصدر واحد**: رابط المشاهدة يجب أن
+// يُبنى من `lib/nemo-watch.ts` فقط، ويُمنع ظهور عنوان البوابة مكتوبًا يدويًا في أي
+// طبقة واجهة (`components/` و`app/`). هذا أقوى من المنع السابق في مكانه الصحيح:
+// يمنع تكرار الوجهة وتشتّتها، ويُبقي تغييرها في متغيّر بيئة واحد.
+//
+// وما زال الفحص يمنع بحزم: مسارات المباريات المُخمَّنة (slug مُختلق)، ومعامل الاستعلام
+// القديم `matchId=`، والمرساة غير المدعومة `#selected-match-broadcast`، وأنواع الروابط
+// المهجورة. كل ذلك بعد إزالة التعليقات لتفادي الإنذارات الكاذبة من التعليقات التوثيقية.
 // ---------------------------------------------------------------------------------------------
-test('11. NEMO match links use an explicit allowlist, never a generic /watch or guessed page', () => {
-  const dirs = ['lib', 'components', 'app'];
-  const files: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(path.join(process.cwd(), dir), { withFileTypes: true })) {
-      const full = path.join(process.cwd(), dir, entry.name);
-      if (entry.isDirectory()) walk(path.relative(process.cwd(), full));
-      else if (/\.(ts|tsx)$/.test(entry.name)) files.push(full);
-    }
-  };
-  dirs.forEach(walk);
-  const offenders: string[] = [];
-  for (const file of files) {
-    const text = fs.readFileSync(file, 'utf-8');
-    if (/https:\/\/nemo-sports\.vercel\.app\/watch/.test(text)) {
-      offenders.push(`${file}: generic /watch URL`);
-    }
-    if (/matchId=|selected-match-broadcast/.test(text)) {
-      offenders.push(`${file}: unsupported match query/anchor`);
-    }
-    if (/NEMO_SPORTS_BASE_URL[^\n]*\/matches/.test(text)) {
-      offenders.push(`${file}: runtime-configured match destination`);
-    }
-    if (/broadcast_section|competition_fallback|schedule_fallback/.test(text)) {
-      offenders.push(`${file}: obsolete link type`);
-    }
-  }
-  assert.deepEqual(offenders, []);
+test('11. NEMO destinations come from the watch resolver, never a guessed page or slug', () => {
+  const violations = scanForbiddenPatterns(process.cwd(), ['lib', 'components', 'app'], [
+    {
+      // عنوان بوابة المشاهدة مكتوبًا يدويًا في طبقات الواجهة → يجب أن يأتي من lib/nemo-watch.ts
+      regex: /https:\/\/nemo-sports\.vercel\.app\/watch/,
+      reason: 'hardcoded watch URL in UI layer',
+    },
+    {
+      // معامل الاستعلام القديم غير المدعوم، أو المرساة التي لا وجود لها في الموقع الأساسي
+      regex: /[?&]matchId=|selected-match-broadcast/,
+      reason: 'unsupported match query/anchor',
+    },
+    {
+      regex: /NEMO_SPORTS_BASE_URL[^\n]*\/matches/,
+      reason: 'runtime-configured match destination',
+    },
+    {
+      regex: /broadcast_section|competition_fallback|schedule_fallback/,
+      reason: 'obsolete link type',
+    },
+  ]);
+
+  assert.deepEqual(
+    violations.map((violation) => `${violation.file}: ${violation.reason}`),
+    []
+  );
 });
 
 test('11b. TheSportsDB fixtures resolve only to their exact verified match page or no link', () => {

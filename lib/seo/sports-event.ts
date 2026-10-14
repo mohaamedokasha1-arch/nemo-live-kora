@@ -1,4 +1,4 @@
-import { buildMatchLandingPath } from '../matches/match-links';
+import { buildMatchLandingPath, buildMatchOgImagePath } from '../matches/match-links';
 import type { ResolvedMatchView } from '../matches/types';
 import type { MatchStatusCode } from '../types';
 import { GATEWAY_SITE_URL } from '../site-url';
@@ -31,6 +31,12 @@ export const SCHEMA_SITE_NAME = 'نيمو كورة لايف — NEMO Sports';
 export const SCHEMA_SITE_URL = GATEWAY_SITE_URL;
 /** العملة الافتراضية لكائن العرض عندما تكون المباراة مجانية. */
 export const DEFAULT_OFFER_CURRENCY = 'EGP';
+
+/**
+ * صورة احتياطية مُستضافة على النطاق بمقاس 1200×675.
+ * تُستخدم كشبكة أمان أخيرة فقط إذا تعذّر توليد صورة المشاركة الخاصة بالمباراة.
+ */
+export const FALLBACK_SOCIAL_IMAGE_PATH = '/og-cover.jpg';
 
 /** القيم المعتمدة في Schema.org لخاصية eventStatus. */
 export const VALID_EVENT_STATUSES = [
@@ -156,7 +162,25 @@ function buildAttendanceMode(view: ResolvedMatchView): string {
   return 'https://schema.org/OfflineEventAttendanceMode';
 }
 
-/** offers: رابط المشاهدة + سعر "0" + عملة + توفّر InStock + validFrom. */
+/**
+ * توفر العرض (Offer.availability) يجب أن يطابق الحالة الفعلية للمباراة:
+ *  • مباراة منتهية أو مُلغاة  → SoldOut  (لا معنى لإعلان توفّر بث لمباراة انتهت،
+ *    وكان ذلك يُنتج تحذيرًا في Search Console عن كائن عرض غير صالح للمستقبل).
+ *  • مباراة مؤجلة             → InStock  (التذكرة/البث صالح بعد إعادة الجدولة).
+ *  • مباراة مجدولة أو جارية   → InStock  (الوضع الطبيعي).
+ * القيم المعتمدة في Schema.org لهذه الخاصية من نوع ItemAvailability فقط.
+ */
+function resolveOfferAvailability(view: ResolvedMatchView): {
+  availability: string;
+  isSoldOut: boolean;
+} {
+  if (view.isFinished || view.status === 'cancelled') {
+    return { availability: 'https://schema.org/SoldOut', isSoldOut: true };
+  }
+  return { availability: 'https://schema.org/InStock', isSoldOut: false };
+}
+
+/** offers: رابط المشاهدة + سعر "0" + عملة + توفّر مطابق للحالة + validFrom. */
 function buildOffersNode(view: ResolvedMatchView, startIso: string): Record<string, unknown> {
   const { broadcast } = view.entry;
   const isFree = broadcast.isFree !== false;
@@ -167,26 +191,38 @@ function buildOffersNode(view: ResolvedMatchView, startIso: string): Record<stri
       ? '0'
       : '0';
 
-  const validFrom =
+  const { availability, isSoldOut } = resolveOfferAvailability(view);
+
+  // للمباراة المنتهية/الملغاة نُوجّه العرض إلى صفحة النتيجة والملخص (وجهة مفيدة للزائر)
+  // بدل صفحة مشاهدة لا يوجد فيها بث — وهذا يمنع إشارة «صفحة عرض ميتة».
+  const offerUrl = isSoldOut
+    ? view.canonicalUrl
+    : view.verifiedBroadcastUrl || view.liveUrl;
+
+  const availableFrom =
     broadcast.availableFromUtc && Number.isFinite(new Date(broadcast.availableFromUtc).getTime())
       ? broadcast.availableFromUtc
       : startIso;
 
-  return {
+  const node: Record<string, unknown> = {
     '@type': 'Offer',
     '@id': `${view.canonicalUrl}#offer`,
-    url: view.verifiedBroadcastUrl || view.liveUrl,
+    url: offerUrl,
     name: broadcast.labelAr || 'مشاهدة المباراة',
     price: numericPrice,
     priceCurrency: broadcast.priceCurrency ?? DEFAULT_OFFER_CURRENCY,
-    availability: 'https://schema.org/InStock',
-    validFrom,
+    availability,
     seller: {
       '@type': 'Organization',
       name: broadcast.providerNameAr || SCHEMA_SITE_NAME,
       url: SCHEMA_SITE_URL,
     },
   };
+
+  // validFrom يصف بداية صلاحية العرض — لا معنى له على عرض منتهٍ (SoldOut).
+  if (!isSoldOut) node.validFrom = availableFrom;
+
+  return node;
 }
 
 function buildOrganizerNode(view: ResolvedMatchView): Record<string, unknown> {
@@ -202,14 +238,28 @@ function buildOrganizerNode(view: ResolvedMatchView): Record<string, unknown> {
   return node;
 }
 
-/** قائمة الصور: صورة المباراة الخاصة أولًا ثم شعارا الفريقين. */
+/**
+ * قائمة صور الحدث.
+ *
+ * ⚠️ متطلب Google لصفحات الأحداث: صورة عرضها **720 بكسل على الأقل** (والموصى به
+ * 1200×675 بنسبة 16:9). شعارات الفرق مربّعة وصغيرة ومُستضافة على نطاق خارجي، لذلك
+ * لا تُدرَج هنا (كانت تُنتج تحذير «Image too small») — بل تبقى في `SportsTeam.logo`
+ * حيث لا يوجد شرط حجم.
+ *
+ * الأولوية:
+ *   1) `seo.imageUrl` إذا وضعها المحرّر وهي 1200×675 مُستضافة على النطاق.
+ *   2) صورة المشاركة المُولَّدة تلقائيًا `/matches/<id>/opengraph-image` (1200×675 دائمًا).
+ *   3) صورة الغلاف العامة للبوابة `/og-cover.jpg` (1200×675) كشبكة أمان أخيرة.
+ */
 function buildImageList(view: ResolvedMatchView): string[] {
-  const images: string[] = [];
-  if (view.entry.seo?.imageUrl) images.push(view.entry.seo.imageUrl);
-  for (const team of [view.entry.homeTeam, view.entry.awayTeam]) {
-    if (team.logoUrl && !images.includes(team.logoUrl)) images.push(team.logoUrl);
+  const curated = view.entry.seo?.imageUrl?.trim();
+  if (curated) {
+    return [curated, `${SCHEMA_SITE_URL}${buildMatchOgImagePath(view.entry.id)}`];
   }
-  return images;
+  return [
+    `${SCHEMA_SITE_URL}${buildMatchOgImagePath(view.entry.id)}`,
+    `${SCHEMA_SITE_URL}${FALLBACK_SOCIAL_IMAGE_PATH}`,
+  ];
 }
 
 /** بناء عقدة SportsEvent كاملة الحقول لمباراة واحدة. */

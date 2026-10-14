@@ -282,7 +282,7 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
         : normStatus.statusLabelAr,
     statusNoteAr:
       unconfirmedStatus || unconfirmedLive
-        ? 'لم يرسل المصدر موعد انطلاق لهذه المباراة، لذلك لا نعرض حالتها كمباراة لم تبدأ أو جارية.'
+        ? 'سيُعرض الموعد الرسمي فور إعلانه.'
         : normStatus.statusNoteAr,
     liveMinute: null,
     score: {

@@ -8,7 +8,9 @@ import Script from 'next/script';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import SiteBanner from '@/components/SiteBanner';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
+import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
 
 const SITE_NAME = 'نيمو كورة لايف — NEMO Sports';
 const SITE_TITLE = 'نيمو كورة لايف | جدول مباريات اليوم والأمس والغد — NEMO Sports';
@@ -23,13 +25,28 @@ const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || '';
  * الوسوم المعيارية تُضبط لكل صفحة على حدة (وليس هنا) لتجنّب الإشارة الخاطئة إلى الجذر
  * من صفحات الأخبار أو الصفحات القانونية — وهذا هو الأسلوب الصحيح لمنع تكرار المحتوى.
  */
-export const metadata: Metadata = {
+/**
+ * الوسوم الافتراضية للموقع. تُبنى من دالة لا من ثابت لأن جزءًا منها يقرأ إعدادات
+ * لوحة الإدارة (صورة المشاركة والوصف التعريفي) — فينعكس تعديل المشغّل بلا إعادة بناء.
+ * كل ما لم يُغيَّر في اللوحة يبقى بنفس القيمة الثابتة السابقة حرفيًا.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  await loadManualDocument();
+  const settings = getSiteSettings();
+  const ogImage = settings.ogImagePath?.startsWith('http')
+    ? settings.ogImagePath
+    : `${GATEWAY_SITE_URL}${settings.ogImagePath || '/og-cover.jpg'}`;
+  return buildLayoutMetadata(ogImage, settings.siteDescriptionAr || SITE_DESCRIPTION);
+}
+
+function buildLayoutMetadata(ogImage: string, description: string): Metadata {
+  return {
   metadataBase: new URL(GATEWAY_SITE_URL),
   title: {
     default: SITE_TITLE,
     template: '%s | نيمو كورة لايف',
   },
-  description: SITE_DESCRIPTION,
+  description,
   applicationName: 'نيمو كورة لايف',
   category: 'sports',
   publisher: SITE_NAME,
@@ -52,11 +69,11 @@ export const metadata: Metadata = {
     locale: 'ar_EG',
     siteName: SITE_NAME,
     title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
+    description,
     url: GATEWAY_SITE_URL,
     images: [
       {
-        url: `${GATEWAY_SITE_URL}/og-cover.jpg`,
+        url: ogImage,
         width: 1200,
         height: 675,
         alt: 'نيمو كورة لايف — بوابة مباريات اليوم والبث المباشر',
@@ -66,10 +83,11 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
-    images: [`${GATEWAY_SITE_URL}/og-cover.jpg`],
+    description,
+    images: [ogImage],
   },
-};
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#161f2e',
@@ -77,11 +95,14 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // تحميل مستند الإدارة هنا يجعل الشريط والصفحات تقرأ أحدث قرار إداري في نفس الطلب،
+  // والقراءة مخزَّنة في الذاكرة فلا تُضيف أي طلب شبكة بعد أول تحميل.
+  await loadManualDocument();
   return (
     <html lang="ar" dir="rtl" data-theme="light" suppressHydrationWarning>
       <head>
@@ -99,6 +120,7 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className="kl-page-shell">
+        <SiteBanner />
         <Header />
         <main id="main-content" className="kl-container kl-main">
           {children}

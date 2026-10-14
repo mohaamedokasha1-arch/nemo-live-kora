@@ -114,9 +114,13 @@ test('Daily Vercel cron is configured for the update-matches route', () => {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
     crons: Array<{ path: string; schedule: string }>;
   };
-  assert.equal(config.crons.length, 1);
-  assert.equal(config.crons[0].path, '/api/cron/update-matches');
+  // جدولان يوميان (خطة Vercel المجانية تسمح بمهمتين يوميًا لكلٍّ موعد واحد):
+  // مزامنة كاملة صباحًا (مباريات + كل مجموعات الأخبار المجانية)، وتحديث مباشر مساءً.
+  assert.equal(config.crons.length, 2);
+  assert.equal(config.crons[0].path, '/api/cron/sync');
   assert.equal(config.crons[0].schedule, '0 5 * * *');
+  assert.equal(config.crons[1].path, '/api/cron/update-matches');
+  assert.equal(config.crons[1].schedule, '0 16 * * *');
   assert.equal(
     fs.existsSync(path.join(projectRoot, 'app/api/cron/update-matches/route.ts')),
     true

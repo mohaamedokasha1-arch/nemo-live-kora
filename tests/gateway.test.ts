@@ -90,7 +90,7 @@ test('3. Score & Status Integrity: NEVER converts null/missing score to 0-0 and 
   const norm = normalizeMatchStatus('NS', 'Not Started', pastKickoff, now);
   assert.notEqual(norm.status, 'finished');
   assert.equal(norm.status, 'unconfirmed');
-  assert.equal(norm.statusLabelAr, 'غير مؤكدة أو غير متاحة من المصدر');
+  assert.equal(norm.statusLabelAr, 'قيد التحديث');
 
   assert.equal(normalizeMatchStatus('LIVE', 'In Play', '2026-10-12T11:30:00Z', now).status, 'live');
   assert.equal(normalizeMatchStatus('LIVE', 'In Play', '2026-10-12T18:00:00Z', now).status, 'unconfirmed');
@@ -121,7 +121,7 @@ test('4. NEMO Sports Match Resolver: only exact allow-listed match pages receive
     zamalekAhlyLink.url,
     'https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc#live-stream'
   );
-  assert.match(zamalekAhlyLink.subLabelAr, /لا نفترض توفر بث نشط/);
+  assert.match(zamalekAhlyLink.subLabelAr, /صفحة هذه المباراة تحديدًا/);
 
   // A changed date, reversed teams, or descriptive slug without a provider id is not the same fixture.
   for (const input of [

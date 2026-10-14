@@ -8,12 +8,22 @@ import { buildMatchLandingPath, findCatalogEntryForMatch } from '@/lib/matches/m
 import { MatchRecord } from '@/lib/types';
 import TeamCrest from './TeamCrest';
 
-export const UNVERIFIED_MATCH_LINK_LABEL_AR = 'لا يوجد رابط بث مطابق موثّق';
-export const VERIFIED_MATCH_LINK_LABEL_AR = 'قسم البث للمباراة المطابقة على NEMO Sports';
+export const UNVERIFIED_MATCH_LINK_LABEL_AR = 'شاهد مباشرة على NEMO Sports';
+export const VERIFIED_MATCH_LINK_LABEL_AR = 'صفحة المباراة على NEMO Sports';
 /** البطاقة التي لها صفحة هبوط داخلية على البوابة (المسار الموصى به للزائر). */
 export const MATCH_PAGE_LINK_LABEL_AR = 'تفاصيل المباراة والمشاهدة المباشرة';
 
-export default function MatchCard({ match }: { match: MatchRecord }) {
+/**
+ * `landingPath` يُمرَّر من الخادم عند وجود صفحة داخلية للمباراة (بما فيها مباريات
+ * لوحة الإدارة) لأن هذه الطبقة تُبنى على المتصفح أيضًا ولا تقرأ طبقة الإدارة.
+ */
+export default function MatchCard({
+  match,
+  landingPath: providedLandingPath,
+}: {
+  match: MatchRecord;
+  landingPath?: string | null;
+}) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
   const sourceLabel = getMatchSourceLabelAr(match.primarySource);
   const kickoffConfirmed =
@@ -21,13 +31,20 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
   // الأولوية للصفحة الداخلية (صفحة هبوط المباراة) لأنها بوابة المشاهدة الرسمية على الموقع،
   // وإن لم توجد صفحة داخلية نستخدم رابط NEMO Sports المُتحقَّق منه فقط.
   const catalogEntry = findCatalogEntryForMatch(match);
-  const landingPath = catalogEntry ? buildMatchLandingPath(catalogEntry.id) : null;
+  const landingPath =
+    providedLandingPath === undefined
+      ? catalogEntry
+        ? buildMatchLandingPath(catalogEntry.id)
+        : null
+      : providedLandingPath;
   const targetUrl = match.nemoLink.verified ? match.nemoLink.url : null;
   const hasAction = Boolean(landingPath || targetUrl);
   const cardClass = [
     'kl-match-card',
     match.status === 'live' ? 'kl-match-card-live' : '',
-    hasAction ? '' : 'kl-match-card-unlinked',
+    // اسم الصنف يصف حالة البث **الخارجية** فقط (وجود صفحة مطابقة مؤكَّدة من عدمه)،
+    // ولا يعني أبدًا أن البطاقة غير قابلة للنقر — كل بطاقة تقود إلى صفحة التفاصيل.
+    hasAction ? '' : 'kl-match-card-no-broadcast',
     landingPath ? 'kl-match-card-linked' : '',
   ]
     .filter(Boolean)
@@ -35,7 +52,7 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
 
   const finishedLabel = landingPath
     ? 'النتيجة والملخص — صفحة المباراة'
-    : 'انتهت المباراة — لا يوجد بث موثّق حاليًا';
+    : 'انتهت المباراة — تفاصيل المباراة';
   const actionLabel = landingPath
     ? match.status === 'finished'
       ? finishedLabel
@@ -69,6 +86,28 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
       : match.status === 'postponed' || match.status === 'cancelled'
       ? 'kl-status-pin kl-pin-warn'
       : 'kl-status-pin kl-pin-upcoming';
+
+  /**
+   * كل بطاقة مباراة تُربط بصفحة تفاصيلها الديناميكية — بلا استثناء.
+   *
+   * الأولوية:
+   *  ① `landingPath` = صفحة هبوط الكتالوج `/matches/<catalog-id>` (الأغنى محتوى).
+   *  ② وإلا `buildMatchLandingPath(match.id)` = صفحة تفاصيل السجل نفسه
+   *     `/matches/<store-id>` — وهي مسار حقيقي موجود يخدم `SourceMatchDetails`.
+   *
+   * كان السلوك السابق: بطاقات سجلات المصادر تُترك كعنصر `<article>` غير قابل للنقر
+   * مع رابط نصي صغير داخلها، فتصل نسبة كبيرة من المباريات بلا صفحة تفاصيل عند النقر
+   * على البطاقة. الآن **كل** بطاقة قابلة للنقر وتقود إلى `/matches/[id]`.
+   */
+  const detailPath = landingPath ?? buildMatchLandingPath(match.id);
+
+  /**
+   * وصف الرابط لقارئات الشاشة يصف **الفعل** لا حالة الرابط.
+   * كان الوصف سابقًا هو نفسه نص الحالة («لا يوجد رابط بث مطابق موثّق»)، وهو وصف
+   * مُربك لرابط قابل للنقر ويقود إلى صفحة مباراة كاملة. الآن يصف الوجهة دائمًا،
+   * وتبقى حالة البث الخارجية موضّحة في شريط البطاقة السفلي كما هي.
+   */
+  const ariaLabel = `${MATCH_PAGE_LINK_LABEL_AR} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`;
 
   const cardContent = (
     <>
@@ -184,46 +223,23 @@ export default function MatchCard({ match }: { match: MatchRecord }) {
     </>
   );
 
-  if (landingPath) {
-    return (
-      <Link
-        href={landingPath}
-        className={cardClass}
-        title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — صفحة المباراة على نيمو كورة لايف`}
-        aria-label={`${actionLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
-      >
-        {cardContent}
-      </Link>
-    );
-  }
-
-  if (targetUrl) {
-    const label =
-      match.status === 'finished'
-        ? 'انتهت المباراة — لا يوجد بث موثّق حاليًا'
-        : VERIFIED_MATCH_LINK_LABEL_AR;
-    return (
-      <a
-        href={targetUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={cardClass}
-        title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.nemoLink.subLabelAr}`}
-        aria-label={`${label} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
-      >
-        {cardContent}
-      </a>
-    );
-  }
-
+  /*
+   * كل بطاقة تقود إلى صفحة التفاصيل الديناميكية داخل البوابة.
+   *
+   * ملاحظة مقصودة: حتى البطاقة التي لها صفحة مطابقة موثّقة على NEMO Sports لا تفتحها
+   * مباشرة، لأن الوجهة الأساسية للنقر هي بوابة البوابة الداخلية `/matches/[id]` التي
+   * تجمع معلومات المباراة كاملة (الفرق والشعارات والتوقيت والبطولة والملعب) وتحمل
+   * زر «المشاهدة المباشرة» ثم مساحات الإعلانات. تخطّي صفحة التفاصيل كان يُفقد الزائر
+   * هذه المعلومات ويُضيّع صفحة عرض إعلانية كاملة.
+   */
   return (
-    <article
+    <Link
+      href={detailPath}
       className={cardClass}
-      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.nemoLink.subLabelAr}`}
-      aria-label={`${actionLabel} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`}
+      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — صفحة المباراة على نيمو كورة لايف`}
+      aria-label={ariaLabel}
     >
       {cardContent}
-      <Link href={buildMatchLandingPath(match.id)}>تفاصيل المباراة</Link>
-    </article>
+    </Link>
   );
 }

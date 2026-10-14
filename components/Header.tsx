@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import NemoLogo from '@/components/NemoLogo';
 import { NEMO_SPORTS_BASE_URL } from '@/lib/catalog';
 
 export default function Header() {
@@ -29,29 +30,28 @@ export default function Header() {
   return (
     <header className="kl-header">
       <div className="kl-container kl-header-inner">
-        <Link href="/" className="kl-brand" aria-label="نيمو كورة لايف - الرئيسية">
-          <div className="kl-brand-crest" aria-hidden="true">
-            <img
-              src="/nemo-logo.png"
-              alt="NEMO Kora Live Logo"
-              width={40}
-              height={40}
-              className="kl-brand-svg"
-              style={{ borderRadius: '50%', objectFit: 'cover' }}
-            />
-          </div>
-          <div className="kl-brand-titles">
-            <span className="kl-brand-ar">نيمو كورة لايف</span>
-            <span className="kl-brand-sub">بوابة المباريات الرسمية</span>
-          </div>
+        <Link
+          href="/"
+          className="kl-brand"
+          aria-label="نيمو كورة لايف — NEMO Sports — الصفحة الرئيسية"
+        >
+          {/*
+            شعار NEMO Sports — **نفس شعار الموقع المرجعي** (nemo-sports.vercel.app)،
+            منقولًا من ملفاته الأصلية بلا أي إعادة رسم: العلامة (دربان + قُطر ذهبي)
+            ثم «NEMO» فوق «Sports». المقاس 38px — وهو المقاس المستخدم في هيدر الموقع
+            المرجعي نفسه — ويصغر بنسبه إلى 32px على الموبايل.
+
+            الملفات الأصلية منسوخة كما هي في `public/nemo-mark.svg` و
+            `public/nemo-logo.svg` و`app/icon.svg` (نفس البايتات، ويحرس التطابق
+            اختبار في `tests/logo-branding.test.ts`)، والمصدر موثّق في
+            `components/NemoLogo.tsx`.
+          */}
+          <NemoLogo size={38} className="kl-brand-logo" />
         </Link>
 
         <nav className="kl-nav" aria-label="القائمة العلوية">
           <Link href="/news" className="kl-nav-item">
             آخر الأخبار
-          </Link>
-          <Link href="/sources" className="kl-nav-item">
-            المصادر
           </Link>
           <a
             href={NEMO_SPORTS_BASE_URL}

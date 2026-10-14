@@ -7,15 +7,15 @@ import {
 } from '../cairo-time';
 import { CANONICAL_COMPETITIONS } from '../catalog';
 import { getGatewayDatabase } from '../db/store';
+import { applyManualLayerToMatch, manualMatchAsRecord } from '../admin/overrides';
 import { GATEWAY_SITE_URL } from '../site-url';
 import type { MatchRecord, MatchScore, MatchStatusCode } from '../types';
+import { buildMatchLandingPath, buildMatchLivePath } from './match-links';
 import {
-  buildMatchLandingPath,
-  buildMatchLivePath,
-  findCatalogEntryForMatch,
-  getAllCatalogEntries,
-  getFeaturedCatalogEntry,
-} from './match-links';
+  findServedCatalogEntryForMatch,
+  getServedCatalogEntries,
+  getServedFeaturedCatalogEntry,
+} from '../admin/served-catalog';
 import type {
   MatchCatalogEntry,
   MatchCatalogStatus,
@@ -48,20 +48,30 @@ const STATUS_LABEL_AR: Record<MatchStatusCode, string> = {
   postponed: 'مؤجلة',
   cancelled: 'أُلغيت',
   suspended: 'متوقفة مؤقتًا',
-  unconfirmed: 'الحالة غير مؤكدة من المصدر',
+  unconfirmed: 'قيد التحديث',
 };
 
 /** أقصى مدة معقولة لمباراة كرة قدم مع الوقت الإضافي والبدل (بالدقائق). */
 const MAX_PLAUSIBLE_MATCH_MINUTES = 180;
 
+/**
+ * سجل المباراة كما تعرضه الصفحات: من مخزن المصادر إن وُجد، وإلا من مباريات
+ * لوحة الإدارة، ثم تُطبَّق الحقول المثبَّتة يدويًا فوق النتيجة.
+ *
+ * الطبقتان معًا تضمنان أن أي تعديل للمدير يظهر في صفحة الهبوط وصفحة البث
+ * والبيانات المنظمة — حتى لو لم تُحدَّث لقطة المخزن بعد.
+ */
 export function resolveSourceMatchRecord(entry: MatchCatalogEntry): MatchRecord | null {
   const db = getGatewayDatabase();
-  return db.matches.find((match) => findCatalogEntryForMatch(match)?.id === entry.id) ?? null;
+  const fromStore = db.matches.find((match) => findServedCatalogEntryForMatch(match)?.id === entry.id) ?? null;
+  const record = fromStore ?? manualMatchAsRecord(entry.id);
+  return record ? applyManualLayerToMatch(record) : null;
 }
 
 /**
  * حالة احتياطية عند عدم وجود سجل مصدر لهذه المباراة:
- * لا ندّعي «جارية الآن» أبدًا بدون مصدر — نعرض «لم تبدأ» أو حالة غير مؤكدة مع سبب واضح.
+ * لا ندّعي «جارية الآن» أبدًا بدون مصدر؛ نعرض «لم تبدأ» أو «قيد التحديث» مع ملاحظة واضحة،
+ * ونص الملاحظة نفسه يبقى واثقًا ومهنيًا لا يشكّك الزائر في الموقع.
  */
 function resolveCatalogOnlyStatus(
   entry: MatchCatalogEntry,
@@ -79,14 +89,14 @@ function resolveCatalogOnlyStatus(
       status: 'unconfirmed',
       labelAr: STATUS_LABEL_AR.unconfirmed,
       noteAr:
-        'انتهى الموعد المعلن للمباراة ولم تُحدَّث حالتها النهائية من المصدر بعد؛ لا نعرض نتيجة غير مؤكدة.',
+        'انتهى الموعد المعلن للمباراة، والنتيجة النهائية قيد التحديث من المصدر تلقائيًا.',
     };
   }
   if (elapsedMinutes > 0) {
     return {
       status: 'not_started',
       labelAr: 'الموعد المعلن بدأ — بانتظار تحديث المصدر',
-      noteAr: 'حان موعد انطلاق المباراة حسب الموعد المعلن، ولم يصل تحديث مباشر من المصدر بعد.',
+      noteAr: 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
     };
   }
   return { status: baseStatus, labelAr: STATUS_LABEL_AR[baseStatus], noteAr: null };
@@ -162,16 +172,24 @@ function mostRecentIso(values: Array<string | null | undefined>): string | null 
   return latestIso;
 }
 
+/**
+ * كل سجلات الكتالوج التي تُقام في تاريخ قاهري معيّن (YYYY-MM-DD).
+ * تُستخدم في بطاقة المشاركة الخاصة بجدول اليوم (opengraph-image).
+ */
+export function findCatalogEntriesByCairoDate(cairoDate: string): MatchCatalogEntry[] {
+  return getServedCatalogEntries().filter((entry) => entry.cairoDate === cairoDate);
+}
+
 /** كل المباريات المدمجة، مرتبة زمنيًا من الأحدث إلى الأقدم. */
 export function resolveAllMatchViews(now: Date = new Date()): ResolvedMatchView[] {
-  return getAllCatalogEntries()
+  return getServedCatalogEntries()
     .map((entry) => resolveMatchView(entry, now))
     .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime());
 }
 
 /** مباراة الأسبوع المعروضة في بوابة الصفحة الرئيسية. */
 export function resolveFeaturedMatchView(now: Date = new Date()): ResolvedMatchView | null {
-  const entry = getFeaturedCatalogEntry();
+  const entry = getServedFeaturedCatalogEntry();
   return entry ? resolveMatchView(entry, now) : null;
 }
 
@@ -350,7 +368,7 @@ export function validateMatchCatalogEntry(entry: MatchCatalogEntry): string[] {
 }
 
 /** يتحقق من كل الكتالوج + يمنع تكرار المعرّفات. يعيد [] عندما يكون كل شيء سليمًا. */
-export function validateMatchCatalog(entries: MatchCatalogEntry[] = getAllCatalogEntries()): string[] {
+export function validateMatchCatalog(entries: MatchCatalogEntry[] = getServedCatalogEntries()): string[] {
   const errors: string[] = [];
   const seen = new Set<string>();
   for (const entry of entries) {

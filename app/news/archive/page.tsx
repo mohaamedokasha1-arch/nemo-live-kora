@@ -39,9 +39,16 @@ export default async function NewsArchivePage() {
       </header>
 
       {archive.length === 0 ? (
-        <div className="kl-empty-box">
-          <p className="kl-empty-title">لا توجد أخبار في الأرشيف حاليًا</p>
-        </div>
+        <section className="kl-news-empty" aria-label="حالة الأرشيف">
+          <h2 className="kl-section-subtitle">الأرشيف يتجمّع تلقائيًا</h2>
+          <p>
+            تُضاف الأخبار إلى الأرشيف تلقائيًا بعد خروجها من نافذة الأحدث، ويظهر كل خبر بتاريخ
+            نشره الأصلي.
+          </p>
+          <Link className="kl-cta-btn" href="/news">
+            عُد إلى آخر الأخبار
+          </Link>
+        </section>
       ) : (
         <div className="kl-news-list">
           {archive.map((item) => (

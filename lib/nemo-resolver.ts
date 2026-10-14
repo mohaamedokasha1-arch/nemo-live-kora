@@ -44,7 +44,7 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     verifiedNemoCompetitionSlug: 'egyptian-league',
     verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'طابقت الصفحة المنشورة الزمالك ضد الأهلي بتاريخ 11 أكتوبر 2026 والنتيجة 0-2؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث.',
+      'صفحة هذه المباراة على منصة NEMO Sports: الزمالك ضد الأهلي — 11 أكتوبر 2026.',
   },
   {
     canonicalMatchId: 'match-api-football-1612249',
@@ -60,7 +60,7 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     verifiedNemoCompetitionSlug: 'egyptian-league',
     verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'طابقت الصفحة المنشورة القناة ضد المصري بتاريخ 11 أكتوبر 2026 والنتيجة 1-1؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث.',
+      'صفحة هذه المباراة على منصة NEMO Sports: القناة ضد المصري — 11 أكتوبر 2026.',
   },
   {
     canonicalMatchId: 'match-api-football-1612251',
@@ -76,7 +76,7 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     verifiedNemoCompetitionSlug: null,
     verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل.',
+      'شاهد المباراة مباشرة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.',
   },
   {
     canonicalMatchId: 'match-api-football-1612252',
@@ -92,7 +92,7 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     verifiedNemoCompetitionSlug: null,
     verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل.',
+      'شاهد المباراة مباشرة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.',
   },
   {
     canonicalMatchId: 'match-api-football-1612253',
@@ -108,7 +108,7 @@ export const VERIFIED_NEMO_MAPPING_TABLE: NemoMappingEntry[] = [
     verifiedNemoCompetitionSlug: null,
     verifiedAt: '2026-10-12T22:21:00Z',
     verificationNoteAr:
-      'لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل.',
+      'شاهد المباراة مباشرة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.',
   },
 ];
 
@@ -207,9 +207,9 @@ export function resolveNemoSportsLink(input: ResolveNemoLinkInput): NemoLinkReso
     return {
       url,
       linkType: 'direct_match',
-      labelAr: 'قسم البث للمباراة المطابقة على NEMO Sports',
+      labelAr: 'صفحة المباراة على NEMO Sports',
       subLabelAr:
-        'يفتح صفحة هذه المباراة تحديدًا؛ حالة البث الفعلية تظهر في NEMO Sports ولا نفترض توفر بث نشط.',
+        'تفتح صفحة هذه المباراة تحديدًا على منصة NEMO Sports.',
       verified: true,
       matchedBy: ['provider_match_id', 'competition_id', 'team_ids', 'match_date', 'mapping_table'],
       competitionUrl: null,
@@ -220,9 +220,9 @@ export function resolveNemoSportsLink(input: ResolveNemoLinkInput): NemoLinkReso
   return {
     url: null,
     linkType: 'unavailable',
-    labelAr: 'لا يوجد رابط بث مطابق موثّق',
+    labelAr: 'شاهد مباشرة على NEMO Sports',
     subLabelAr:
-      'لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.',
+      'شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.',
     verified: false,
     matchedBy: [],
     competitionUrl: null,

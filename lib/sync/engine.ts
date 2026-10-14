@@ -13,9 +13,11 @@ import {
   upsertCompetitionsInStore,
   upsertStandingsInStore,
 } from '../db/store';
+import { getSiteSettings, isSourceEnabled, loadManualDocument } from '../admin/manual-store';
+import { maybeCreateScheduledBackup } from '../admin/backups';
 import { fetchApiFootballSync } from '../sources/api-football';
 import { fetchFootballDataSync } from '../sources/football-data';
-import { fetchGoogleNewsRss } from '../sources/google-news-rss';
+import { fetchGoogleNewsRss, NEWS_FEEDS } from '../sources/google-news-rss';
 import {
   fetchSportScoreFixturesByDate,
   fetchSportScoreMatches,
@@ -37,8 +39,14 @@ async function isolateSource<T>(
   sourceId: SourceId,
   fn: () => Promise<T>,
   fallback: T,
-  errors: SourceErrorEntry[]
+  errors: SourceErrorEntry[],
+  /**
+   * بوابة التعطيل الإداري: عند `false` لا يُنادى المصدر إطلاقًا (صفر طلبات شبكة)
+   * وتُعاد القيمة الاحتياطية **بلا** تسجيل خطأ مصدر — لأن التعطيل ليس فشلًا.
+   */
+  enabled: boolean = true
 ): Promise<T> {
+  if (!enabled) return fallback;
   try {
     return await fn();
   } catch (error) {
@@ -69,6 +77,11 @@ export interface RunGatewaySyncOptions {
    * start after the budget are recorded as skipped instead of being requested.
    */
   budgetMs?: number;
+  /**
+   * قصر المحاولة على مصادر بعينها — يُستخدم في زر «إعادة المحاولة» داخل لوحة الإدارة
+   * حتى لا تُشغّل إعادة محاولة مصدر واحد كل المصادر الأخرى معه.
+   */
+  sources?: SourceId[];
 }
 
 const EMPTY_WRITE: MatchUpsertStats = { processed: 0, inserted: 0, updated: 0, unchanged: 0 };
@@ -107,7 +120,13 @@ export const THESPORTSDB_QUICK_BUDGET_MS = 8000;
  */
 let newsInFlight: Promise<NewsSourceSyncRecord> | null = null;
 export function runNewsSync(trigger = 'مزامنة أخبار', errors: SourceErrorEntry[] = [],
-  options?: { timeoutMs?: number; retries?: number; limitFeeds?: number }): Promise<NewsSourceSyncRecord> {
+  options?: {
+    timeoutMs?: number;
+    retries?: number;
+    limitFeeds?: number;
+    /** موضع البداية داخل مجموعات الخلاصات — للتدوير في التحديث السريع عند الطلب. */
+    feedOffset?: number;
+  }): Promise<NewsSourceSyncRecord> {
   if (newsInFlight) return newsInFlight;
   newsInFlight = executeNewsSync(trigger, errors, options).finally(() => { newsInFlight = null; });
   return newsInFlight;
@@ -116,7 +135,12 @@ export function runNewsSync(trigger = 'مزامنة أخبار', errors: SourceE
 async function executeNewsSync(
   trigger = 'مزامنة أخبار',
   errors: SourceErrorEntry[] = [],
-  fetchOptions?: { timeoutMs?: number; retries?: number; limitFeeds?: number }
+  fetchOptions?: {
+    timeoutMs?: number;
+    retries?: number;
+    limitFeeds?: number;
+    feedOffset?: number;
+  }
 ): Promise<NewsSourceSyncRecord> {
   const startedAt = new Date().toISOString();
   // Adopt the shared snapshot first (as the gateway sync does), so a cold instance never builds
@@ -137,7 +161,8 @@ async function executeNewsSync(
       enrichedCount: 0,
       resolution: { attempted: 0, resolved: 0, unresolved: 0, strategies: {}, errors: {} },
     },
-    errors
+    errors,
+    isSourceEnabled('google-news-rss')
   );
 
   if (!gnRes.ok) {
@@ -194,9 +219,13 @@ async function executeNewsSync(
 
 let newsRefreshInFlight: Promise<NewsSourceSyncRecord> | null = null;
 
-export async function ensureFreshNews(
-  maxAgeMs = 15 * 60 * 1000
-): Promise<NewsSourceSyncRecord | null> {
+export async function ensureFreshNews(maxAgeMs?: number): Promise<NewsSourceSyncRecord | null> {
+  await loadManualDocument();
+  // نافذة تحديث الأخبار من إعدادات اللوحة (قابلة للتغيير بلا إعادة نشر).
+  maxAgeMs = maxAgeMs ?? getSiteSettings().newsFreshnessMinutes * 60 * 1000;
+  // مصدر الأخبار الوحيد قابل للتعطيل من اللوحة: بلا هذا الفحص كان زر التعطيل
+  // سيبدو فعّالًا ثم تعود الأخبار تتحدّث عند أول زيارة.
+  if (!isSourceEnabled('google-news-rss')) return null;
   const db = await hydrateStore();
   const lastAttempt = db.meta.lastNewsSyncAt || db.meta.lastSuccessfulNewsSyncAt;
   if (lastAttempt) {
@@ -206,10 +235,18 @@ export async function ensureFreshNews(
     }
   }
   if (newsRefreshInFlight) return newsRefreshInFlight;
+  /*
+   * التدوير: كل نافذة ١٥ دقيقة تنتقل لمجموعة الخلاصات التالية، فيمرّ التحديث عند الطلب
+   * على كل المصادر على مدار اليوم (المجموعة الأولى = الدوري المصري تأتي دائمًا أولًا
+   * في المزامنة اليومية الكاملة). بهذا يتجدّد المحتوى تلقائيًا بلا أي تدخل يدوي.
+   */
+  const feedWindowMs = 15 * 60 * 1000;
+  const feedOffset = Math.floor(Date.now() / feedWindowMs) % Math.max(NEWS_FEEDS.length, 1);
   newsRefreshInFlight = runNewsSync('تحديث أخبار عند الطلب', [], {
     timeoutMs: 4000,
     retries: 0,
     limitFeeds: 1,
+    feedOffset,
   }).finally(() => {
     newsRefreshInFlight = null;
   });
@@ -232,9 +269,13 @@ export const MATCHES_FRESHNESS_MAX_AGE_MS = 10 * 60 * 1000;
  * in `meta.lastMatchesSyncResult`. Failures keep the existing data untouched.
  */
 export async function ensureFreshMatches(
-  maxAgeMs = MATCHES_FRESHNESS_MAX_AGE_MS,
+  maxAgeMs?: number,
   trigger = 'تحديث مباريات عند الطلب'
 ): Promise<SyncLogEntry | null> {
+  await loadManualDocument();
+  // نافذة التحديث قابلة للتحكم من لوحة الإدارة (إعدادات الموقع) — بلا إعادة نشر.
+  const effectiveMaxAgeMs = maxAgeMs ?? getSiteSettings().matchesFreshnessMinutes * 60 * 1000;
+  maxAgeMs = effectiveMaxAgeMs;
   const db = await hydrateStore();
   const lastAttempt = db.meta.lastMatchesSyncAttemptAt;
   if (lastAttempt) {
@@ -262,6 +303,25 @@ async function executeGatewaySync(
   const mode = options.mode || 'daily';
   const trigger = options.trigger || 'تحديث تلقائي مجدول';
   const startedAt = new Date().toISOString();
+  // ═══ تحكّم المصادر من لوحة الإدارة ═══
+  // مصدر معطّل من اللوحة لا يُنادى أصلًا (صفر طلبات شبكة)، ويُسجَّل في نتيجة المزامنة
+  // بسبب واضح. و`options.sources` يقصر المحاولة على مصدر واحد عند إعادة المحاولة.
+  await loadManualDocument();
+  const shouldRunSource = (sourceId: SourceId): boolean =>
+    isSourceEnabled(sourceId) && (!options.sources || options.sources.includes(sourceId));
+  /**
+   * نفس بوابة التشغيل — منفصلة بالاسم لأنها تُمرَّر إلى `isolateSource` في مواضع
+   * كثيرة، فالاسم الواضح هنا يمنع الخلط بين «معطّل إداريًا» و«فشل اتصال».
+   */
+  const shouldRequireSource = (sourceId: SourceId): boolean => shouldRunSource(sourceId);
+  /** سبب عدم تشغيل المصدر كما سيظهر للمشغّل — بلا أي التباس مع «فشل اتصال». */
+  const skipReasonAr = (sourceId: SourceId): string =>
+    isSourceEnabled(sourceId)
+      ? 'مستبعَد من هذه المحاولة (إعادة محاولة مصدر واحد)'
+      : 'المصدر معطّل من لوحة الإدارة — لم يُجرَ أي نداء شبكة';
+  /** رسالة الفشل الصادقة: تمييز التعطيل الإداري عن فشل الاتصال. */
+  const failureReasonAr = (sourceId: SourceId, res: { error?: string }): string =>
+    shouldRunSource(sourceId) ? res.error || 'بدون استجابة' : skipReasonAr(sourceId);
   // Read the authoritative document before mutating it, so this run builds on whatever the last
   // cron wrote to the shared store instead of on a stale in-memory copy.
   await hydrateStore();
@@ -287,10 +347,7 @@ async function executeGatewaySync(
   // 1. SportScore — matches/standings only, not a news source
   const ssRes = await isolateSource(
     'sportscore',
-    () =>
-      fetchSportScoreMatches(
-        options.quick ? { timeoutMs: 4000, retries: 0 } : {}
-      ),
+    () => fetchSportScoreMatches(options.quick ? { timeoutMs: 4000, retries: 0 } : {}),
     {
       ok: false,
       httpStatus: null,
@@ -300,7 +357,8 @@ async function executeGatewaySync(
       endpoint: null,
       attempts: [],
     },
-    errors
+    errors,
+    shouldRequireSource('sportscore')
   );
   writeTotals.recordsSkipped += ssRes.skippedRecords || 0;
 
@@ -325,7 +383,8 @@ async function executeGatewaySync(
           endpoint: null,
           attempts: [],
         },
-        errors
+        errors,
+        shouldRequireSource('sportscore')
       );
       ssLatency += dayRes.latencyMs;
       if (dayRes.httpStatus) ssStatus = dayRes.httpStatus;
@@ -339,7 +398,7 @@ async function executeGatewaySync(
   }
   const ssDeduped = dedupeMatchesById(ssMatches);
   let ssStandingsCount = 0;
-  if (mode === 'daily' || mode === 'standings' || mode === 'manual') {
+  if (shouldRunSource('sportscore') && (mode === 'daily' || mode === 'standings' || mode === 'manual')) {
     try {
       const slugs = ['egyptian-premier-league', 'caf-champions-league', 'saudi-professional-league'];
       const tables: CompetitionStandingTable[] = [];
@@ -385,7 +444,7 @@ async function executeGatewaySync(
       standingsFetched: ssStandingsCount,
       newsFetched: 0,
       usedCachedSnapshot: true,
-      messageAr: `تعذر جلب المباريات من SportScore (${ssRes.error || `HTTP ${ssStatus ?? 'بدون استجابة'}`}${ssAttempts.length ? ` بعد تجربة ${ssAttempts.length} نقطة نهاية` : ''}). تم الاحتفاظ بالبيانات السابقة دون حذف.`,
+      messageAr: `تعذر جلب المباريات من SportScore (${failureReasonAr('sportscore', ssRes)}${ssStatus ? ` — HTTP ${ssStatus}` : ''}${ssAttempts.length ? ` بعد تجربة ${ssAttempts.length} نقطة نهاية` : ''}). تم الاحتفاظ بالبيانات السابقة دون حذف.`,
     });
     sourceUpdates.sportscore = {
       status: 'degraded',
@@ -400,8 +459,7 @@ async function executeGatewaySync(
   // 2. TheSportsDB — matches only, not a news source
   const tsdbRes = await isolateSource(
     'thesportsdb',
-    () =>
-      fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo], {
+    () => fetchTheSportsDBMatches([yesterdayCairo, todayCairo, tomorrowCairo], {
         rounds: getEgyptianRoundWindow(todayCairo),
         ...(options.quick
           ? {
@@ -421,7 +479,8 @@ async function executeGatewaySync(
       skippedEndpoints: 0,
       apiKeyProbes: [],
     },
-    errors
+    errors,
+    shouldRunSource('thesportsdb')
   );
   writeTotals.recordsSkipped += tsdbRes.skippedRecords || 0;
   if (tsdbRes.ok) {
@@ -458,7 +517,7 @@ async function executeGatewaySync(
       standingsFetched: 0,
       newsFetched: 0,
       usedCachedSnapshot: true,
-      messageAr: `تعذر جلب بيانات الدوري المصري من TheSportsDB (${tsdbRes.error || `HTTP ${tsdbRes.httpStatus ?? 'بدون استجابة'}`}). تم الاحتفاظ بالبيانات السابقة دون حذف.`,
+      messageAr: `تعذر جلب بيانات الدوري المصري من TheSportsDB (${failureReasonAr('thesportsdb', tsdbRes)}${tsdbRes.httpStatus ? ` — HTTP ${tsdbRes.httpStatus}` : ''}). تم الاحتفاظ بالبيانات السابقة دون حذف.`,
       endpoints: tsdbRes.endpoints,
     });
     sourceUpdates.thesportsdb = {
@@ -490,7 +549,8 @@ async function executeGatewaySync(
       matches: [],
       messageAr: 'تعذر الاتصال بـ Football-Data.org.',
     },
-    errors
+    errors,
+    shouldRequireSource('football-data')
   );
   if (fdRes) {
     await upsertCompetitionsInStore(fdRes.competitions);
@@ -528,7 +588,9 @@ async function executeGatewaySync(
       standingsFetched: 0,
       newsFetched: 0,
       usedCachedSnapshot: true,
-      messageAr: `تعذر الاتصال بـ Football-Data.org في هذه المحاولة؛ تم الاحتفاظ بفهرس البطولات والمواسم السابق. ${fdRes.messageAr || ''}`.trim(),
+      messageAr: shouldRunSource('football-data')
+        ? `تعذر الاتصال بـ Football-Data.org في هذه المحاولة؛ تم الاحتفاظ بفهرس البطولات والمواسم السابق. ${fdRes.messageAr || ''}`.trim()
+        : `${skipReasonAr('football-data')} — وحُفظ فهرس البطولات والمواسم السابق كما هو.`,
     });
   }
 
@@ -546,7 +608,8 @@ async function executeGatewaySync(
       standings: [] as CompetitionStandingTable[],
       messageAr: 'تعذر الاتصال بـ API-Football.',
     },
-    errors
+    errors,
+    shouldRequireSource('api-football')
   );
   let apifStandingsCount = 0;
   if (apifRes) {
@@ -565,7 +628,9 @@ async function executeGatewaySync(
       standingsFetched: apifStandingsCount,
       newsFetched: 0,
       usedCachedSnapshot: !apifRes.ok,
-      messageAr: apifRes.messageAr,
+      messageAr: shouldRunSource('api-football')
+        ? apifRes.messageAr
+        : `${skipReasonAr('api-football')} — وحُفظت بيانات المباريات السابقة كما هي.`,
     });
     sourceUpdates['api-football'] = {
       status: apifRes.status,
@@ -673,6 +738,31 @@ async function executeGatewaySync(
   };
 
   await recordSyncExecution(logEntry, errors, sourceUpdates);
+
+  /*
+   * نسخة احتياطية مجدولة: خطة Vercel المجانية تسمح بمهمتين مجدولتين يوميًا،
+   * وكلتاهما مستخدمة بالفعل للمزامنة — لذلك لا نضيف مهمة ثالثة، بل ننشئ النسخة
+   * داخل مهمة المزامنة الصباحية نفسها، وبشرط ألّا تكون هناك نسخة أحدث من 20 ساعة.
+   * ولو لم يكن هناك تخزين دائم فالنتيجة تقول ذلك صريحًا ولا تُنشئ شيئًا.
+   */
+  if (mode === 'daily') {
+    try {
+      const backup = await maybeCreateScheduledBackup({ minHours: 20, actor: { username: 'cron', role: 'owner' } });
+      logEntry.trigger = `${logEntry.trigger} • ${backup.created ? `أُنشئت نسخة احتياطية (${backup.summary?.id ?? '—'})` : backup.messageAr}`;
+    } catch (error) {
+      errors.push({
+        id: `err-backup-${Date.now()}`,
+        sourceId: 'sportscore',
+        timestamp: new Date().toISOString(),
+        endpoint: 'backup',
+        httpStatus: null,
+        errorCode: 'backup_failed',
+        message: error instanceof Error ? error.message : String(error),
+        messageAr: 'تعذّر إنشاء النسخة الاحتياطية المجدولة؛ المزامنة نفسها اكتملت.',
+      });
+    }
+  }
+
   return logEntry;
 }
 

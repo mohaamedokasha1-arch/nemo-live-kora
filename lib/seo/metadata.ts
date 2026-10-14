@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { isIndexableCatalogEntry } from '../matches/match-catalog';
+import { buildMatchOgImagePath } from '../matches/match-links';
 import type { ResolvedMatchView } from '../matches/types';
 import { GATEWAY_SITE_URL } from '../site-url';
 import { SCHEMA_SITE_NAME, buildMatchDescription } from './sports-event';
@@ -10,6 +11,14 @@ import { SCHEMA_SITE_NAME, buildMatchDescription } from './sports-event';
  */
 
 const SITE_OG_IMAGE = `${GATEWAY_SITE_URL}/og-cover.jpg`;
+
+/**
+ * رابط صورة المشاركة المُولَّدة (1200×675) لمباراة — تُنشئها
+ * `app/matches/[id]/opengraph-image.tsx` أوتوماتيكيًا لكل معرّف في `data/matches.ts`.
+ */
+export function buildMatchOgImageUrl(id: string): string {
+  return `${GATEWAY_SITE_URL}${buildMatchOgImagePath(id)}`;
+}
 
 function clampDescription(value: string, max = 300): string {
   const trimmed = value.replace(/\s+/g, ' ').trim();
@@ -29,7 +38,9 @@ export function buildMatchLandingMetadata(view: ResolvedMatchView): Metadata {
   const description = clampDescription(
     entry.seo?.description?.trim() || buildMatchDescription(view)
   );
-  const image = entry.seo?.imageUrl || SITE_OG_IMAGE;
+  // نفس الصورة المُعلنة في البيانات المنظمة (1200×675) حتى لا تختلف صورة المشاركة
+  // عن صورة الحدث — وأي تعارض بينهما يُضعف النتيجة المُنسّقة.
+  const image = entry.seo?.imageUrl?.trim() || buildMatchOgImageUrl(entry.id);
   const keywords = [...(entry.keywords || []), ...(entry.seo?.keywords || [])];
 
   return {
@@ -66,7 +77,7 @@ export function buildLivePageMetadata(view: ResolvedMatchView): Metadata {
   const title = `${entry.homeTeam.nameAr} ضد ${entry.awayTeam.nameAr} — مشاهدة البث المباشر`;
   const description = clampDescription(
     `صفحة المشاهدة المباشرة لمباراة ${entry.homeTeam.nameAr} ضد ${entry.awayTeam.nameAr} في ${entry.competition.nameAr}. ` +
-      `الموعد: ${view.cairoDateLabelAr} الساعة ${view.kickoffTimeAr} بتوقيت القاهرة، وحالة البث تُعرض فقط عند التحقق منها.`
+      `الموعد: ${view.cairoDateLabelAr} الساعة ${view.kickoffTimeAr} بتوقيت القاهرة، مع زر المشاهدة المباشرة.`
   );
 
   return {
@@ -81,7 +92,11 @@ export function buildLivePageMetadata(view: ResolvedMatchView): Metadata {
       title,
       description,
       url: view.liveUrl,
-      images: [{ url: entry.seo?.imageUrl || SITE_OG_IMAGE, width: 1200, height: 675, alt: title }],
+      // نفس بطاقة المباراة المُولَّدة (1200×675) — الصفحة غير مفهرسة لكنها تُشارَك
+      // على الشبكات الاجتماعية، فتحتاج بطاقة صحيحة المقاس.
+      images: [
+        { url: entry.seo?.imageUrl?.trim() || buildMatchOgImageUrl(entry.id), width: 1200, height: 675, alt: title },
+      ],
     },
   };
 }

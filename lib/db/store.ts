@@ -15,6 +15,14 @@ import {
   SyncLogEntry,
 } from '../types';
 import { processNewsBatch } from '../news/ingest';
+import {
+  findManualMatch,
+  findManualOverride,
+  getManualDocument,
+  loadManualDocument,
+} from '../admin/manual-store';
+import { mergeManualLayerIntoDatabase, stripManualLayerFromDatabase } from '../admin/merge';
+import { applyOverrideToMatch } from '../admin/overrides';
 import { isValidDateParam } from '../cairo-time';
 import { buildMatchDedupKey } from '../match-identity';
 import { resolveNemoSportsLink } from '../nemo-resolver';
@@ -28,6 +36,7 @@ import {
   getPublishedNews,
 } from '../news/query';
 import { buildInitialVerifiedDatabase, mergeMatchRecords } from './seed-data';
+import { getSourceControl } from '../admin/manual-store';
 import type { TheSportsDBRoundWindow } from '../sources/thesportsdb';
 import {
   DurableStoreError,
@@ -148,6 +157,12 @@ export function isStorePersistenceEnabled(): boolean {
  * bundled/on-disk snapshot and reports the error through `getPersistenceState()`.
  */
 export async function hydrateGatewayDatabase(): Promise<PersistenceState> {
+  /**
+   * تعديلات المدير تُقرأ **أولًا** من تخزينها الدائم المستقل، حتى لو لم يكن للمخزن
+   * تخزين دائم مضبوط: هي مصدر مباريات/تعديلات اللوحة، ويجب أن تكون جاهزة قبل أول قراءة.
+   */
+  await loadManualDocument();
+
   const backend = resolveDurableBackend();
   if (!backend) {
     hydratedFromDurable = false;
@@ -161,6 +176,10 @@ export async function hydrateGatewayDatabase(): Promise<PersistenceState> {
       // No snapshot stored yet: this instance is free to create the first one.
       hydratedFromDurable = true;
       durableState = { ok: true, error: null, at: new Date().toISOString() };
+      if (memoryStore) {
+        mergeManualLayerIntoDatabase(memoryStore, getManualDocument());
+        appliedManualLayer = { revision: getManualDocument().revision, target: memoryStore };
+      }
     } else {
       // Envelope written by this layer, or a legacy raw document from lib/storage tooling.
       const { snapshot, savedAt } = decodeStoredSnapshot(raw);
@@ -168,6 +187,10 @@ export async function hydrateGatewayDatabase(): Promise<PersistenceState> {
         throw new DurableStoreError('store_snapshot_invalid', 'shape_mismatch');
       }
       memoryStore = migrateGatewayDatabase(snapshot);
+      // الطبقة اليدوية تُدمج بعد قراءة اللقطة وقبل أن يقرأ أحد المخزن: فتظهر
+      // مباريات الإدارة وتثبيتاتها في كل صفحة من أول طلب، بلا كود خاص فيها.
+      mergeManualLayerIntoDatabase(memoryStore, getManualDocument());
+      appliedManualLayer = { revision: getManualDocument().revision, target: memoryStore };
       hydratedFromDurable = true;
       durableDirty = false;
       durableState = { ok: true, error: null, at: savedAt || new Date().toISOString() };
@@ -201,7 +224,7 @@ export function flushDurableStore(options: { force?: boolean } = {}): Promise<Pe
       // Drain in a bounded loop: a mutation landing while a write is in flight marks the store
       // dirty again, and an awaited flush must only resolve once the backend holds that data too.
       for (let pass = 0; pass < 3; pass += 1) {
-        const payload = encodeSnapshot(memoryStore ?? getGatewayDatabase());
+        const payload = encodeSnapshot(stripManualLayerFromDatabase(memoryStore ?? getGatewayDatabase()));
         durableDirty = false;
         try {
           await backend.write(payload);
@@ -288,18 +311,43 @@ function readLocalStoreFile(file: string): GatewayDatabase | null {
 }
 
 /**
+ * رقم نسخة مستند الإدارة الذي دُمج آخر مرة في ذاكرة هذه العملية.
+ * به نضمن أن أي تعديل من اللوحة (من أي نسخة/طلب) يظهر في الصفحات فورًا: قراءة المستند
+ * تُكتشف تغيّر مرجع التخزين (mtime للملف، أو sha الإيداع في GitHub) فتُعاد الدمج.
+ */
+let appliedManualLayer: { revision: number; target: GatewayDatabase } | null = null;
+
+/** يضمن أن ذاكرة المخزن تحمل أحدث طبقة إدارية قبل أي قراءة للصفحات. */
+function ensureManualLayerFresh(db: GatewayDatabase): void {
+  const revision = getManualDocument().revision;
+  // المقارنة تشمل **هوية المخزن** لا رقم النسخة وحده: بعد إعادة تحميل المخزن (نسخة جديدة
+  // من التطبيق أو إعادة تشغيل التطوير) يجب إعادة الدمج حتى لو كان رقم النسخة كما هو،
+  // وإلا بقيت مباريات الإدارة غائبة عن المخزن الجديد.
+  if (appliedManualLayer && appliedManualLayer.target === db && appliedManualLayer.revision === revision) return;
+  mergeManualLayerIntoDatabase(db, getManualDocument());
+  appliedManualLayer = { revision, target: db };
+}
+
+/** للاختبارات: يُصفّر تتبّع نسخة المستند المدموجة. */
+export function resetManualLayerTrackingForTests(): void {
+  appliedManualLayer = null;
+}
+
+/**
  * Loads the unified GatewayDatabase: durable hydration (when configured) has already replaced
  * the in-memory copy by the time most callers run; this synchronous path seeds memory from the
  * writable local file, then the bundled snapshot, then the verified seed dataset.
  */
 export function getGatewayDatabase(): GatewayDatabase {
   if (memoryStore) {
+    ensureManualLayerFresh(memoryStore);
     return memoryStore;
   }
 
   const writable = readLocalStoreFile(resolveLocalStoreFile());
   if (writable) {
     memoryStore = writable;
+    ensureManualLayerFresh(memoryStore);
     return memoryStore;
   }
   const bundledFile = bundledStoreFile();
@@ -307,14 +355,16 @@ export function getGatewayDatabase(): GatewayDatabase {
     const bundled = readLocalStoreFile(bundledFile);
     if (bundled) {
       memoryStore = bundled;
+      ensureManualLayerFresh(memoryStore);
       return memoryStore;
     }
   }
 
   const initial = buildInitialVerifiedDatabase();
   memoryStore = initial;
-  persistGatewayDatabase(initial);
-  return initial;
+  ensureManualLayerFresh(memoryStore);
+  persistGatewayDatabase(memoryStore);
+  return memoryStore;
 }
 
 /**
@@ -333,7 +383,7 @@ export function persistGatewayDatabase(db: GatewayDatabase): void {
   if (isStorePersistenceEnabled()) {
     const file = resolveLocalStoreFile();
     try {
-      writeFileAtomic(file, encodeSnapshot(db));
+      writeFileAtomic(file, encodeSnapshot(stripManualLayerFromDatabase(db)));
     } catch (error) {
       if (!localWriteFailureLogged) {
         localWriteFailureLogged = true;
@@ -411,6 +461,19 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
     const existingId = byId.has(inc.id) ? inc.id : idByDedupKey.get(dedupKey);
     const existing = existingId ? byId.get(existingId) : undefined;
     stats.processed++;
+
+    // ═══ سياسة فضّ التعارض (lib/admin/overrides.ts) ═══
+    // (1) مباراة أدخلها المدير بنفسه: المصادر لا تملكها إطلاقًا.
+    if (findManualMatch(existingId ?? inc.id)) {
+      stats.unchanged++;
+      continue;
+    }
+    // (2) سجل مجمَّد كاملًا، أو مصدر مستبعَد عن هذا السجل تحديدًا: نتخطّى التحديث.
+    const override = findManualOverride(existingId ?? inc.id);
+    if (override && (override.lockAll || override.suppressedSources.includes(inc.primarySource))) {
+      stats.unchanged++;
+      continue;
+    }
     if (!existing) {
       const fieldProvenance = Object.fromEntries(Object.entries(inc).filter(([key, value]) => value != null && !['nemoLink', 'fieldProvenance'].includes(key)).map(([key]) => [key, { source: inc.primarySource, observedAt: inc.lastUpdatedAt }]));
       byId.set(inc.id, { ...inc, fieldProvenance: inc.fieldProvenance || fieldProvenance });
@@ -418,7 +481,9 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
       stats.inserted++;
     } else {
       // Keep the record's existing id so links/news references stay stable; union ids/links.
-      const merged = refreshNemoLink({ ...mergeMatchRecords(existing, { ...inc, id: existing.id }), id: existing.id });
+      const mergedRaw = refreshNemoLink({ ...mergeMatchRecords(existing, { ...inc, id: existing.id }), id: existing.id });
+      // (3) الحقول المثبَّتة تُعاد فوق نتيجة الدمج، فلا تمحوها أي مزامنة قادمة.
+      const merged = applyOverrideToMatch(mergedRaw, override);
       if (matchContentFingerprint(merged) === matchContentFingerprint(existing)) {
         stats.unchanged++;
       } else {
@@ -476,15 +541,42 @@ export function recordMatchesSyncAttempt(result: NonNullable<GatewayDatabase['me
 /**
  * Idempotently upserts standings tables into the store.
  */
+/**
+ * أولوية المصدر: عند تعارض جدولين لنفس البطولة من مصدرين مختلفين، يفوز المصدر ذو
+ * الترتيب الأفضل (الأصغر) الذي ضبطه المدير من لوحة الإدارة. وإن لم يضبط المدير ترتيبًا
+ * نستخدم الترتيب الطبيعي للمحرّك نفسه (الموثّق أدناه) فلا تتغيّر أي سلوكية قديمة.
+ */
+const DEFAULT_SOURCE_RANK: Record<SourceId, number> = {
+  sportscore: 10,
+  thesportsdb: 20,
+  'football-data': 30,
+  'api-football': 40,
+  'google-news-rss': 90,
+};
+
+/** رتبة المصدر الفعلية = ترتيب المدير إن ضُبط (1–999)، وإلا الترتيب الطبيعي. */
+export function sourcePriorityRank(sourceId: SourceId): number {
+  const control = getSourceControl(sourceId);
+  const priority = Number(control?.priority);
+  if (Number.isFinite(priority) && priority > 0) return priority;
+  return DEFAULT_SOURCE_RANK[sourceId] ?? 50;
+}
+
 export function upsertStandingsInStore(tables: CompetitionStandingTable[]): number {
   if (!tables || tables.length === 0) return 0;
   const db = getGatewayDatabase();
   let count = 0;
   for (const tbl of tables) {
-    if (tbl && tbl.competitionCode && tbl.rows.length > 0) {
-      db.standings[tbl.competitionCode] = tbl;
-      count++;
+    if (!tbl || !tbl.competitionCode || tbl.rows.length === 0) continue;
+    const current = db.standings[tbl.competitionCode];
+    if (current && current.sourceId !== tbl.sourceId) {
+      const currentRank = sourcePriorityRank(current.sourceId);
+      const incomingRank = sourcePriorityRank(tbl.sourceId);
+      // لا نستبدل جدولًا لمصدر ذي أولوية أفضل من القادم — الأولوية قرار مشغّل صريح.
+      if (currentRank < incomingRank) continue;
     }
+    db.standings[tbl.competitionCode] = tbl;
+    count++;
   }
   persistGatewayDatabase(db);
   return count;
@@ -707,10 +799,10 @@ export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date())
     return {
       ...match,
       status: 'unconfirmed',
-      statusLabelAr: 'غير مؤكدة أو غير متاحة من المصدر',
+      statusLabelAr: 'قيد التحديث',
       statusNoteAr: plausible
-        ? 'آخر تحديث من المصدر قديم؛ لا نعرض المباراة كجارية حتى يصل تحديث جديد.'
-        : 'المصدر يصفها بالمباشرة خارج مدة المباراة المعتادة أو بلا موعد مؤكد؛ لا نعرضها كمباراة جارية.',
+        ? 'تُحدَّث حالة المباراة تلقائيًا من المصدر.'
+        : 'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
       liveMinute: null,
     };
   }
@@ -721,7 +813,7 @@ export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date())
         ...match,
         status: 'unconfirmed',
         statusLabelAr: 'الموعد غير مؤكد من المصدر',
-        statusNoteAr: 'لم يرسل المصدر موعد انطلاق مؤكدًا لهذه المباراة.',
+        statusNoteAr: 'سيُعرض الموعد الرسمي فور إعلانه.',
       };
     }
     if (nowMs - kickoffMs > NOT_STARTED_GRACE_MS) {
@@ -730,7 +822,7 @@ export function guardStaleLiveStatus(match: MatchRecord, now: Date = new Date())
         status: 'unconfirmed',
         statusLabelAr: 'بانتظار تأكيد الحالة من المصدر',
         statusNoteAr:
-          'موعد انطلاق المباراة مضى ولم يصل تحديث من المصدر؛ لا نعرضها كمباراة لم تبدأ بعد.',
+          'تُحدَّث حالة المباراة تلقائيًا من المصدر.',
       };
     }
   }
@@ -908,6 +1000,13 @@ export function upsertCompetitionsInStore(records: GatewayDatabase['competitions
 /** Adopts the shared snapshot, then returns the in-memory database. */
 export async function hydrateStore(): Promise<GatewayDatabase> {
   await hydrateGatewayDatabase();
+  /**
+   * تحميل طبقة الإدارة من تخزينها الدائم قبل إرجاع المخزن.
+   * لماذا هنا تحديدًا؟ لأن هذا هو المدخل غير المتزامن الذي تمرّ به كل صفحات الموقع التي
+   * تعرض مباريات/أخبار الإدارة، فالتعديل الذي حفظه المدير قبل ثوانٍ يظهر في الطلب التالي
+   * مباشرة (وفي نسخة أخرى من التطبيق على الاستضافة) بلا إعادة نشر ولا انتظار.
+   */
+  await loadManualDocument();
   return getGatewayDatabase();
 }
 

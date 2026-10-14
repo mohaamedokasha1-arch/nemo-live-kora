@@ -52,6 +52,12 @@
 
 > ⚠️ **EventLive ليست قيمة معتمدة في Schema.org.** استخدامها يُنتج خطأ «Invalid enum value».
 > للتغيير اليدوي فقط: `schema.eventStatusOverride: 'EventMovedOnline'` داخل المباراة.
+>
+> **المباراة المنتهية (2026-10-14):** لا توجد قيمة `EventFinished` في Schema.org، فتبقى
+> `EventScheduled` مع `startDate`/`endDate` في الماضي — وهذا هو التمثيل الصحيح، ولا
+> يُخترع enum جديد. وأي قيمة غير معتمدة (ومنها `EventLive`) تُتجاهل ويُعاد الاشتقاق من
+> الحالة الفعلية بدل إنتاج بيانات منظمة خاطئة. يحرس ذلك الاختبار 3 في
+> `tests/seo-open-defects.test.ts`.
 
 ---
 
@@ -98,7 +104,7 @@
 ## 6) كيف تتحقق أن كل شيء سليم قبل النشر؟
 
 ```bash
-npm test          # 78 اختبارًا تشمل المحرّك والبيانات المنظمة و ads.txt و sitemap
+npm test          # 178 اختبارًا تشمل المحرّك والبيانات المنظمة والتوجيه و ads.txt و sitemap
 npm run lint      # ESLint بدون أخطاء
 npm run build     # بناء الإنتاج + فحص الأنواع
 ```
@@ -121,7 +127,10 @@ lib/matches/match-links.ts         ← أدوات المسارات الربط (c
 lib/matches/match-catalog.ts       ← الدمج مع المصادر + التحقق + مدخلات sitemap
 lib/seo/sports-event.ts            ← مولّد SportsEvent كامل الحقول + BreadcrumbList
 lib/seo/metadata.ts                ← الوسوم المعيارية و OG لكل نوع صفحة
-lib/seo/match-structured-data.ts   ← ItemList لصفحات الجداول
+lib/seo/match-structured-data.ts   ← ItemList لصفحات الجداول (كل عنصر يحمل رابط صفحته)
+lib/nemo-watch.ts                  ← مصدر واحد لكل روابط المشاهدة الخارجية
+components/WatchStreamBlock.tsx    ← إعلان ← زر المشاهدة ← إعلان (لكل مباراة بلا استثناء)
+components/WatchStreamCta.tsx      ← الزر الأحمر الموحّد (نص واحد + تبويب جديد)
 components/SportsEventJsonLd.tsx   ← إدراج JSON-LD في صفحة الهبوط
 components/MatchLandingView.tsx    ← واجهة صفحة الهبوط + CTA
 components/LiveBroadcastView.tsx   ← واجهة صفحة البث الداخلية

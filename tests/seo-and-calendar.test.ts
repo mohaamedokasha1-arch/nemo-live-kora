@@ -105,18 +105,15 @@ test('listing pages emit an ItemList that links to the canonical match landing p
 
   // صفحة الجدول قائمة (ItemList) وليست صفحة حدث: لا SportsEvent ناقص الحقول هنا،
   // والبيانات المنظمة الكاملة موجودة في /matches/[id] الخاصة بكل مباراة.
-  for (const item of elements) {
+  // كل عنصر يحمل رابطًا داخليًا: صفحة الكتالوج المعيارية إن وُجدت، وإلا صفحة تفاصيل
+  // السجل نفسها (كل مباراة لها صفحة `/matches/[id]`، فلا عنصر بلا رابط).
+  for (const [index, item] of elements.entries()) {
     assert.equal(item['@type'], 'ListItem');
-    if ('url' in item) {
-      const entry = findCatalogEntryForMatch(
-        matches.find(
-          (match) =>
-            item.name === `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`
-        )!
-      );
-      assert.ok(entry, 'URL present without a catalog entry');
-      assert.equal(item.url, `${GATEWAY_SITE_URL}${buildMatchLandingPath(entry!.id)}`);
-    }
+    const match = matches[index];
+    const entry = findCatalogEntryForMatch(match);
+    const expectedId = entry ? entry.id : match.id;
+    assert.equal(item.name, `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`);
+    assert.equal(item.url, `${GATEWAY_SITE_URL}${buildMatchLandingPath(expectedId)}`);
   }
   // Structured data doesn't claim an outbound URL; cards link only to exact verified pages.
   for (const match of matches) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { findCatalogEntryById } from '@/lib/matches/match-links';
+import { findServedCatalogEntryById } from '@/lib/admin/served-catalog';
 import { resolveMatchView } from '@/lib/matches/match-catalog';
 import { hydrateStore } from '@/lib/db/store';
 import { buildLivePageMetadata } from '@/lib/seo/metadata';
@@ -11,7 +11,8 @@ import LiveBroadcastView from '@/components/LiveBroadcastView';
  * صفحة البث الداخلية: /live/[match-id]
  *
  * • صفحة تحويل (Conversion Page) يُنقل إليها الزائر من صفحة هبوط المباراة.
- * • رابط خارجي واحد فقط عندما يكون مُتحقَّقًا منه، وإلا توضيح صريح للزائر.
+ * • زر المشاهدة الأحمر الموحّد إلى صفحة المشاهدة على منصة NEMO Sports في نافذة جديدة،
+ *   مع مساحة إعلانية فوقه وأخرى تحته — بالكود نفسه لكل مباراة.
  * • غير مفهرسة (noindex) عن قصد: المحتوى مكمّل لصفحة الهبوط المعيارية
  *   لتجنّب تكرار المحتوى — مع `follow` للسماح بتمرير الإشارات للروابط الداخلية.
  * • مُهيّأة للإعلانات: مساحات محجوزة بارتفاعات ثابتة (بدون إزاحة تخطيط).
@@ -24,7 +25,7 @@ export async function generateMetadata({
   params: Promise<{ matchId: string }>;
 }): Promise<Metadata> {
   const { matchId } = await params;
-  const entry = findCatalogEntryById(matchId);
+  const entry = findServedCatalogEntryById(matchId);
 
   if (!entry) {
     return {
@@ -43,7 +44,7 @@ export default async function LiveMatchPage({
 }) {
   const { matchId } = await params;
   await hydrateStore();
-  const entry = findCatalogEntryById(matchId);
+  const entry = findServedCatalogEntryById(matchId);
   if (!entry) notFound();
 
   const view = resolveMatchView(entry);

@@ -3,8 +3,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import LegalPage from '@/components/LegalPage';
 import { buildStaticPageMetadata } from '@/lib/seo/metadata';
+import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
 
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || '';
+/** البريد المعروض: إعداد لوحة الإدارة أولًا، ثم متغيّر البيئة — وأحدهما يكفي. */
+const CONTACT_EMAIL_FROM_ENV = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || '';
 
 export const metadata: Metadata = buildStaticPageMetadata({
   title: 'اتصل بنا',
@@ -13,7 +15,10 @@ export const metadata: Metadata = buildStaticPageMetadata({
   path: '/contact',
 });
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  // إعداد لوحة الإدارة يتقدّم على متغيّر البيئة — فلا يحتاج تغيير البريد إعادة نشر.
+  await loadManualDocument();
+  const contactEmail = getSiteSettings().contactEmail?.trim() || CONTACT_EMAIL_FROM_ENV;
   return (
     <LegalPage
       title="اتصل بنا"
@@ -21,9 +26,9 @@ export default function ContactPage() {
       intro="يسعدنا سماعك. نراجع كل رسالة، ونتعامل بجدية مع أي تصحيح لبيانات مباراة أو إبلاغ عن رابط لا يعمل."
     >
       <h2>البريد الإلكتروني</h2>
-      {CONTACT_EMAIL ? (
+      {contactEmail ? (
         <p>
-          راسلنا على <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> وسنرد عليك في أقرب وقت
+          راسلنا على <a href={`mailto:${contactEmail}`}>{contactEmail}</a> وسنرد عليك في أقرب وقت
           ممكن. لتسريع الرد، اذكر رابط الصفحة المعنية في رسالتك.
         </p>
       ) : (
@@ -58,11 +63,8 @@ export default function ContactPage() {
       <h2>قبل أن تراسلنا</h2>
       <p>
         الموقع لا يستضيف بثًا مباشرًا ولا يبيع تذاكر؛ لذلك لا يمكننا حل مشكلات التشغيل داخل منصات
-        خارجية. لكننا نُحدّث حالة الرابط على صفحاتنا فور تأكّدنا من تغيّره، ونُبلّغ بالمشكلة للمصدر
+        خارجية. لكننا نُحدّث روابط المشاهدة وبيانات المباريات تلقائيًا، ونُبلّغ بالمشكلة للمصدر
         المعني عند الحاجة.
-      </p>
-      <p>
-        لمتابعة حالة المصادر وتفاصيل آخر مزامنة، زُر <Link href="/sources">صفحة المصادر</Link>.
       </p>
     </LegalPage>
   );

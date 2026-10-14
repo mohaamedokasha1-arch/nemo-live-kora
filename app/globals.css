@@ -116,40 +116,136 @@ a {
   gap: 11px;
 }
 
-.kl-brand-crest {
-  width: 40px;
-  height: 40px;
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+   شعار NEMO Sports — الأصل الرسمي من الموقع المرجعي (nemo-sports.vercel.app)
+  ══════════════════════════════════════════════════════════════════════════════
+   المكوّن: علامة (دربان + قُطر ذهبي) ثم الاسم «NEMO» فوق «Sports» — نقل حرفي من
+   `components/brand/Logo.tsx` في مستودع الموقع المرجعي، والملفات الأصلية منسوخة
+   كما هي في `public/nemo-mark.svg` و`public/nemo-logo.svg` و`app/icon.svg`.
+
+   • خط الاسم: نفس مكدّس خط الهوية في الأصل (font-display): Barlow Condensed ثم
+     IBM Plex Sans Arabic ثم Arial Narrow ثم sans-serif. لا نُثبّت خطًا جديدًا ولا
+     نغيّر خطوط الموقع — النص يقع على مكدّس المصدر نفسه.
+   • التصغير على الموبايل **بنِسب واحدة** عبر المتغيّرات: 38px ← 32px (×0.842)،
+     فيصغر الشعار كاملًا (العلامة والاسم والمسافات) بلا أي تغيّر في شكله أو نسبه.
+   • ممنوع على الشعار: border-radius · object-fit · transform: scale · filter
+     (الظل) — أي تأثير يُغيّر مظهره أو يقصّه مرفوض، والشعار أشكال متجهية بأبعادها.
+*/
+.kl-nemo-logo {
+  --kl-logo-font: "Barlow Condensed", "IBM Plex Sans Arabic", "Arial Narrow", sans-serif;
+  --kl-logo-mark: 38px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+  gap: calc(var(--kl-logo-mark) * 0.263); /* 10px عند 38px — نفس مسافة الأصل */
+  max-width: 100%;
 }
 
-.kl-brand-svg {
-  width: 100%;
-  height: 100%;
+.kl-nemo-mark {
+  display: block;
+  width: var(--kl-logo-mark);
+  height: var(--kl-logo-mark);
+  flex: none;
+  shape-rendering: geometricPrecision;
 }
 
-.kl-brand-titles {
+.kl-nemo-words {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.kl-brand-ar {
-  font-family: 'Cairo', 'Almarai', sans-serif;
-  font-size: 1.15rem;
-  font-weight: 900;
-  color: #ffffff;
-  line-height: 1.15;
+.kl-nemo-word {
+  font-family: var(--kl-logo-font);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.kl-brand-sub {
-  font-size: 0.72rem;
+.kl-nemo-sub {
+  font-family: var(--kl-logo-font);
   font-weight: 600;
-  color: #94a3b8;
-  line-height: 1.2;
+  letter-spacing: 0.34em;
+  /* 0.2em ≈ 2px عند 9.92px (mt-0.5 في الأصل) — ويتناسب تلقائيًا مع أي مقاس */
+  margin-top: 0.2em;
+  text-transform: uppercase;
+}
+
+/*
+  أوضاع الشعار الثلاثة — منقولة كما هي من المكوّن الأصلي:
+    light (يُستعمل في الهيدر والفوتر): الاسم أبيض · SPORTS ذهبي gold-500
+    brand (للخلفيات الفاتحة):          الاسم navy-850 (وأبيض في الوضع الداكن) ·
+                                       SPORTS ذهبي gold-700 (وgold-600 في الداكن)
+    mono:  كل العناصر بلون النص المحيط
+  والعلامة نفسها: دربان أبيضان + قُطر ذهبي في الوضع فاتح (كما في الأيقونة الرسمية)،
+  ودربان بلون النص + قُطر ذهبي في وضع الهوية، وكل شيء بلون النص في الأحادي.
+*/
+.kl-nemo-logo--light .kl-nemo-word {
+  color: #ffffff;
+}
+
+.kl-nemo-logo--light .kl-nemo-sub {
+  color: #d4af37; /* gold-500 — نفس لون الموقع المرجعي */
+}
+
+.kl-nemo-logo--brand,
+.kl-nemo-logo--brand .kl-nemo-mark {
+  color: #0f1b2e; /* navy-850 — دربان العلامة يتبع لون النص كما في الأصل */
+}
+
+.kl-nemo-logo--brand .kl-nemo-sub {
+  color: #856515; /* gold-700 */
+}
+
+[data-theme='dark'] .kl-nemo-logo--brand,
+[data-theme='dark'] .kl-nemo-logo--brand .kl-nemo-mark {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .kl-nemo-logo--brand .kl-nemo-sub {
+  color: #b8912c; /* gold-600 */
+}
+
+.kl-nemo-logo--mono .kl-nemo-word,
+.kl-nemo-logo--mono .kl-nemo-sub {
+  color: currentColor;
+}
+
+/* سطر الشعار الفرعي (Live Sports, Every Moment) — كما في المكوّن الأصلي */
+.kl-nemo-tagline {
+  margin-inline-start: 10px;
+  padding-inline-start: 2.5px;
+  border-inline-start: 1px solid currentColor;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.55;
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .kl-nemo-tagline {
+    display: block;
+  }
+}
+
+/* مقاس شعار الهيدر (38px كما في الموقع المرجعي) وتصغيره النِسبي على الموبايل */
+.kl-brand-logo {
+  --kl-logo-mark: 38px;
+  --kl-logo-word: 23.56px;
+  --kl-logo-sub: 9.92px;
+}
+
+.kl-brand {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .kl-brand-logo {
+    --kl-logo-mark: 32px;
+    --kl-logo-word: 19.84px;
+    --kl-logo-sub: 8.35px;
+  }
 }
 
 .kl-nav {
@@ -347,21 +443,13 @@ a {
   border-color: var(--kl-accent-primary);
 }
 
-.kl-match-card-unlinked {
-  cursor: default;
-}
-
-.kl-match-card-unlinked:hover {
-  transform: none;
-  box-shadow: var(--kl-shadow);
-  border-color: var(--kl-border);
-}
-
-.kl-match-card-unlinked:hover .kl-team-logo-wrap {
-  transform: none;
-}
-
-.kl-match-card-unlinked .kl-meta-action {
+/*
+ * تنويع بصري فقط لمباراة لم تُربط بعدُ بصفحة بث خارجية مؤكَّدة:
+ * خفوت لون شريط الحالة السفلي وحده. البطاقة **قابلة للنقر مثل غيرها** وتفتح صفحة
+ * تفاصيل المباراة داخل البوابة، ولذلك لا نُلغي مؤشر النقر (`cursor: default`) ولا
+ * تأثير المرور — إلغاؤهما كان يوهم الزائر بأن البطاقة غير قابلة للنقر.
+ */
+.kl-match-card-no-broadcast .kl-meta-action {
   color: var(--kl-text-secondary);
 }
 
@@ -716,6 +804,18 @@ a {
   padding: 14px 16px;
 }
 
+/* نصّ الخبر المكتوب في لوحة الإدارة — عناصر قراءة عادية بلا أي تغيير في هوية الموقع. */
+.kl-article-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  line-height: 1.9;
+}
+
+.kl-article-body p {
+  margin: 0;
+}
+
 .kl-article-context,
 .kl-article-related,
 .kl-news-list {
@@ -997,6 +1097,145 @@ a {
   color: var(--kl-text-muted);
   text-align: center;
   line-height: 1.7;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   نظام المشاهدة الموحّد (Global Watch System)
+   كتلة قياسية: مساحة إعلانية ← زر البث الأحمر ← مساحة إعلانية.
+   تُستخدم في صفحة تفاصيل المباراة، وصفحة المشاهدة الداخلية، وصفحات سجلات المصادر
+   — بلا استثناء — فلا توجد مباراة على البوابة بلا زر مشاهدة واضح.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.kl-watch-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.kl-watch-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+}
+
+/*
+  الزر الأحمر: الأحمر هو العُرف العربي والعالمي لزر «البث المباشر»، وهو أعلى تباينًا
+  مع خلفيتي الصفحة الفاتحة والداكنة في الوقت نفسه.
+  • padding سخي وfont-size 1.05rem → هدف لمس ≥ 48px (شرط إمكانية الوصول).
+  • الظل الأحمر يبرز الزر عن باقي الصفحة فيكون أول ما تقع عليه العين.
+*/
+.kl-watch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  padding: 17px 20px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 55%, #b91c1c 100%);
+  color: #ffffff;
+  font-family: 'Cairo', 'Almarai', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.42);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.kl-watch-btn:hover {
+  filter: brightness(1.06);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(220, 38, 38, 0.5);
+}
+
+.kl-watch-btn:focus-visible {
+  outline: 3px solid #fca5a5;
+  outline-offset: 3px;
+}
+
+.kl-watch-btn:active {
+  transform: translateY(0);
+}
+
+.kl-watch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.kl-watch-text {
+  flex: 1;
+}
+
+.kl-watch-open {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* الرابط الثانوي لصفحة المباراة المطابقة: هادئ جدًا حتى لا ينافس الزر الأحمر */
+.kl-watch-exact {
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.kl-watch-exact a {
+  color: var(--kl-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kl-watch-exact a:hover {
+  color: var(--kl-accent-primary);
+}
+
+/* الملاحظة الصادقة أسفل الزر: صغيرة وهادئة حتى لا تنافس الزر على الانتباه */
+.kl-watch-note {
+  font-size: 0.76rem;
+  color: var(--kl-text-muted);
+  text-align: center;
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* الرابط الداخلي الثانوي في صفحة التفاصيل (لمن يفضّل البقاء داخل البوابة) */
+.kl-watch-internal {
+  font-size: 0.82rem;
+  color: var(--kl-text-muted);
+  text-align: center;
+  line-height: 1.8;
+}
+
+.kl-watch-internal a {
+  color: var(--kl-accent-primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.kl-watch-internal a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .kl-watch-btn {
+    font-size: 0.95rem;
+    padding: 15px 14px;
+    gap: 8px;
+  }
+
+  .kl-watch-icon {
+    width: 30px;
+    height: 30px;
+  }
 }
 
 /* ————— مسار التنقل ————— */
@@ -1536,6 +1775,13 @@ a {
   line-height: 1.8;
 }
 
+.kl-footer-logo {
+  --kl-logo-mark: 40px;
+  --kl-logo-word: 24.8px;
+  --kl-logo-sub: 10.44px;
+  margin-bottom: 8px;
+}
+
 .kl-footer-brand strong {
   font-weight: 800;
   color: var(--kl-text-secondary);
@@ -1682,5 +1928,478 @@ a {
 
   .kl-featured-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+   لوحة الإدارة (Admin Console) — أنماط مستقلة لا تلمس أي صنف عام في الموقع
+  ══════════════════════════════════════════════════════════════════════════════
+   كل الأصناف تبدأ بـ `kl-admin-` فلا يمكن أن تتعارض مع الشكل العام، والألوان من
+   رموز الهوية القائمة (`--kl-*`) حتى تبقى اللوحة امتدادًا بصريًا للموقع نفسه.
+   والتخطيط شبكي يتحوّل لعمود واحد على الجوال (لوحة تُدار من الهاتف كما طُلب).
+*/
+.kl-admin-shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding-block: 18px 40px;
+}
+
+.kl-admin-nav {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--kl-border-soft);
+  border-radius: 10px;
+  background: var(--kl-card-bg);
+}
+
+.kl-admin-nav-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--kl-text-muted);
+  margin-bottom: 4px;
+}
+
+.kl-admin-nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  color: var(--kl-text-secondary);
+  text-decoration: none;
+}
+
+.kl-admin-nav a:hover,
+.kl-admin-nav a[aria-current='page'] {
+  background: var(--kl-card-footer-bg);
+  color: var(--kl-text);
+}
+
+.kl-admin-nav a[aria-current='page'] {
+  box-shadow: inset 3px 0 0 var(--kl-accent-primary);
+}
+
+.kl-admin-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.kl-admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kl-admin-head h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.kl-admin-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--kl-text-muted);
+}
+
+.kl-admin-card {
+  border: 1px solid var(--kl-border-soft);
+  border-radius: 10px;
+  background: var(--kl-card-bg);
+  padding: 14px;
+  min-width: 0;
+}
+
+.kl-admin-card > h2 {
+  font-size: 1rem;
+  margin: 0 0 10px;
+}
+
+.kl-admin-card > h3 {
+  font-size: 0.92rem;
+  margin: 14px 0 6px;
+}
+
+.kl-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.kl-admin-stat {
+  border: 1px solid var(--kl-border-soft);
+  border-radius: 10px;
+  background: var(--kl-card-footer-bg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kl-admin-stat strong {
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.kl-admin-stat span {
+  font-size: 0.78rem;
+  color: var(--kl-text-muted);
+  font-weight: 700;
+}
+
+.kl-admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--kl-border-soft);
+  border-radius: 10px;
+  background: var(--kl-card-bg);
+}
+
+.kl-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  min-width: 720px;
+}
+
+.kl-admin-table th,
+.kl-admin-table td {
+  padding: 8px 10px;
+  text-align: start;
+  border-bottom: 1px solid var(--kl-border-soft);
+  vertical-align: middle;
+}
+
+.kl-admin-table th {
+  font-size: 0.76rem;
+  color: var(--kl-text-muted);
+  background: var(--kl-card-footer-bg);
+  position: sticky;
+  top: 0;
+}
+
+.kl-admin-table tbody tr:hover {
+  background: var(--kl-card-footer-bg);
+}
+
+.kl-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.kl-admin-badge-ok {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
+.kl-admin-badge-warn {
+  background: rgba(202, 138, 4, 0.16);
+  color: #a16207;
+  border-color: rgba(202, 138, 4, 0.35);
+}
+
+.kl-admin-badge-danger {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.kl-admin-badge-info {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.kl-admin-badge-muted {
+  background: var(--kl-card-footer-bg);
+  color: var(--kl-text-muted);
+  border-color: var(--kl-border-soft);
+}
+
+[data-theme='dark'] .kl-admin-badge-ok { color: #4ade80; }
+[data-theme='dark'] .kl-admin-badge-warn { color: #fbbf24; }
+[data-theme='dark'] .kl-admin-badge-danger { color: #f87171; }
+[data-theme='dark'] .kl-admin-badge-info { color: #93c5fd; }
+
+.kl-admin-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.kl-admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kl-admin-field label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--kl-text-secondary);
+}
+
+.kl-admin-field small {
+  font-size: 0.72rem;
+  color: var(--kl-text-muted);
+}
+
+.kl-admin-field input,
+.kl-admin-field select,
+.kl-admin-field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--kl-border);
+  border-radius: 8px;
+  background: var(--kl-card-footer-bg);
+  color: var(--kl-text);
+  font: inherit;
+}
+
+.kl-admin-field textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.kl-admin-field-span {
+  grid-column: 1 / -1;
+}
+
+.kl-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.kl-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--kl-border);
+  background: var(--kl-card-footer-bg);
+  color: var(--kl-text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kl-admin-btn:hover:not(:disabled) {
+  border-color: var(--kl-accent-primary);
+}
+
+.kl-admin-btn-primary {
+  background: #0f1b2e;
+  color: #ffffff;
+  border-color: #0f1b2e;
+}
+
+.kl-admin-btn-danger {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #b91c1c;
+}
+
+[data-theme='dark'] .kl-admin-btn-danger { color: #fca5a5; }
+
+.kl-admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kl-admin-note {
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  border: 1px solid var(--kl-border-soft);
+  background: var(--kl-card-footer-bg);
+}
+
+.kl-admin-note-ok { border-color: rgba(22, 163, 74, 0.4); background: rgba(22, 163, 74, 0.08); }
+.kl-admin-note-warn { border-color: rgba(202, 138, 4, 0.45); background: rgba(202, 138, 4, 0.1); }
+.kl-admin-note-danger { border-color: rgba(220, 38, 38, 0.45); background: rgba(220, 38, 38, 0.08); }
+
+.kl-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-inline-start: 18px;
+  font-size: 0.84rem;
+}
+
+.kl-admin-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  font-size: 0.84rem;
+}
+
+.kl-admin-kv div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kl-admin-kv span {
+  color: var(--kl-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.kl-admin-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.kl-admin-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.kl-admin-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.kl-admin-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.kl-admin-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kl-admin-row-actions button,
+.kl-admin-row-actions a {
+  font-size: 0.76rem;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--kl-border);
+  background: var(--kl-card-footer-bg);
+  color: var(--kl-text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.kl-admin-row-actions button:hover:not(:disabled),
+.kl-admin-row-actions a:hover {
+  border-color: var(--kl-accent-primary);
+  color: var(--kl-text);
+}
+
+.kl-admin-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  direction: ltr;
+  text-align: start;
+  word-break: break-all;
+}
+
+.kl-admin-login {
+  max-width: 420px;
+  margin: 40px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kl-admin-banner {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(202, 138, 4, 0.45);
+  background: rgba(202, 138, 4, 0.1);
+  font-weight: 700;
+}
+
+.kl-admin-banner-danger {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.09);
+}
+
+/* شريط التنبيه العام على الموقع (يُفعّله المدير من الإعدادات) */
+.kl-site-banner {
+  background: #0f1b2e;
+  color: #f4f6f9;
+  font-size: 0.85rem;
+}
+
+.kl-site-banner-warning {
+  background: #7c2d12;
+}
+
+.kl-site-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 7px;
+}
+
+.kl-site-banner-inner p {
+  margin: 0;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .kl-admin-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kl-admin-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .kl-admin-nav-title {
+    width: 100%;
+  }
+
+  .kl-admin-nav a {
+    flex: 1 1 45%;
+  }
+
+  .kl-admin-split {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

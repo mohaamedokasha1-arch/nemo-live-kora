@@ -12,6 +12,15 @@ const nextConfig = {
       { protocol: 'https', hostname: 'media.api-sports.io' }
     ]
   },
+  /**
+   * خطوط Cairo بصيغة TTF تُقرأ من القرص لتوليد صورة المشاركة (1200×675) عبر next/og.
+   * يجب تضمينها صريحًا في حزمة الدالة السحابية على Vercel، وإلا فشلت القراءة في الإنتاج
+   * بينما تنجح محليًا — وهو فرق خطير يظهر بعد النشر فقط.
+   */
+  outputFileTracingIncludes: {
+    '/matches/[id]/opengraph-image': ['./assets/fonts/**'],
+    '/**': ['./assets/fonts/**']
+  },
   async headers() {
     return [
       {

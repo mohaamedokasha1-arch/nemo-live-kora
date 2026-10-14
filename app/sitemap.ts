@@ -1,4 +1,4 @@
-import { findCatalogEntryForMatch } from '@/lib/matches/match-links';
+import { findServedCatalogEntryForMatch } from '@/lib/admin/served-catalog';
 import { MetadataRoute } from 'next';
 import {
   getTodayCairoDate,
@@ -10,6 +10,7 @@ import { getCatalogSitemapItems } from '@/lib/matches/match-catalog';
 import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
+import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
 
 /**
  * sitemap.xml ديناميكي:
@@ -34,15 +35,21 @@ function mostRecentDate(dates: Array<Date | null>, fallback: Date): Date {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await hydrateStore();
+  await loadManualDocument();
+  // إعداد إداري واحد يتحكّم في وجود صفحات الأخبار داخل الخريطة (الصفحات نفسها تظل
+  // تعمل ومتاحة للزحف عبر الروابط — لا نُخفي محتوى، إنما نُغيّر إشارة الخريطة فقط).
+  const includeNewsInSitemap = getSiteSettings().sitemapIncludeNews;
   const now = new Date();
   const todayCairo = getTodayCairoDate();
   const startDate = shiftDateString(todayCairo, -1);
   const endDate = shiftDateString(todayCairo, 7);
   const db = getGatewayDatabase();
   const { availableDates } = queryGatewayMatches({});
-  const latestNews = getLatestNews(db.news, 24);
-  const archiveNews = getArchiveNews(db.news);
-  const indexableNews = getPublishedNews(db.news).filter(isIndexableNewsArticle);
+  const latestNews = includeNewsInSitemap ? getLatestNews(db.news, 24) : [];
+  const archiveNews = includeNewsInSitemap ? getArchiveNews(db.news) : [];
+  const indexableNews = includeNewsInSitemap
+    ? getPublishedNews(db.news).filter(isIndexableNewsArticle)
+    : [];
 
   // ── صفحات هبوط المباريات (Automated Match Engine) ──
   const matchRoutes: MetadataRoute.Sitemap = getCatalogSitemapItems(now).map((item) => ({
@@ -152,6 +159,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  const sourceRoutes: MetadataRoute.Sitemap = db.matches.filter((m) => !findCatalogEntryForMatch(m) && m.kickoffConfirmed === true && m.cairoDate >= startDate && m.cairoDate <= endDate && parseDate(m.lastUpdatedAt)).map((m) => ({ url: `${GATEWAY_SITE_URL}/matches/${m.id}`, lastModified: new Date(m.lastUpdatedAt), changeFrequency: 'daily', priority: 0.6 }));
-  return [...staticRoutes, ...matchRoutes, ...sourceRoutes, ...dateRoutes, ...newsRoutes];
+  /**
+   * ⚠️ قرار مقصود: سجلات المصادر الخام (‎/matches/match-api-football-XXXXXXX) **لا**
+   * تُضاف إلى خريطة الموقع.
+   *
+   * السبب: تلك الصفحات تُبنى آليًا من بيانات المصدر فقط (بلا ملعب ولا بث ولا بيانات
+   * منظمة)، ومعرّفاتها غير قابلة للقراءة، وهي بذلك «محتوى رقيق» لا يمثّل هدف بحث
+   * حقيقيًا. إدراجها كان يُدخل عشرات الروابط منخفضة القيمة في خريطة الموقع فتزاحم
+   * صفحات هبوط المباريات (وهي الوجهة الحقيقية على البوابة) وتُشتّت ميزانية الزحف.
+   *
+   * الصفحات نفسها تبقى موجودة ومتاحة للزائر وللروبوت (index/follow) وتصل إليها
+   * الروابط الداخلية من الجداول — لكننا لا نُعلنها كوجهات في خريطة الموقع.
+   * أما صفحات هبوط الكتالوج فهي المسار الرسمي المُعلن لكل مباراة.
+   *
+   * للحصول على رقم تحقّقي: كم سجل مصدر خام استُثني من الخريطة الآن.
+   */
+  const excludedSourceOnlyCount = db.matches.filter(
+    (match) =>
+      !findServedCatalogEntryForMatch(match) &&
+      match.kickoffConfirmed === true &&
+      match.cairoDate >= startDate &&
+      match.cairoDate <= endDate
+  ).length;
+  if (excludedSourceOnlyCount > 0) {
+    console.info(
+      `[sitemap] استُثني ${excludedSourceOnlyCount} سجل مصدر خام من خريطة الموقع (محتوى رقيق) — الوجهة الرسمية هي صفحات هبوط الكتالوج.`
+    );
+  }
+
+  return [...staticRoutes, ...matchRoutes, ...dateRoutes, ...newsRoutes];
 }

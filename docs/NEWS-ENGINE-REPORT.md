@@ -40,7 +40,7 @@
 
 | العنصر | الوضع |
 |---|---|
-| الآلية | `vercel.json` → `GET /api/cron/update-matches` يوميًا الساعة 05:00 UTC |
+| الآلية | `vercel.json` → `GET /api/cron/sync` يوميًا 05:00 UTC (مباريات + كل مجموعات الأخبار) و`GET /api/cron/update-matches` 16:00 UTC — وتحديث عند الطلب مع كل زيارة. التفاصيل في `docs/AUTO-RENEWING-CONTENT-2026-10-14.md` |
 | حماية | `Authorization: Bearer $CRON_SECRET` |
 | أخبار فقط | `/api/cron/sync-news` محمي بنفس السر |
 | عند الطلب | `ensureFreshNews()` إذا مضى أكثر من 15 دقيقة على آخر نجاح |

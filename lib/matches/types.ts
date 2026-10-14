@@ -107,7 +107,8 @@ export interface MatchCatalogSeo {
 export interface MatchCatalogSourceRef {
   /** معرّف السجل في `data/gateway-store.json` مثل match-api-football-1612263. */
   matchId?: string | null;
-  provider?: SourceId | null;
+  /** المصدر الذي جاء منه السجل، أو `manual` للمباريات التي يدخلها المدير من اللوحة. */
+  provider?: SourceId | 'manual' | null;
   providerMatchId?: string | null;
   sportscoreSlug?: string | null;
   thesportsdbEventId?: string | null;

@@ -97,14 +97,37 @@ export function isMatchScoreHeadline(title: string, excerpt?: string | null): bo
   return !hasContext || words <= 8;
 }
 
-/** Thin headline-only syndication pages are intentionally not indexable. */
+/** حدّ أدنى لنصّ أي خبر ليُعتبر قابلًا للفهرسة (يمنع الصفحات الرقيقة). */
+export const NEWS_INDEX_MIN_TITLE = 15;
+/** أخبار المصادر: المقتطف هو كل ما لدينا، فالحدّ مرتفع. */
+export const NEWS_INDEX_MIN_EXCERPT = 160;
+/** أخبار الموقع نفسها (كتابة إدارية): يُحتسب النصّ الكامل + المقتطف معًا. */
+export const NEWS_INDEX_MIN_FIRST_PARTY = 200;
+
+/**
+ * Thin headline-only syndication pages are intentionally not indexable.
+ *
+ * خبر مكتوب في لوحة الإدارة (origin = 'manual') **محتوى الموقع نفسه**: لا معنى لاشتراط
+ * رابط ناشر خارجي موثوق فيه — وهو ما كان يمنع ظهور أخبار اللوحة في خريطة الموقع رغم أن
+ * صفحاتها تعمل وتُعرض للزوار. ويبقى شرط «لا نصّ رقيق» قائمًا بحساب المقتطف + النصّ الكامل.
+ */
 export function isIndexableNewsArticle(item: NewsItemRecord): boolean {
-  return (
+  const publishable =
     item.publishStatus === 'published' &&
     item.publishedAtKnown &&
-    Boolean(item.publishedAt && !Number.isNaN(Date.parse(item.publishedAt))) &&
-    collapseWhitespace(item.title).length >= 15 &&
-    collapseWhitespace(stripHtml(item.excerpt || '')).length >= 160 &&
+    Boolean(item.publishedAt && !Number.isNaN(Date.parse(item.publishedAt)));
+  if (!publishable) return false;
+  if (collapseWhitespace(item.title).length < NEWS_INDEX_MIN_TITLE) return false;
+
+  if (item.origin === 'manual') {
+    const text =
+      collapseWhitespace(stripHtml(item.excerpt || '')).length +
+      collapseWhitespace(stripHtml(item.bodyText || '')).length;
+    return text >= NEWS_INDEX_MIN_FIRST_PARTY;
+  }
+
+  return (
+    collapseWhitespace(stripHtml(item.excerpt || '')).length >= NEWS_INDEX_MIN_EXCERPT &&
     isDirectPublisherArticleUrl(item.originalUrl || item.link, item.publisherUrl)
   );
 }

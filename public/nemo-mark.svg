@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="NEMO mark">
+  <rect x="5" y="7" width="10" height="34" fill="#0F1B2E" />
+  <rect x="33" y="7" width="10" height="34" fill="#0F1B2E" />
+  <polygon points="7,41 15,41 41,7 33,7" fill="#D4AF37" />
+</svg>
