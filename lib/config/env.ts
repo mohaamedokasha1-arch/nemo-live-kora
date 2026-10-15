@@ -144,6 +144,10 @@ function effectiveKeyDescription(sourceId: string, state: ConfiguredKeyState, fi
       return configured ? `سيُرسل المفتاح الاختياري (${fingerprint})` : 'لا يحتاج مفتاحًا — يعمل مباشرة';
     case 'google-news-rss':
       return 'لا يحتاج مفتاحًا — يعمل مباشرة';
+    case 'publisher-rss':
+      return configured
+        ? 'خلاصات إضافية مضافة من البيئة بجانب الخلاصات الأربع الموثّقة'
+        : 'يعمل بالخلاصات الأربع الموثّقة (BBC عربي · BBC Sport · الجارديان · في الجول)';
     default:
       return configured ? `سيُستخدم (${fingerprint})` : 'غير مضبوط';
   }
@@ -186,6 +190,13 @@ export function describeSourceConfiguration(): SourceKeyConfig[] {
       envVar: 'GOOGLE_NEWS_RSS_BASE_URL',
       optional: true,
       noteAr: 'لا يحتاج مفتاحًا؛ يمكن override عنوان الخلاصة للاختبار.',
+    },
+    {
+      sourceId: 'publisher-rss',
+      envVar: 'NEMO_PUBLISHER_RSS_FEEDS',
+      optional: true,
+      noteAr:
+        'خلاصات ناشرين مباشرة (روابط مقالات أصلية بلا وسيط). قائمة افتراضية مدمجة: BBC عربي رياضة · BBC Sport كرة القدم · الجارديان كرة القدم · في الجول. يمكن إضافة عناوين مفصولة بفواصل أو إيقاف المصدر بوضع none.',
     },
   ];
 

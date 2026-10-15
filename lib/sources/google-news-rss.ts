@@ -144,10 +144,16 @@ export interface ResolutionReport {
   unresolved: number;
   strategies: Record<string, number>;
   errors: Record<string, number>;
+  /**
+   * عدّاد أعمق من `errors`: يشرح **لماذا** فشل الرمز نفسه (مثالًا
+   * `relay_params_not_found` خلف `interstitial_without_destination`) — إضافة بلا تغيير
+   * أي رمز قائم، تُقرأ من سجل المزامنة في اللوحة و`/api/sources`.
+   */
+  errorNotes?: Record<string, number>;
 }
 
 function emptyResolutionReport(): ResolutionReport {
-  return { attempted: 0, resolved: 0, unresolved: 0, strategies: {}, errors: {} };
+  return { attempted: 0, resolved: 0, unresolved: 0, strategies: {}, errors: {}, errorNotes: {} };
 }
 
 /**
@@ -209,6 +215,10 @@ export async function resolveFeedArticleUrls(
         report.unresolved += 1;
         const reason = resolution.error || 'unknown';
         report.errors[reason] = (report.errors[reason] || 0) + 1;
+        if (resolution.detail) {
+          report.errorNotes = report.errorNotes || {};
+          report.errorNotes[resolution.detail] = (report.errorNotes[resolution.detail] || 0) + 1;
+        }
         return candidate;
       })
     );
@@ -350,6 +360,8 @@ export async function fetchGoogleNewsRss(options: {
   maxResolvedPerFeed?: number;
   /** Publisher pages to read for a real excerpt (bounded to stay inside a cron budget). */
   enrichmentLimit?: number;
+  /** Retry only instant network errors — bounded cold-start protection (see http-client). */
+  retryOnNetworkErrorOnly?: boolean;
 } = {}): Promise<GoogleNewsFetchResult> {
   const fetchedAt = new Date().toISOString();
   const timeoutMs = options.timeoutMs ?? 8000;
@@ -380,7 +392,12 @@ export async function fetchGoogleNewsRss(options: {
     const url = buildGoogleNewsFeedUrl(feed);
     const res = await fetchWithProtection<string>(
       url,
-      { timeoutMs, retries, cacheTtlMs: 10 * 60_000 },
+      {
+        timeoutMs,
+        retries,
+        cacheTtlMs: 10 * 60_000,
+        retryOnNetworkErrorOnly: options.retryOnNetworkErrorOnly,
+      },
       'text'
     );
     totalLatency += res.latencyMs;
@@ -414,6 +431,10 @@ export async function fetchGoogleNewsRss(options: {
       }
       for (const [key, value] of Object.entries(resolution.report.errors)) {
         totals.errors[key] = (totals.errors[key] || 0) + value;
+      }
+      for (const [key, value] of Object.entries(resolution.report.errorNotes || {})) {
+        totals.errorNotes = totals.errorNotes || {};
+        totals.errorNotes[key] = (totals.errorNotes[key] || 0) + value;
       }
       allItems.push(...resolution.candidates);
       feedResults.push({

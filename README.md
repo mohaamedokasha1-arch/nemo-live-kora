@@ -48,7 +48,7 @@
 
 ---
 
-## 2. المصادر الخمسة المعتمدة (`lib/sources/`)
+## 2. المصادر الستة المعتمدة (`lib/sources/`)
 
 | # | المصدر | المحول البرمجي | نوع البيانات | المفتاح المطلوب |
 |---|---|---|---|---|
@@ -56,7 +56,8 @@
 | 2 | **Football-Data.org v4** | `lib/sources/football-data.ts` | فهرس البطولات والمواسم، والمباريات والترتيب عند ضبط المفتاح | `FOOTBALL_DATA_API_KEY` (اختياري — بدونه `partial_keyless`) |
 | 3 | **TheSportsDB v1** | `lib/sources/thesportsdb.ts` | جولات الدوري المصري الممتاز (`4829`)، كأس الرابطة (`5185`)، الكونفدرالية (`5057`)، وقائمة اليوم. `4830` مستبعد لأنه دوري بيسبول (KBO) | `THESPORTSDB_API_KEY` — المجاني العام `123` (و`3` تاريخيًا). المفاتيح المدفوعة ترفض `eventsround.php` بـ 404، فيسقط الكود تلقائيًا إلى `123` ثم `3` |
 | 4 | **API-Football v3** | `lib/sources/api-football.ts` | fixtures + **الترتيب** + ربط معرّفات `idAPIfootball` | `API_FOOTBALL_KEY` (+ `API_FOOTBALL_HOST` لطريق RapidAPI). بدون مفتاح: `requires_api_key` |
-| 5 | **Google News RSS** | `lib/sources/google-news-rss.ts` | **مصدر الأخبار الوحيد**: عناوين وناشرون حقيقيون بعد فك الروابط الوسيطة | لا يحتاج |
+| 5 | **Google News RSS** | `lib/sources/google-news-rss.ts` | عناوين وناشرون حقيقيون بعد فك الروابط الوسيطة؛ الروابط التي لا تُفك تُرفض بصدق ولا تُنشر خامًا | لا يحتاج (استخدام شخصي حسب شروط Google — راجع `docs/evidence/source-audit-2026-10-15.json`) |
+| 6 | **خلاصات الناشرين المباشرة** | `lib/sources/publisher-rss.ts` | RSS/Atom مباشر من الناشر نفسه (BBC عربي رياضي، BBC Football، The Guardian Football، FilGoal) — روابط مقالات حقيقية بلا أي وسيط، مع بوابة نطاق صارمة لكل خلاصة | لا يحتاج. `NEMO_PUBLISHER_RSS_FEEDS` لإضافة خلاصات (فاصلة بفواصل) أو `none` للتعطيل |
 
 > **حالة الاتصال الحي لا تُدّعى هنا.** الحالة الفعلية لكل مصدر ومفتاح تُقرأ وقت التشغيل من `/api/health` وصفحة `/sources`،
 > أو من `node --import tsx scripts/audit-connectivity.ts`. لا تُعدّ أي قيمة `200 OK` مكتوبة في التوثيق دليلًا على اتصال حالي.
@@ -261,6 +262,7 @@ npm run dev
 - **المتغيرات البيئية** (كلها موثّقة بالعربية في `.env.example`):
   - **التخزين:** لا يتطلب أي متغير. (`NEMO_DATA_DIR` اختياري لتغيير مجلد الملف.) الفحص: `npm run store:check`.
   - **مفاتيح المصادر:** `API_FOOTBALL_KEY` (مطلوب لـ API-Football)، `FOOTBALL_DATA_API_KEY` (اختياري)، `THESPORTSDB_API_KEY` (افتراضيًا `123`)
+  - **الأخبار:** `NEMO_PUBLISHER_RSS_FEEDS` اختياري (روابط RSS/Atom إضافية للناشرين، أو `none` لتعطيل المصدر السادس)؛ `NEMO_NEWS_ENRICH=off` لتعطيل إثراء الملخصات
   - **الروابط:** `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`، `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
 - **`CRON_SECRET` يحمي `/api/cron/sync` و`/api/cron/sync-news` ولوحة الإدارة**. اضبطه في متغيرات بيئة الاستضافة، واحتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له. مسار `/api/cron/update-matches` لا يتطلب سرًا. بدونه تُرجع هذه المسارات `500 Misconfigured` ولا تنفّذ شيئًا (حماية مقصودة، لا تُفتح للعامة).
 

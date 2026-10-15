@@ -5,7 +5,7 @@ import {
   toCairoDateString,
   toCairoTimeArabic,
 } from '../cairo-time';
-import { mergeMatchRecords, VERIFIED_THESPORTSDB_EVENTS } from '../db/seed-data';
+import { buildSeedSourceDefinitions, mergeMatchRecords, VERIFIED_THESPORTSDB_EVENTS } from '../db/seed-data';
 import { resolveTheSportsDBKickoff } from '../sources/thesportsdb';
 import { buildMatchDedupKey, getStableMatchId } from '../match-identity';
 import { resolveNemoSportsLink, VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
@@ -335,6 +335,15 @@ export function migrateGatewayDatabase(db: GatewayDatabase): GatewayDatabase {
       ...sources[sourceId],
       ...migrateSourceDefinition(sourceId, sources[sourceId]),
     };
+  });
+  /**
+   * مصدر أُضيف بالترقية (مثل خلاصات الناشرين المباشرة) لا يوجد في لقطة مثبَّتة قديمة؛
+   * يُدسَّل من تعريفات البذر حتى يراه `/api/sources` وتُحدَّث حالته من سجلات المزامنة،
+   * بدل أن يبقى مخفيًا عن اللوحة حتى إعادة البناء الكاملة التالية.
+   */
+  const seedSources = buildSeedSourceDefinitions();
+  (Object.keys(seedSources) as SourceId[]).forEach((sourceId) => {
+    if (!sources[sourceId]) sources[sourceId] = seedSources[sourceId];
   });
 
   const migratedMatches = migrateMatches(Array.isArray(db.matches) ? db.matches : []);

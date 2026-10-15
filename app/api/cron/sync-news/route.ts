@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronAuth } from '@/lib/auth/cron-auth';
-import { describeStorageWarnings, flushDurableStore } from '@/lib/db/store';
+import { describeStorageWarnings, flushDurableStore, getGatewayDatabase, hydrateStore } from '@/lib/db/store';
 import { runNewsSync } from '@/lib/sync/engine';
 
 export const dynamic = 'force-dynamic';
@@ -12,23 +12,41 @@ async function handle(request: NextRequest) {
   if (denied) return denied;
 
   try {
+    const dbBefore = await hydrateStore();
+    const publishedBefore = dbBefore.news.filter((item) => item.publishStatus === 'published').length;
+    // نافذة هذه الجولة تُقاس من بدئها، لا من بداية سجل Google: سجل الخلاصات المباشرة
+    // يُسجَّل أولًا وينتهي قبل أن يبدأ جريان Google أصلًا.
+    const runStartedAt = new Date().toISOString();
     const sync = await runNewsSync('API /api/cron/sync-news');
     // Persist the news snapshot before answering so the articles survive the request.
     const persistence = await flushDurableStore({ force: true });
     const syncOk = Boolean(sync.ok);
+    /**
+     * الحالة الإجمالية الصادقة: مصدر الأخبار عند Google قد يفشل بينما الخلاصات المباشرة
+     * تنشر مقالات فعليًا في نفس الجولة — لا يجوز أن يُبلَّغ المجدوّل الخارجي بـ«degraded»
+     * والمخزن قد امتلأ للتو. يُحسب النشر الفعلي من الفرق في المخزن، لا من سجل مصدر واحد.
+     */
+    const dbAfter = getGatewayDatabase();
+    const publishedAfter = dbAfter.news.filter((item) => item.publishStatus === 'published').length;
+    const publishedDelta = Math.max(0, publishedAfter - publishedBefore);
+    const newsFlowOk = syncOk || publishedDelta > 0;
+    const thisRunRecords = dbAfter.newsSourceSyncs.filter((record) => record.finishedAt >= runStartedAt);
     return NextResponse.json(
       {
         ok: true,
-        status: syncOk && persistence.ok ? 'ok' : 'degraded',
+        status: newsFlowOk && persistence.ok ? 'ok' : 'degraded',
         syncOk,
-        success: syncOk && persistence.ok,
-        messageAr: sync.messageAr,
-        newsFetched: sync.fetchedCount,
-        newsImported: sync.importedCount,
-        newsPublished: sync.publishedCount,
-        newsDuplicates: sync.duplicateCount,
-        newsRejected: sync.rejectedCount,
-        newsUpdated: sync.updatedCount,
+        success: newsFlowOk && persistence.ok,
+        messageAr:
+          !syncOk && publishedDelta > 0
+            ? `${sync.messageAr} — نشرت الخلاصات المباشرة ${publishedDelta} مقالًا في هذه الجولة.`
+            : sync.messageAr,
+        newsFetched: thisRunRecords.reduce((total, record) => total + (record.fetchedCount || 0), 0),
+        newsImported: thisRunRecords.reduce((total, record) => total + (record.importedCount || 0), 0),
+        newsPublished: publishedDelta,
+        newsDuplicates: thisRunRecords.reduce((total, record) => total + (record.duplicateCount || 0), 0),
+        newsRejected: thisRunRecords.reduce((total, record) => total + (record.rejectedCount || 0), 0),
+        newsUpdated: thisRunRecords.reduce((total, record) => total + (record.updatedCount || 0), 0),
         startedAt: sync.startedAt,
         finishedAt: sync.finishedAt,
         persistence,

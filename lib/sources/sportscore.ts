@@ -330,6 +330,8 @@ export interface SportScoreFetchOptions {
   timeoutMs?: number;
   retries?: number;
   cacheTtlMs?: number;
+  /** Retry only instant network errors (see http-client docs). */
+  retryOnNetworkErrorOnly?: boolean;
   /** Override the widget limit (provider cap is 50). */
   limit?: number;
   /** Explicit endpoint list; defaults to the documented candidates. */
@@ -370,6 +372,7 @@ export async function fetchSportScoreMatches(
       timeoutMs: options.timeoutMs ?? 8000,
       retries: options.retries ?? 1,
       cacheTtlMs: options.cacheTtlMs ?? 45_000,
+      retryOnNetworkErrorOnly: options.retryOnNetworkErrorOnly,
       headers: sportscoreHeaders(),
     });
     totalLatency += res.latencyMs;
@@ -437,6 +440,7 @@ export async function fetchSportScoreFixturesByDate(
     timeoutMs: options.timeoutMs ?? 8000,
     retries: options.retries ?? 1,
     cacheTtlMs: options.cacheTtlMs ?? 60_000,
+    retryOnNetworkErrorOnly: options.retryOnNetworkErrorOnly,
     headers: sportscoreHeaders(),
   });
   const list = res.ok ? extractSportscoreMatchList(res.data) : null;

@@ -53,7 +53,16 @@ export const SOURCE_CAPABILITIES: Record<SourceId, SourceCapability> = {
     providesNews: true,
     accessType: 'RSS 2.0 XML Feed',
     newsAccessNoteAr:
-      'المصدر الوحيد بين المصادر الخمسة الذي يوفّر عناوين أخبار رياضية عبر RSS، مع نسبة الخبر للناشر الأصلي دون نسخ النص الكامل.',
+      'مصدر عناوين عبر RSS مع نسبة الخبر للناشر الأصلي دون نسخ النص الكامل؛ روابطه الوسيطة تُحلّ عند الإمكان. منذ 2026-10-15 ثبت أن الروابط الوسيطة صارت معماة (AU_yqL) وأن حلّها يفشل من بيئة الإنتاج — لذلك أُضيف مصدر الخلاصات المباشرة كمسار موازٍ لا بديل.',
+  },
+  'publisher-rss': {
+    sourceId: 'publisher-rss',
+    providesMatches: false,
+    providesStandings: false,
+    providesNews: true,
+    accessType: 'RSS 2.0 XML Feed',
+    newsAccessNoteAr:
+      'خلاصات ناشرين مباشرة (BBC عربي وBBC Sport والجارديان وفي الجول): رابط المقال الأصلي من الناشر نفسه دون أي رابط وسيط، مع العنوان والتاريخ والصورة الاختيارية فقط. قائمة الخلاصات قابلة للتوسعة بمتغير NEMO_PUBLISHER_RSS_FEEDS دون نشر جديد.',
   },
 };
 

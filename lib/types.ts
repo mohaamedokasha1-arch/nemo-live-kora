@@ -3,7 +3,8 @@ export type SourceId =
   | 'football-data'
   | 'thesportsdb'
   | 'api-football'
-  | 'google-news-rss';
+  | 'google-news-rss'
+  | 'publisher-rss';
 
 export type SourceHealthStatus =
   | 'active'

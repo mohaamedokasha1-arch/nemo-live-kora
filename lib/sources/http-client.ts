@@ -4,6 +4,15 @@ export interface FetchWithProtectionOptions {
   retries?: number;
   cacheTtlMs?: number;
   headers?: Record<string, string>;
+  /**
+   * Retry ONLY on instant network failures (DNS/connection errors), never after a timeout abort.
+   * Cold Vercel instances fail the first egress calls with `fetch failed` in <200ms (observed on
+   * the live `/api/health` of 2026-10-15 at 05:00:53Z: RSS + both match providers all failed at
+   * 12–142ms, while an on-demand run minutes later on a warm instance succeeded). On request
+   * paths a bounded retry of that transient error costs milliseconds, while a retry after a real
+   * timeout would double the worst-case page latency — so timeouts stay single-shot.
+   */
+  retryOnNetworkErrorOnly?: boolean;
 }
 
 export interface ProtectedFetchResult<T> {
@@ -155,8 +164,12 @@ export async function fetchWithProtection<T = unknown>(
     } catch (err) {
       clearTimeout(timer);
       lastError = err instanceof Error ? err.message : String(err);
-      if (attempt < retries) {
+      const isTimeout =
+        err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
+      if (attempt < retries && !(options.retryOnNetworkErrorOnly && isTimeout)) {
         await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      } else if (options.retryOnNetworkErrorOnly && isTimeout) {
+        break;
       }
     }
   }
