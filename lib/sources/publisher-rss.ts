@@ -37,6 +37,12 @@ export interface PublisherRssFeed {
   url: string;
   /** Publisher root used for the domain ownership check (registrable-domain level). */
   publisherUrl: string;
+  /**
+   * Additional registrable domains owned by the same publisher (live-verified 2026-10-15: BBC's
+   * Arabic articles serve from www.bbc.com even though the feed is hosted on feeds.bbci.co.uk).
+   * When present it replaces the publisherUrl-derived domain as the acceptance set.
+   */
+  domains?: string[];
   publisherName: string;
   language: 'ar' | 'en';
   categoryAr: string;
@@ -45,29 +51,27 @@ export interface PublisherRssFeed {
 /**
  * Default feed list. Every entry is a public, syndication-oriented publisher feed (this is the
  * purpose RSS exists for): the item link is the article URL itself, so no relay decoding is
- * involved. BBC Arabic (sport), BBC Sport (football), The Guardian (football) and FilGoal
- * (Egyptian football) cover the site's Egyptian-first brief with international context.
+ * involved. The default roster was LIVE-VERIFIED on 2026-10-15 (06:17Z): BBC Sport Football and
+ * The Guardian Football answer with real items and direct article links; FilGoal's public RSS is
+ * retired site-wide ("Sorry, this service is no longer available") and BBC Arabic's /arabic/sport
+ * path redirects to the general feed, so Youm7's sports section feed (Egyptian, live channel)
+ * replaces it for the Egyptian-first angle. Owners can extend the list via NEMO_PUBLISHER_RSS_FEEDS.
  */
 export const PUBLISHER_RSS_FEEDS: PublisherRssFeed[] = [
   {
-    id: 'bbc-arabic-sport',
-    labelAr: 'BBC عربي — رياضة',
-    url: 'https://feeds.bbci.co.uk/arabic/sport/rss.xml',
-    publisherUrl: 'https://www.bbc.co.uk/arabic/sport',
-    publisherName: 'BBC News عربي',
-    language: 'ar',
-    categoryAr: 'أخبار BBC — الرياضة',
-  },
-  {
+    // Live-verified 2026-10-15T06:17Z — fresh World/Champions-League items, direct links.
     id: 'bbc-football',
     labelAr: 'BBC Sport — كرة القدم',
     url: 'https://feeds.bbci.co.uk/sport/football/rss.xml',
     publisherUrl: 'https://www.bbc.co.uk/sport/football',
+    // BBC articles are served from both bbc.co.uk and bbc.com — the feed itself mixes them.
+    domains: ['bbc.co.uk', 'bbc.com'],
     publisherName: 'BBC Sport',
     language: 'en',
     categoryAr: 'كرة القدم العالمية — BBC',
   },
   {
+    // Live-verified 2026-10-15T06:17Z — full match reports with canonical article URLs.
     id: 'guardian-football',
     labelAr: 'الجارديان — كرة القدم',
     url: 'https://www.theguardian.com/football/rss',
@@ -77,13 +81,15 @@ export const PUBLISHER_RSS_FEEDS: PublisherRssFeed[] = [
     categoryAr: 'كرة القدم العالمية — الجارديان',
   },
   {
-    id: 'filgoal-news',
-    labelAr: 'في الجول — أخبار الكرة المصرية',
-    url: 'https://www.filgoal.com/rss/News',
-    publisherUrl: 'https://www.filgoal.com',
-    publisherName: 'FilGoal',
+    // Egyptian first. Channel answered live on 2026-10-15 through the audit egress; per-item
+    // verification was not possible from that environment, and feed isolation contains the risk.
+    id: 'youm7-sport',
+    labelAr: 'اليوم السابع — رياضة',
+    url: 'https://www.youm7.com/rss/SectionRss?SectionID=4',
+    publisherUrl: 'https://www.youm7.com',
+    publisherName: 'اليوم السابع',
     language: 'ar',
-    categoryAr: 'الكرة المصرية — في الجول',
+    categoryAr: 'الكرة المصرية — اليوم السابع',
   },
 ];
 
@@ -170,9 +176,15 @@ export function isFeedPublisherArticleUrl(link: string, feed: PublisherRssFeed):
   if (article.protocol !== 'https:' && article.protocol !== 'http:') return false;
   if (isBlockedArticleHost(article.hostname)) return false;
   if (article.pathname.split('/').filter(Boolean).length < 2) return false;
-  const publisher = registrableDomain(new URL(feed.publisherUrl).hostname);
-  if (!publisher) return false;
-  return registrableDomain(article.hostname) === publisher;
+  const hosts = (feed.domains && feed.domains.length > 0)
+    ? feed.domains
+    : [new URL(feed.publisherUrl).hostname];
+  const allowed = new Set(
+    hosts.map((host) => registrableDomain(host.replace(/^https?:\/\//, '')) || '').filter(Boolean)
+  );
+  if (allowed.size === 0) return false;
+  const linkRegistrable = registrableDomain(article.hostname);
+  return !!linkRegistrable && allowed.has(linkRegistrable);
 }
 
 /**

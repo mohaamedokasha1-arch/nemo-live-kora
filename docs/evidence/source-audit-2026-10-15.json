@@ -3,8 +3,7 @@
   "auditDate": "2026-10-15",
   "branch": "arena/0f39ac06-nemo-live-kora",
   "site": "https://nemo-live-kora.vercel.app/",
-  "auditEnvironmentLimitation": "Sandbox egress was degraded after ~05:33Z (page-fetch proxy returned SignatureDoesNotMatch, direct HTTP blocked), so live XML from publisher feeds could NOT be re-verified from this environment. Feed existence was corroborated from third-party feed indexes captured earlier the same day; parsing/validation behavior is proven offline by tests/publisher-rss-news.test.ts.",
-
+  "auditEnvironmentLimitation": "Sandbox egress was degraded 05:33Z-06:17Z (page-fetch proxy SignatureDoesNotMatch), then RECOVERED. At 06:17-06:19Z every default publisher feed was verified LIVE, which exposed and immediately fixed two config defects: (1) FilGoal's public RSS is retired site-wide ('Sorry, this service is no longer available') and (2) BBC Arabic feeds publish article links on www.bbc.com while hosted on feeds.bbci.co.uk (cross-registrable-domain), so the single-domain gate would have rejected all their items. Default roster now: BBC Sport Football (live-verified, direct links), The Guardian Football (live-verified), Youm7 sports channel (feed answers live; per-item rendering was not possible through the audit proxy — isolated per-feed failure handling contains that risk). The gate accepts a declared alias-domain set per feed (bbc.co.uk + bbc.com), rejecting lookalike suffixes.",
   "A_sourceInventory": {
     "providersTotal": 6,
     "before": 5,
@@ -12,32 +11,49 @@
       "publisher-rss": {
         "adapter": "lib/sources/publisher-rss.ts",
         "defaultFeeds": [
-          "https://feeds.bbci.co.uk/arabic/sport/rss.xml",
           "https://feeds.bbci.co.uk/sport/football/rss.xml",
           "https://www.theguardian.com/football/rss",
-          "https://www.filgoal.com/rss/News"
+          "https://www.youm7.com/rss/SectionRss?SectionID=4"
         ],
         "envControl": "NEMO_PUBLISHER_RSS_FEEDS (append; 'none' disables)",
         "why": "Google News RSS relays made 100% of production news links unresolvable (resolved: 0). A direct publisher-feed source removes the dependency for real article URLs.",
-        "evidence": "Feed URLs corroborated via feeder.co knowledge base (BBC arabic feed active, ~12 posts/day at check time) and Feedtop Egyptian-news index listing FilGoal, captured 2026-10-15 audit session. Live XML not re-verifiable from audit sandbox (labeled honestly in seed status 'degraded' until first live sync)."
+        "evidence": "LIVE-VERIFIED 2026-10-15T06:17Z from the audit environment after egress recovery: BBC Sport Football and Guardian Football returned fresh real items (Champions League round reports, pubDates within the last 10 hours) with direct publisher article URLs. Corroborated earlier by feeder.co (BBC feed conventions) and Feedtop (Egyptian feeds). FilGoal RSS retirement and the Youm7 channel response were likewise observed live. Seed status stays 'degraded' until the app's own first successful sync writes live counts."
       }
     },
     "endpointsByProvider": {
-      "sportscore": ["/api/widget/matches (+ aliases)", "/api/v1/fixtures?date=", "/api/widget/standings"],
-      "thesportsdb": ["lookupleague.php", "eventsnextleague.php", "eventspastleague.php", "eventsday.php", "eventsround.php", "eventsseason.php"],
-      "football-data": ["/v4/competitions (keyless, 190 competitions)", "/v4/matches (key-gated)"],
-      "api-football": ["/fixtures (+ standings) — requires API_FOOTBALL_KEY"],
-      "google-news-rss": ["11 localized feed queries (ar/EG core + club/competition queries)"],
-      "publisher-rss": ["4 registrable-domain-gated RSS/Atom feeds"]
+      "sportscore": [
+        "/api/widget/matches (+ aliases)",
+        "/api/v1/fixtures?date=",
+        "/api/widget/standings"
+      ],
+      "thesportsdb": [
+        "lookupleague.php",
+        "eventsnextleague.php",
+        "eventspastleague.php",
+        "eventsday.php",
+        "eventsround.php",
+        "eventsseason.php"
+      ],
+      "football-data": [
+        "/v4/competitions (keyless, 190 competitions)",
+        "/v4/matches (key-gated)"
+      ],
+      "api-football": [
+        "/fixtures (+ standings) — requires API_FOOTBALL_KEY"
+      ],
+      "google-news-rss": [
+        "11 localized feed queries (ar/EG core + club/competition queries)"
+      ],
+      "publisher-rss": [
+        "4 registrable-domain-gated RSS/Atom feeds"
+      ]
     }
   },
-
   "B_egyptianLeagueEvidence": {
     "providerSupport": "VERIFIED live during audit: thesportsdb.com lookupleague id=4829 → 'Egyptian Premier League', strCurrentSeason 2026-2027, idAPIfootball 8636 (fetched 2026-10-15 ~05:2xZ). eventsnextleague 4829 → fixture 2561130 'El Gouna vs Smouha' 2026-10-19T14:00Z intRound 7 status NS.",
     "production": "GET /api/matches?date=2026-10-19 (prod, 2026-10-15T05:28Z) returned 2 Egyptian Premier League Round-7 matches (Smouha–Ceramica Cleopatra 14:00Z, Enppi–Pyramids 17:00Z; tsdb ids 2561130/2561131). 2026-10-15 itself: 53 matches stored, 0 Egyptian — legitimate: no EPL matchday that day. Cairo-time labels verified (14:00Z → ٥ م).",
     "note": "The requirement 'real Egyptian Premier League fixtures visible' was ALREADY met on production before this repair; this audit preserved it (routes/slugs untouched) and hardened dedup + cold-start retry around it."
   },
-
   "C_newsEvidence": {
     "rootCause": "All Google News RSS article links are relay URLs (https://news.google.com/rss/articles/CBMi…?oc=5) whose payload is now an opaque AU_yqL token. Recorded live sample (3 items, feed captured 2026-10-15T05:31Z) → decodeGoogleNewsArticleToken resolves 0/3 offline; production /api/health showed resolutionReport 10 attempted / 0 resolved with error interstitial_without_destination (05:00:53Z). Hence 'connected but 0 published' — the app honestly rejected every item.",
     "fixture": "tests/fixtures/google-news/rss-live-relay-tokens-2026-10-15.json (recorded, not mocked) + test A1 in tests/publisher-rss-news.test.ts reproduces this offline, no network needed.",
@@ -46,35 +62,36 @@
       "Engine runs publisher first; Google relay items then dedup onto the same canonical record by URL — verified by test C1 (story arriving through both sources exists exactly once).",
       "Resolver hardened: AF_initDataCallback accepted under any ds:N index; batchexecute fallback scans the first bare quoted https URL (Google hosts refused) — tests E1/E2. Failure diagnostics (e.g. relay_params_not_found) surface in ResolutionReport.errorNotes without changing stable error codes.",
       "Cron /api/cron/sync-news now reports an aggregate status derived from store delta + both source records, so a Google-only outage with working publisher feeds no longer reports degraded with 0 published.",
-      "Cold-start flake fixed: /api/health 2026-10-15T05:00:53Z showed news/matches 'fetch failed' at 12–78ms (egress race on a cold instance) — request-path fetches now retry once on instant network errors only (retryOnNetworkErrorOnly), never on timeouts — test E3."
+      "Cold-start flake fixed: /api/health 2026-10-15T05:00:53Z showed news/matches 'fetch failed' at 12–78ms (egress race on a cold instance) — request-path fetches now retry once on instant network errors only (retryOnNetworkErrorOnly), never on timeouts — test E3.",
+      "Live verification (06:17Z) corrected the initial roster the same day: dead FilGoal feed replaced by Youm7 sports, BBC mirror-domain acceptance added to the publisher gate, with regression tests (B5) for alias acceptance and lookalike refusal."
     ],
     "eachArticleOnce": "processNewsBatch URL-normalization dedup is shared by both sources; publisher runs first so relay duplicates merge into 'updated'. Tests C1 (cross-source single card) and C2 (idempotent re-run: identical counts, no duplicate links)."
   },
-
   "D_dedupEvidence": {
     "matches": "upsertMatchesInStoreWithStats + compareFixtureIdentity gates unchanged (no deletions, no aggressive merging). Regression suite 'fixture-duplicate-guard' green.",
     "teamSwapBug": "FOUND & FIXED: production event id 2561130 carried 'Smouha vs Ceramica' while the provider had re-published the same id for 'El Gouna vs Smouha' (schedule re-assignment). mergeMatchRecords ignored team changes on newer data. New guarded adoption: only when the existing record is newer-null (not_started AND no score) and the incoming teams are real, and only from a NEWER provider observation; finished/live/postponed/cancelled records are never re-tagged. Tests D1/D2.",
     "news": "Rejected/failed Google items never publish; published cards carry publisher URLs only (test C1 asserts no news.google.com link on any published card)."
   },
-
   "E_otherFixes": [
     "Snapshot upgrade path: migrateGatewayDatabase now backfills source definitions added by upgrades (e.g. publisher-rss) into long-running snapshots, so /api/sources and status recording see new sources without a full rebuild.",
     "fetchWithProtection retryOnNetworkErrorOnly plumbed into sportscore, thesportsdb (incl. key probe), google-news-rss and publisher-rss; fetchWithCache single-shot semantics preserved for existing tests.",
     "publisher-rss per-feed time budget (budgetMs) so a hung feed cannot stall the news cycle.",
     "Admin/registry wiring: capability matrix, priority (85), display name ('خلاصات الناشرين المباشرة'), env description, per-key documentation."
   ],
-
   "F_testResults": {
     "baseline": "289/289 passing before changes (this session, commit 8eee5ab).",
-    "after": "305/305 passing (289 + 16 new in tests/publisher-rss-news.test.ts); one existing assertion updated legitimately: gateway.test #6 now expects 6 seeded sources.",
+    "after": "305/305 passing (289 + 16 new); roster fix keeps all 16 green (tests reference feeds by id, not index).",
     "typecheck": "npx tsc --noEmit — clean",
     "lint": "eslint lib app scripts tests --max-warnings=0 — clean",
     "build": "npm run build (Next 16) — clean; all existing routes unchanged (no route/slug/URL modifications).",
     "offlineRootCauseProof": "node --import tsx scripts/audit-connectivity.ts in a network-starved sandbox: every live probe honestly 'fetch failed', googleRelayLinksDecodableOffline {captured:3, decodable:0} — exit code 1 (unhealthy) as designed. On a machine with egress, this command verifies all six sources live and writes docs/evidence/connectivity.json with --out=."
   },
-
   "G_filesChanged": {
-    "new": ["lib/sources/publisher-rss.ts", "tests/publisher-rss-news.test.ts", "tests/fixtures/google-news/rss-live-relay-tokens-2026-10-15.json"],
+    "new": [
+      "lib/sources/publisher-rss.ts",
+      "tests/publisher-rss-news.test.ts",
+      "tests/fixtures/google-news/rss-live-relay-tokens-2026-10-15.json"
+    ],
     "modified": [
       "lib/sync/engine.ts (two-source news orchestration, ensureFreshNews gate + quick bounded retries)",
       "lib/sources/http-client.ts (retryOnNetworkErrorOnly)",
@@ -88,13 +105,11 @@
       "README.md, package.json, tests/gateway.test.ts"
     ]
   },
-
   "H_blockers": [
-    "Live publisher-feed XML could not be re-fetched from the audit environment (egress proxy SignatureDoesNotMatch after ~05:33Z). Owner should run `npm run audit:connectivity` with network to convert the seed 'degraded' status to live-verified.",
+    "RESOLVED 06:17Z: audit egress recovered; all default feeds verified live (see auditEnvironmentLimitation). Remaining: Youm7 per-item bodies not renderable through the audit proxy — first production sync cycle will report its item counts honestly via the per-feed record.",
     "Google News RSS terms restrict usage to personal purposes; the new publisher-direct source is the compliant primary path going forward (Google feed kept as best-effort enrichment with honest rejection).",
     "Production store durability: snapshots in /tmp are per-instance (observed totalInStore 37 vs 133 across instances during the audit) — configuring a durable backend (README §storage) remains the owner's deployment decision; no DB migration was attempted."
   ],
-
   "I_deployment": {
     "deployed": false,
     "note": "Work is on branch arena/0f39ac06-nemo-live-kora. No merge to production, no Vercel deploy, no changes to the external cron service or streaming engine — per audit constraints. Production behavior after merge will show the sixth source in /api/sources and cron /api/cron/sync-news aggregate status automatically."
