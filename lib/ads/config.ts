@@ -15,6 +15,22 @@
 /** معرّف الناشر (مثال: ca-pub-1234567890123456). الفراغ = لا إعلانات. */
 export const ADSENSE_CLIENT_ID = (process.env.NEXT_PUBLIC_ADSENSE_CLIENT || '').trim();
 
+/**
+ * معرّف الناشر المعتمد لكود إثبات الملكية في `<head>` (طلب 2026-10-15).
+ * السكربت في التخطيط الجذري يعمل افتراضيًا بهذا المعرّف حتى لا تُنسى صفحة ولا
+ * يحتاج فحص «تحقق» في AdSense إلى أي إعداد بيئة مسبق.
+ */
+export const DEFAULT_ADSENSE_CLIENT_ID = 'ca-pub-5770911159315916';
+
+/**
+ * المعرّف الفعّال لكود AdSense في الرأس: متغيّر البيئة يُرجّح معرّفًا آخر إن وُضع،
+ * وإلا فالمعرّف المعتمد أعلاه. المصدر الواحد نفسه يستخدمه التخطيط الجذري
+ * `app/layout.tsx` وتدقيق ما بعد النشر `scripts/audit-adsense.ts`.
+ */
+export function resolveAdsenseHeadClient(): string {
+  return (process.env.NEXT_PUBLIC_ADSENSE_CLIENT || '').trim() || DEFAULT_ADSENSE_CLIENT_ID;
+}
+
 /** تنظيف رقم الوحدة الإعلانية القادم من البيئة أو من الخصائص. */
 export function resolveAdSlotId(raw?: string | null): string {
   return (raw || '').trim();

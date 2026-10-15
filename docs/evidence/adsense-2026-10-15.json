@@ -1,0 +1,129 @@
+{
+  "testedAt": "2026-10-15T08:49:21.607Z",
+  "todayCairo": "2026-10-15",
+  "base": "http://127.0.0.1:3000",
+  "client": "ca-pub-5770911159315916",
+  "expected": {
+    "placement": "داخل <head> في كل الصفحات بين الوسمين",
+    "script": "adsbygoogle.js?client=ca-pub-5770911159315916 بخاصية async و crossorigin=\"anonymous\"",
+    "accountMeta": "meta name=\"google-adsense-account\" content=\"ca-pub-5770911159315916\"",
+    "clientOccurrencesInHead": 2,
+    "neverInsideBody": true
+  },
+  "summary": {
+    "pages": 9,
+    "passed": 9,
+    "failed": 0
+  },
+  "pages": [
+    {
+      "path": "/",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/matches",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/news",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/about",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/contact",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/terms",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/privacy-policy",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/matches/2026-10-14",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/matches/zed-vs-azam-2026-10-16",
+      "ok": true,
+      "httpStatus": 200,
+      "clientInHead": 2,
+      "hasScript": true,
+      "hasAsync": true,
+      "hasCrossOrigin": true,
+      "hasAccountMeta": true,
+      "adsenseTagInsideBody": false,
+      "missing": []
+    }
+  ],
+  "ok": true
+}
