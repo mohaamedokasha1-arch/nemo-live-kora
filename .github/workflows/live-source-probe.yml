@@ -1,0 +1,13 @@
+name: live-source-probe
+on:
+  push:
+    branches: ['arena/10602981-nemo-live-kora']
+    paths: ['.github/workflows/live-source-probe.yml', '.github/probe/**']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: raw probes
+        run: bash .github/probe/raw.sh
