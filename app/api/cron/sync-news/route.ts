@@ -14,6 +14,9 @@ async function handle(request: NextRequest) {
   try {
     const dbBefore = await hydrateStore();
     const publishedBefore = dbBefore.news.filter((item) => item.publishStatus === 'published').length;
+    // نافذة هذه الجولة تُقاس من بدئها، لا من بداية سجل Google: سجل الخلاصات المباشرة
+    // يُسجَّل أولًا وينتهي قبل أن يبدأ جريان Google أصلًا.
+    const runStartedAt = new Date().toISOString();
     const sync = await runNewsSync('API /api/cron/sync-news');
     // Persist the news snapshot before answering so the articles survive the request.
     const persistence = await flushDurableStore({ force: true });
@@ -27,9 +30,7 @@ async function handle(request: NextRequest) {
     const publishedAfter = dbAfter.news.filter((item) => item.publishStatus === 'published').length;
     const publishedDelta = Math.max(0, publishedAfter - publishedBefore);
     const newsFlowOk = syncOk || publishedDelta > 0;
-    const thisRunRecords = dbAfter.newsSourceSyncs.filter(
-      (record) => record.finishedAt >= sync.startedAt
-    );
+    const thisRunRecords = dbAfter.newsSourceSyncs.filter((record) => record.finishedAt >= runStartedAt);
     return NextResponse.json(
       {
         ok: true,
