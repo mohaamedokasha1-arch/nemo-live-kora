@@ -50,6 +50,9 @@ export default function Header() {
         </Link>
 
         <nav className="kl-nav" aria-label="القائمة العلوية">
+          <Link href="/matches" className="kl-nav-item">
+            📅 جدول المباريات
+          </Link>
           <Link href="/news" className="kl-nav-item">
             آخر الأخبار
           </Link>
