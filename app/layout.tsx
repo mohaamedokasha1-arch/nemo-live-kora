@@ -9,6 +9,10 @@ import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import SiteBanner from '@/components/SiteBanner';
+import AdsterraBanner from '@/components/AdsterraBanner';
+import AdsterraPopunder from '@/components/AdsterraPopunder';
+import AdsterraSocialBar from '@/components/AdsterraSocialBar';
+import { ADSTERRA_HOSTS } from '@/lib/ads/adsterra';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
 
@@ -106,6 +110,15 @@ export default async function RootLayout({
   return (
     <html lang="ar" dir="rtl" data-theme="light" suppressHydrationWarning>
       <head>
+        {/*
+          ربط الشبكة الإعلانية مسبقًا (dns-prefetch فقط):
+          يحلّ اسم النطاق قبل أن يطلب المتصفح سكربت الإعلان، فلا تُضاف زمن انتظار
+          DNS إلى مسار الطلب. لا تنزيل ولا اتصال مسبق (preconnect) عن قصد — حتى
+          لا يُفتح اتصال بجهة خارجية لكل زائر لا يصل إلى تلك الوحدات أصلًا.
+        */}
+        {ADSTERRA_HOSTS.map((host) => (
+          <link key={host} rel="dns-prefetch" href={`//${host}`} />
+        ))}
         {ADSENSE_CLIENT ? (
           <>
             {/* توثيق حساب الناشر في AdSense + تحميل السكربت بشكل غير معطّل للعرض */}
@@ -118,14 +131,29 @@ export default async function RootLayout({
             />
           </>
         ) : null}
+        {/* الإعلان المنبثق (Popunder) — آخر ما يُحمَّل من الرأس، في كل صفحات الموقع */}
+        <AdsterraPopunder />
       </head>
       <body className="kl-page-shell">
         <SiteBanner />
         <Header />
+        {/*
+          البانر العريض 728×90 في أعلى الصفحة مباشرة بعد الهيدر.
+          يظهر على شاشات الكمبيوتر والأجهزة الكبيرة فقط (`kl-ad-leaderboard-slot`
+          مخفي تحت 800px في globals.css) لأن 728 بكسل أعرض من شاشة الهاتف، وعرضُه
+          مجبورًا على الهاتف يعني إما تمرير أفقي أو إعلانًا مقصوصًا — وكلاهما مرفوض.
+          وحين يُخفى على الهاتف لا يُنزَّل سكربت الوحدة أصلًا (الإطار المخفي لا
+          يُحمَّل)، فلا يُدفع ثمن إعلان لا يُرى.
+        */}
+        <div className="kl-container kl-ad-leaderboard-slot">
+          <AdsterraBanner size="728x90" label="مساحة إعلانية عريضة أعلى الصفحة 728×90" />
+        </div>
         <main id="main-content" className="kl-container kl-main">
           {children}
         </main>
         <Footer />
+        {/* البار الاجتماعي (Social Bar) — آخر وسم داخل <body> كما نصّ كود الشبكة */}
+        <AdsterraSocialBar />
       </body>
     </html>
   );

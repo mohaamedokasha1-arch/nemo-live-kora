@@ -7,6 +7,8 @@ import { findNewsBySlug, getRelatedPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 import { serializeJsonLd } from '@/lib/seo/match-structured-data';
+import AdsterraBanner from '@/components/AdsterraBanner';
+import AdsterraNative from '@/components/AdsterraNative';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +135,17 @@ export default async function NewsArticlePage({
         </p>
       )}
 
+      {/*
+        وحدة إعلانية جانبية بمقاس 300×250: على شاشات الكمبيوتر تطفو إلى جانب نص
+        الخبر (موضع العمود الجانبي المعتاد في صفحات المقالات)، وعلى الهاتف تصبح
+        وحدة مركزيّة بعرض كامل بعد المقتطف — بلا تمرير أفقي وبلا إزاحة تخطيط.
+      */}
+      <AdsterraBanner
+        size="300x250"
+        className="kl-ad-article-side"
+        label="مساحة إعلانية جانبية في صفحة الخبر"
+      />
+
       {bodyParagraphs.length > 0 ? (
         <div className="kl-article-body" dir={item.language === 'en' ? 'ltr' : 'rtl'}>
           {bodyParagraphs.map((paragraph, index) => (
@@ -140,6 +153,12 @@ export default async function NewsArticlePage({
           ))}
         </div>
       ) : null}
+
+      {/*
+        الإعلان المدمج (Native) بعد نص الخبر: يظهر كأنه بطاقة محتوى إضافية داخل
+        تدفّق الصفحة، ووسم «إعلان» الصغير يفصله بصراحة عن محتوى الموقع.
+      */}
+      <AdsterraNative className="kl-ad-native-article" label="مساحة إعلانية مدفوعة بعد نص الخبر" />
 
       <div className="kl-article-actions">
         {item.originalUrl ? (

@@ -6,7 +6,7 @@ import { buildStaticPageMetadata } from '@/lib/seo/metadata';
 export const metadata: Metadata = buildStaticPageMetadata({
   title: 'سياسة الخصوصية',
   description:
-    'سياسة الخصوصية في نيمو كورة لايف: البيانات التي نجمعها، ملفات تعريف الارتباط (الكوكيز)، إعلانات الطرف الثالث مثل Google AdSense، وحقوق المستخدم.',
+    'سياسة الخصوصية في نيمو كورة لايف: البيانات التي نجمعها، ملفات تعريف الارتباط (الكوكيز)، إعلانات الطرف الثالث (Adsterra وGoogle AdSense)، وحقوق المستخدم.',
   path: '/privacy-policy',
 });
 
@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPage
       title="سياسة الخصوصية"
-      updatedAt="13 أكتوبر 2026"
+      updatedAt="15 أكتوبر 2026"
       intro="نحترم خصوصيتك. توضّح هذه الصفحة أنواع البيانات التي نجمعها عند استخدامك موقع نيمو كورة لايف، وكيفية استخدامها، وخياراتك للتحكم بها — بما في ذلك ما يتعلق بالإعلانات وملفات تعريف الارتباط."
     >
       <h2>١) البيانات التي نجمعها</h2>
@@ -38,8 +38,9 @@ export default function PrivacyPolicyPage() {
 
       <h2>٣) الإعلانات ومزوّدو الإعلانات من الأطراف الثالثة</h2>
       <p>
-        نعتمد على شبكات إعلانية خارجية — ومنها <strong>Google AdSense</strong> — لعرض الإعلانات التي
-        تُغطّي تكاليف تشغيل الموقع. هذه الشبكات قد تستخدم:
+        نعتمد على شبكات إعلانية خارجية لعرض الإعلانات التي تُغطّي تكاليف تشغيل الموقع، وهي:{' '}
+        <strong>Adsterra</strong> (وحدات البانر والإعلان المدمج والإعلان المنبثق والبار الاجتماعي
+        والرابط المموّل)، و<strong>Google AdSense</strong> عند تفعيله. هذه الشبكات قد تستخدم:
       </p>
       <ul>
         <li>
@@ -74,6 +75,12 @@ export default function PrivacyPolicyPage() {
           و{' '}
           <a href="https://www.youronlinechoices.com" target="_blank" rel="noopener noreferrer">
             youronlinechoices.com
+          </a>
+        </li>
+        <li>
+          سياسة Adsterra للخصوصية:{' '}
+          <a href="https://adsterra.com/privacy-policy/" target="_blank" rel="noopener noreferrer">
+            adsterra.com/privacy-policy
           </a>
         </li>
       </ul>

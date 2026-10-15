@@ -199,24 +199,42 @@ test('4) نص الزر المطلوب حرفيًا + فتح في نافذة جد
  *  3) المساحات الإعلانية فوق وتحت الزر
  * ──────────────────────────────────────────────────────────────────────────── */
 
-test('5) الكتلة الموحّدة تضع مساحة إعلانية فوق الزر وأخرى تحته', () => {
+test('5) الكتلة الموحّدة تضع بانر 300×250 فوق الزر وآخر تحته وزر الراعي بعدهما', () => {
   const source = stripComments(read('components/WatchStreamBlock.tsx'));
   const ctaIndex = source.indexOf('<WatchStreamCta');
   assert.ok(ctaIndex > 0, 'زر المشاهدة مفقود من الكتلة');
 
-  const adIndexes = [...source.matchAll(/<AdSlot/g)].map((match) => match.index ?? -1);
+  // الموضعان المحيطان بزر المشاهدة أصبحا لوحدتي Adsterra المربعتين (300×250)
+  const adIndexes = [...source.matchAll(/<AdsterraBanner\b/g)].map((match) => match.index ?? -1);
   assert.equal(adIndexes.length, 2, `المتوقع مساحتان إعلانيتان، وُجد ${adIndexes.length}`);
   assert.ok(adIndexes[0] < ctaIndex, 'لا توجد مساحة إعلانية فوق الزر');
   assert.ok(adIndexes[1] > ctaIndex, 'لا توجد مساحة إعلانية تحت الزر');
+  assert.equal(
+    [...source.matchAll(/size="300x250"/g)].length,
+    2,
+    'مقاس الوحدتين حول الزر يجب أن يكون 300×250 في الموضعين'
+  );
 
-  // التشغيل الفعلي: بلا إعلانات مضبوطة لا يُرسم أي صندوق فارغ — والزر ورابطه حاضران
+  // زر الراعي المموّل (Smartlink) يأتي **بعد** زر المشاهدة وقبل البانر السفلي: يخدم
+  // التحويل ولا يزاحم الزر الرسمي ولا يحلّ محلّه.
+  const smartlinkIndex = source.indexOf('<SmartlinkCta');
+  assert.ok(smartlinkIndex > ctaIndex, 'زر الراعي يزاحم زر المشاهدة');
+  assert.ok(smartlinkIndex < adIndexes[1], 'زر الراعي بعد البانر السفلي — ترتيب غير منطقي');
+
+  // التشغيل الفعلي: الزر ورابطه حاضران، والمساحتان المربعتان محيطتان به
   const destination = resolveWatchDestination({ matchId: 'x' });
   const html = renderToStaticMarkup(WatchStreamBlock({ destination }));
-  assert.ok(html.includes('kl-watch-cta'), 'الزر اختفى عند غياب الإعلانات');
+  assert.ok(html.includes('kl-watch-cta'), 'الزر اختفى');
   assert.ok(html.includes('kl-watch-btn'), 'زر المشاهدة الأحمر مفقود');
   assert.ok(html.includes(destination.url), 'رابط الوجهة مفقود');
-  assert.ok(!html.includes('data-ad-configured'), 'صندوق إعلاني فارغ ظهر للزائر');
-  assert.ok(!/min-height/.test(html), 'مساحة محجوزة بلا إعلان ظهرت للزائر');
+  assert.equal(
+    [...html.matchAll(/kl-ad-banner-300x250/g)].length,
+    2,
+    'المساحتان المربعتان لم تُرسمَا حول الزر'
+  );
+  const buttonIndex = html.indexOf('kl-watch-btn');
+  assert.ok(html.indexOf('kl-ad-banner-300x250') < buttonIndex, 'البانر العلوي ليس فوق الزر');
+  assert.ok(html.lastIndexOf('kl-ad-banner-300x250') > buttonIndex, 'البانر السفلي ليس تحت الزر');
 });
 
 test('6) كل بطاقة مباراة (من أي مصدر) قابلة للنقر وتقود إلى /matches/[id]', () => {
