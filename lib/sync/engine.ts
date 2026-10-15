@@ -909,6 +909,27 @@ async function executeGatewaySync(
     return logEntry;
   }
   const newsSync = await runNewsSync(trigger, errors);
+  // الخلاصات المباشرة تُسجَّل بسجلها الخاص قبل جريان Google؛ النافذة تُقاس من بداية
+  // تشغيل البوابة كله حتى لا يُفلت الصف منها لترتيب السجلات داخل المخزن.
+  const prRow = getGatewayDatabase().newsSourceSyncs.find(
+    (rec) => rec.sourceId === 'publisher-rss' && rec.startedAt >= startedAt
+  );
+  if (prRow) {
+    sourceResults.push({
+      sourceId: 'publisher-rss',
+      status: prRow.ok ? 'active' : 'degraded',
+      httpStatus: prRow.httpStatus,
+      latencyMs: prRow.latencyMs,
+      matchesFetched: 0,
+      standingsFetched: 0,
+      newsFetched: prRow.fetchedCount,
+      newsPublished: prRow.publishedCount,
+      newsDuplicates: prRow.duplicateCount,
+      newsRejected: prRow.rejectedCount,
+      usedCachedSnapshot: !prRow.ok,
+      messageAr: prRow.messageAr,
+    });
+  }
   sourceResults.push({
     sourceId: 'google-news-rss',
     status: newsSync.ok ? 'active' : 'degraded',
