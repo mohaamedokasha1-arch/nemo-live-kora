@@ -113,5 +113,13 @@
   "I_deployment": {
     "deployed": false,
     "note": "Work is on branch arena/0f39ac06-nemo-live-kora. No merge to production, no Vercel deploy, no changes to the external cron service or streaming engine — per audit constraints. Production behavior after merge will show the sixth source in /api/sources and cron /api/cron/sync-news aggregate status automatically."
+  },
+  "PRODUCTION_FIRST_CYCLE": {
+    "at": "2026-10-15T06:31Z (Cairo ٠٩:٣١ ص)",
+    "trigger": "on-demand news refresh when the /news page found the store stale (existing visitor-trigger mechanism, no cron touched)",
+    "result": "Production /news rendered 11 REAL published articles from the publisher-direct source: BBC Sport Football (no-enclosure items routed 'اقرأ لدى المصدر الأصلي' to canonical bbc.co.uk URLs) and The Guardian Football (image-bearing items rendered as full internal cards /news/<slug>). Timestamps correct in Cairo time (feed 22:57Z → ١:٥٧ ص). Titles/items match the same feeds fetched live at 06:17Z during the audit — same-day provider-side corroboration of what the app published.",
+    "dedup": "each story appears exactly once on the page (e.g. 'Guardiola's return' once, 'Quickfire Doué' once)",
+    "youm7Observation": "no Arabic Youm7 items appeared in the first cycle — the feed's channel responded live at audit time but its per-item payload did not pass gates through the first fetch; per-feed isolation contained it and the cycle still succeeded. The per-feed record for the next cron cycle will show its counts honestly; owner may drop or keep it via NEMO_PUBLISHER_RSS_FEEDS with no deploy.",
+    "deploymentProof": "/api/sources and /api/health keys row show the post-#26 roster text 'يعمل بالخلاصات الثلاث الموثّقة حيًا (BBC Sport · الجارديان · اليوم السابع)'"
   }
 }
