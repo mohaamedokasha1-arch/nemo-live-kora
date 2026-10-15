@@ -63,7 +63,8 @@ test('A1. every relay link captured live on 2026-10-15 is an opaque AU_yqL token
  * B) Publisher-direct RSS parsing rules
  * ──────────────────────────────────────────────────────────────────────────── */
 
-const BBC_ARABIC = PUBLISHER_RSS_FEEDS[0];
+const BBC = PUBLISHER_RSS_FEEDS.find((feed) => feed.id === 'bbc-football')!;
+assert.ok(BBC, 'roster carries the live-verified BBC football feed');
 
 function rss(channelTitle: string, items: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>${channelTitle}</title>${items}</channel></rss>`;
@@ -73,25 +74,25 @@ test('B1. parses RSS items with direct publisher links, dates, images and attrib
   const xml = rss(
     'BBC عربي | رياضة',
     `<item>
-      <title>الأهلي يحسم صفقة جديدة في الميركاتو - BBC News عربي</title>
-      <link>https://www.bbc.co.uk/arabic/sport/articles/ahly-signing-2026</link>
+      <title>الأهلي يحسم صفقة جديدة في الميركاتو - BBC Sport</title>
+      <link>https://www.bbc.co.uk/sport/football/articles/ahly-signing-2026</link>
       <guid isPermaLink="false">ahly-signing-2026-guid</guid>
       <pubDate>Thu, 15 Oct 2026 03:30:00 GMT</pubDate>
       <description>حسم النادي الأهلي التعاقد مع الصفقة الجديدة بعد مفاوضات طويلة، ووقع اللاعب على عقد يمتد لأربعة مواسم في حضور الجهاز الفني ومجلس الإدارة قبل انطلاق الموسم الكروي الجديد.</description>
       <enclosure url="https://c.files.bbci.co.uk/media/ahly.jpg" length="12000" type="image/jpeg"/>
     </item>`
   );
-  const feed = { ...BBC_ARABIC };
+  const feed = { ...BBC };
   const parsed = parsePublisherRssXml(xml, feed, '2026-10-15T05:00:00.000Z');
   assert.equal(parsed.items.length, 1);
   const item = parsed.items[0];
   assert.equal(item.sourceId, 'publisher-rss');
   assert.equal(item.title, 'الأهلي يحسم صفقة جديدة في الميركاتو', 'publisher suffix stripped');
-  assert.equal(item.link, 'https://www.bbc.co.uk/arabic/sport/articles/ahly-signing-2026');
+  assert.equal(item.link, 'https://www.bbc.co.uk/sport/football/articles/ahly-signing-2026');
   assert.equal(item.publishedAtKnown, true);
   assert.equal(item.sourceItemId, 'ahly-signing-2026-guid');
   assert.equal(item.imageUrl, 'https://c.files.bbci.co.uk/media/ahly.jpg');
-  assert.equal(item.publisherName, 'BBC News عربي');
+  assert.equal(item.publisherName, 'BBC Sport');
   assert.ok((item.excerpt || '').length >= 160, 'real summary, not a headline echo');
 });
 
@@ -101,14 +102,14 @@ test('B2. items linking off the publisher domain are rejected and counted, never
     `<item><title>خبر خارج النطاق يستحق الرفض لأنه لا يخص الناشر</title><link>https://evil-aggregator.example.com/copycat/story</link><pubDate>Thu, 15 Oct 2026 03:30:00 GMT</pubDate></item>
      <item><title>رابط جوجل وسيط يجب أن يرفض أيضًا في هذا المصدر</title><link>https://news.google.com/rss/articles/CBMiXYZ?oc=5</link><pubDate>Thu, 15 Oct 2026 03:31:00 GMT</pubDate></item>`
   );
-  const parsed = parsePublisherRssXml(xml, { ...BBC_ARABIC }, '2026-10-15T05:00:00.000Z');
+  const parsed = parsePublisherRssXml(xml, { ...BBC }, '2026-10-15T05:00:00.000Z');
   assert.equal(parsed.items.length, 0);
   assert.equal(parsed.rejectedCount, 2);
   assert.equal(parsed.rejected.off_publisher_host, 2);
 });
 
 test('B3. non-feed responses (HTML/JSON) are recognized as not-a-feed', () => {
-  const parsed = parsePublisherRssXml('{"matches":[],"events":[]}', { ...BBC_ARABIC }, '2026-10-15T05:00:00.000Z');
+  const parsed = parsePublisherRssXml('{"matches":[],"events":[]}', { ...BBC }, '2026-10-15T05:00:00.000Z');
   assert.equal(parsed.items.length, 0);
   assert.equal(parsed.rejected.not_a_feed, 1);
 });
@@ -119,29 +120,32 @@ test('B4. Atom entries with rel=alternate links parse like RSS items', () => {
   <title>موقع رياضي</title>
   <entry>
     <title>نادٍ مصري يتأهل إلى ربع النهائي القاري بعد مباراة ماراثونية</title>
-    <link rel="alternate" type="text/html" href="https://www.bbc.co.uk/arabic/sport/atom-entry-1"/>
+    <link rel="alternate" type="text/html" href="https://www.bbc.co.uk/sport/football/atom-entry-1"/>
     <id>tag:bbc,2026:atom-entry-1</id>
     <published>2026-10-14T22:00:00Z</published>
     <summary>ملخص الاختبار لمقال Atom</summary>
   </entry>
 </feed>`;
-  const parsed = parsePublisherRssXml(xml, { ...BBC_ARABIC }, '2026-10-15T05:00:00.000Z');
+  const parsed = parsePublisherRssXml(xml, { ...BBC }, '2026-10-15T05:00:00.000Z');
   assert.equal(parsed.items.length, 1);
-  assert.equal(parsed.items[0].link, 'https://www.bbc.co.uk/arabic/sport/atom-entry-1');
+  assert.equal(parsed.items[0].link, 'https://www.bbc.co.uk/sport/football/atom-entry-1');
   assert.equal(parsed.items[0].publishedAtKnown, true);
 });
 
-test('B5. the publisher host gate accepts section/mirror hosts and rejects other publishers', () => {
-  assert.equal(isFeedPublisherArticleUrl('https://m.bbc.co.uk/arabic/sport/a/b', BBC_ARABIC), true);
-  assert.equal(isFeedPublisherArticleUrl('https://www.theguardian.com/football/x/y', BBC_ARABIC), false);
-  assert.equal(isFeedPublisherArticleUrl('https://www.bbc.co.uk/arabic', BBC_ARABIC), false, 'section root is not an article');
+test('B5. the publisher host gate accepts section/mirror hosts (incl. declared aliases) and rejects lookalikes', () => {
+  assert.equal(isFeedPublisherArticleUrl('https://m.bbc.co.uk/sport/football/a/b', BBC), true);
+  // Live 2026-10-15 finding: BBC's own feeds carry articles on BOTH bbc.co.uk and bbc.com.
+  assert.equal(isFeedPublisherArticleUrl('https://www.bbc.com/arabic/articles/x/y', BBC), true, 'declared alias domain passes');
+  assert.equal(isFeedPublisherArticleUrl('https://www.theguardian.com/football/x/y', BBC), false);
+  assert.equal(isFeedPublisherArticleUrl('https://bbc.co.uk.attacker.example.org/a/b', BBC), false, 'suffix lookalike is refused');
+  assert.equal(isFeedPublisherArticleUrl('https://www.bbc.co.uk/sport', BBC), false, 'section root is not an article');
 });
 
 test('B6. fetchPublisherRss keeps feeds independent and reports each feed honestly', async () => {
   clearHttpCache();
   const okItem = `<item>
     <title>خبر صحيح من خلاصة تعمل وله رابط مقال كامل من الناشر</title>
-    <link>https://www.bbc.co.uk/arabic/sport/articles/good-story</link>
+    <link>https://www.bbc.co.uk/sport/football/articles/good-story</link>
     <guid>good-story</guid>
     <pubDate>Thu, 15 Oct 2026 02:00:00 GMT</pubDate>
   </item>`;
@@ -149,7 +153,7 @@ test('B6. fetchPublisherRss keeps feeds independent and reports each feed honest
   mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0]) => {
     const url = String(input);
     calls.push(url);
-    if (url === BBC_ARABIC.url) {
+    if (url === BBC.url) {
       return new Response(rss('BBC عربي', okItem), { status: 200, headers: { 'content-type': 'application/rss+xml' } });
     }
     if (url === PUBLISHER_RSS_FEEDS[1].url) {
@@ -161,9 +165,9 @@ test('B6. fetchPublisherRss keeps feeds independent and reports each feed honest
     const res = await fetchPublisherRss({ timeoutMs: 1000, retries: 0, cacheTtlMs: 0 });
     assert.equal(res.ok, true, 'one working feed is enough');
     assert.equal(res.news.length, 1);
-    assert.equal(res.news[0].link, 'https://www.bbc.co.uk/arabic/sport/articles/good-story');
+    assert.equal(res.news[0].link, 'https://www.bbc.co.uk/sport/football/articles/good-story');
     const byFeed = new Map(res.feedResults.map((f) => [f.url, f]));
-    assert.equal(byFeed.get(BBC_ARABIC.url)?.ok, true);
+    assert.equal(byFeed.get(BBC.url)?.ok, true);
     assert.equal(byFeed.get(PUBLISHER_RSS_FEEDS[1].url)?.ok, false, 'the 503 feed is failed — alone');
     assert.equal(byFeed.get(PUBLISHER_RSS_FEEDS[1].url)?.httpStatus, 503);
     assert.equal(byFeed.get(PUBLISHER_RSS_FEEDS[2].url)?.error, 'Response was not a valid RSS/Atom feed', 'JSON is not a feed');
@@ -198,8 +202,8 @@ function publisherItem(title: string, url: string, guid: string): string {
   return `<item><title>${title}</title><link>${url}</link><guid>${guid}</guid><pubDate>Thu, 15 Oct 2026 01:00:00 GMT</pubDate></item>`;
 }
 
-const FILGOAL = PUBLISHER_RSS_FEEDS[3];
-const SHARED_STORY_URL = 'https://www.filgoal.com/articles/888888/shared-pyramids-story';
+const YOUM7 = PUBLISHER_RSS_FEEDS.find((feed) => feed.id === 'youm7-sport')!;
+const SHARED_STORY_URL = 'https://www.youm7.com/story/2026/10/15/shared-pyramids-story/999999';
 
 function googleRssWithRelays(): string {
   const items = RELAY_FIXTURE.items
@@ -209,7 +213,7 @@ function googleRssWithRelays(): string {
         <link>${item.relayUrl}</link>
         <guid isPermaLink="false">${item.relayUrl.slice(-32)}</guid>
         <pubDate>${item.pubDate}</pubDate>
-        <source url="${item.publisher === 'FilGoal' ? 'https://www.filgoal.com' : 'https://www.youm7.com'}">${item.publisher}</source>
+        <source url="https://www.youm7.com">${item.publisher}</source>
       </item>`
     )
     .join('\n');
@@ -262,7 +266,7 @@ beforeEach(async () => {
     //    the SAME article URL the publisher feed carries; items 1 and 2 stay unresolvable —
     //    exactly the production failure mode.
     if (url.includes('news.google.com/rss/articles/')) {
-      if (url.includes('CBMiTEFVX3lxTFA0')) {
+      if (url.includes('CBMi1wNBVV95')) {
         return new Response(
           `<html><body><script>location.replace("${SHARED_STORY_URL}")</script></body></html>`,
           { status: 200, headers: { 'content-type': 'text/html' } }
@@ -276,19 +280,19 @@ beforeEach(async () => {
 
     // 3) Publisher feeds: FilGoal carries the shared story plus one exclusive; BBC Arabic one
     //    story; the BBC English feed answers 404 — one failing feed must not block the rest.
-    if (url === FILGOAL.url) {
+    if (url === YOUM7.url) {
       return new Response(
         rss(
           'FilGoal',
-          publisherItem('بالفيديو — هدف بيراميدز الأول في شباك سيراميكا', SHARED_STORY_URL, 'fg-shared-888888') +
-            publisherItem('علي ماهر يعيد بيكهام لتشكيل سيراميكا أمام بتروجت قبل المباراة المرتقبة', 'https://www.filgoal.com/articles/777777/beikham-return-story', 'fg-beikham-777777')
+          publisherItem('هدف بيراميدز الأول في شباك سيراميكا يعيد الصدارة في بطولة الدوري', SHARED_STORY_URL, 'y7-shared-999999') +
+            publisherItem('علي ماهر يعيد بيكهام لتشكيل سيراميكا أمام بتروجت قبل المباراة المرتقبة', 'https://www.youm7.com/story/2026/10/15/beikham-return/888888', 'y7-beikham-888888')
         ),
         { status: 200, headers: { 'content-type': 'application/rss+xml' } }
       );
     }
-    if (url === BBC_ARABIC.url) {
+    if (url === BBC.url) {
       return new Response(
-        rss('BBC عربي | رياضة', publisherItem('الدوري المصري ينطلق بجولة مثيرة في الأسبوع الحالي بين الأندية الكبرى', 'https://www.bbc.co.uk/arabic/sport/articles/epl-round-story', 'bbc-epl-round')),
+        rss('BBC Sport', publisherItem('Egyptian Premier League kicks off a dramatic round between the big clubs this week', 'https://www.bbc.co.uk/sport/football/articles/epl-round-story', 'bbc-epl-round')),
         { status: 200, headers: { 'content-type': 'application/rss+xml' } }
       );
     }
@@ -307,9 +311,9 @@ test('C1. publisher articles publish even while Google relays fail; each unique 
   // Real articles reached the store — from the publisher source.
   assert.ok(
     titles.some((title) => title.includes('علي ماهر يعيد بيكهام')),
-    `the FilGoal-exclusive article is stored: ${titles.join(' | ')}`
+    `the Youm7-exclusive article is stored: ${titles.join(' | ')}`
   );
-  assert.ok(titles.some((title) => title.includes('الدوري المصري ينطلق')), 'the BBC article is stored');
+  assert.ok(titles.some((title) => title.includes('Egyptian Premier League kicks off')), 'the BBC article is stored');
 
   // The story that arrived through BOTH sources exists exactly once, on the direct URL
   // (the merge may keep either source's attribution — what is forbidden is a second card).
