@@ -1,3 +1,4 @@
+import React from 'react';
 import TeamCrest from './TeamCrest';
 import Link from 'next/link';
 import type { MatchRecord } from '@/lib/types';
@@ -75,7 +76,15 @@ export default function SourceMatchDetails({ record }: { record: MatchRecord }) 
 
     {match.incidents && match.incidents.length > 0 && <section><h2>أحداث المباراة</h2><ul>{match.incidents.map((event, i) => <li key={i}>{event.minute}′ — {event.player} — {event.type}{event.detail ? ` — ${event.detail}` : ''}</li>)}</ul></section>}
     <p>آخر تحديث للبيانات: {formatArabicTimestamp(match.lastUpdatedAt)}</p>
-    <p>مصادر البيانات: {match.contributingSources.join('، ')}</p>
+    {/* SportScore يشترط رابطًا مرئيًا إليه في كل صفحة تعرض بياناته (شروط الاستخدام المجاني). */}
+    <p>مصادر البيانات: {match.contributingSources.map((source, index) => (
+      <React.Fragment key={source}>
+        {index > 0 ? '، ' : null}
+        {source === 'sportscore'
+          ? <a href="https://sportscore.com/" rel="dofollow" title="Sports data by SportScore">SportScore</a>
+          : source}
+      </React.Fragment>
+    ))}</p>
     <p>لا تتوفر في هذا السجل بيانات موثقة إضافية عن التشكيلات أو الحكم أو القنوات.</p>
 
     {shouldRenderAdSlot(process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCH_BODY) ? (

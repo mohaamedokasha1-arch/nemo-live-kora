@@ -228,12 +228,17 @@ export function normalizeMatchStatus(
     }
 
     let note: string | null = null;
-    if (norm === 'HT' || textNorm === 'HT' || textNorm === 'HALFTIME') {
+    // SportScore sends the phase only in `status_text` ("1st half", "Half time", "2nd half"…).
+    if (norm === 'HT' || textNorm === 'HT' || textNorm === 'HALFTIME' || textNorm === 'HALF TIME') {
       note = 'استراحة بين الشوطين';
-    } else if (norm === '1H') {
+    } else if (norm === '1H' || textNorm === '1ST HALF') {
       note = 'الشوط الأول';
-    } else if (norm === '2H') {
+    } else if (norm === '2H' || textNorm === '2ND HALF') {
       note = 'الشوط الثاني';
+    } else if (norm === 'ET' || textNorm === 'EXTRA TIME' || textNorm.startsWith('EXTRA TIME')) {
+      note = 'الأشواط الإضافية';
+    } else if (norm === 'P' || textNorm === 'PENALTIES' || textNorm.includes('PENALT')) {
+      note = 'ركلات الترجيح';
     }
     return { status: 'live', statusLabelAr: 'جارية', statusNoteAr: note };
   }
@@ -251,7 +256,8 @@ export function normalizeMatchStatus(
     norm === 'CANCELLED' ||
     norm === 'CANCELED' ||
     norm === 'ABD' ||
-    textNorm.includes('CANCEL')
+    textNorm.includes('CANCEL') ||
+    textNorm.includes('ABANDON')
   ) {
     return { status: 'cancelled', statusLabelAr: 'أُلغيت', statusNoteAr: 'ألغيت من المصدر' };
   }
@@ -261,7 +267,9 @@ export function normalizeMatchStatus(
     norm === 'SUSPENDED' ||
     norm === 'INT' ||
     norm === 'INTERRUPTED' ||
-    norm === 'PAUSED'
+    norm === 'PAUSED' ||
+    textNorm === 'INTERRUPTED' ||
+    textNorm === 'SUSPENDED'
   ) {
     return { status: 'suspended', statusLabelAr: 'متوقفة', statusNoteAr: 'المباراة متوقفة مؤقتًا' };
   }
@@ -286,7 +294,11 @@ export function normalizeMatchStatus(
         };
       }
     }
-    return { status: 'not_started', statusLabelAr: 'لم تبدأ', statusNoteAr: null };
+    return {
+      status: 'not_started',
+      statusLabelAr: 'لم تبدأ',
+      statusNoteAr: textNorm === 'DELAYED' ? 'أعلن المصدر تأخر انطلاق المباراة' : null,
+    };
   }
 
   return {

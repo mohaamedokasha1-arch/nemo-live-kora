@@ -22,7 +22,7 @@ import { fetchFootballDataSync } from '../sources/football-data';
 import { fetchGoogleNewsRss, NEWS_FEEDS } from '../sources/google-news-rss';
 import { fetchPublisherRss } from '../sources/publisher-rss';
 import {
-  fetchSportScoreFixturesByDate,
+  fetchSportScoreDayCoverage,
   fetchSportScoreMatches,
   fetchSportScoreStandings,
 } from '../sources/sportscore';
@@ -160,6 +160,13 @@ export function apiFootballSeasonFor(cairoDate: string): number {
 
 /** Default TheSportsDB time budget for the on-demand (quick) path. */
 export const THESPORTSDB_QUICK_BUDGET_MS = 8000;
+
+/**
+ * Time budget per day for the SportScore priority-competition sweep on the on-demand path. The
+ * three days run in parallel (and in parallel with TheSportsDB), so this bounds the added page
+ * latency; competitions not requested in time are listed in the sync message.
+ */
+export const SPORTSCORE_QUICK_DAY_BUDGET_MS = 7000;
 
 /**
  * Executes a non-destructive background sync across the 5 approved sources:
@@ -500,8 +507,40 @@ async function executeGatewaySync(
     writeTotals.unchanged += w.unchanged;
   };
 
+  // TheSportsDB runs in parallel with SportScore (different hosts): the on-demand refresh is
+  // awaited by the page, so the two providers' latencies must not add up.
+  const tsdbResPromise = isolateSource(
+    'thesportsdb',
+    () => fetchTheSportsDBMatches(syncWindow.dates, {
+        rounds: getEgyptianRoundWindow(todayCairo),
+        maxDayCalls: syncWindow.dates.length,
+        ...(options.quick
+          ? {
+              timeoutMs: 4000,
+              retries: 1,
+              retryOnNetworkErrorOnly: true,
+              budgetMs: options.budgetMs ?? THESPORTSDB_QUICK_BUDGET_MS,
+            }
+          : {}),
+        ...(wideRun ? { budgetMs: WIDE_SYNC_SOURCE_BUDGET_MS } : {}),
+      }),
+    {
+      ok: false,
+      httpStatus: null,
+      latencyMs: 0,
+      matches: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['matches'],
+      endpoints: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['endpoints'],
+      skippedRecords: 0,
+      skippedEndpoints: 0,
+      dayCallsSkipped: 0,
+      apiKeyProbes: [],
+    },
+    errors,
+    shouldRunSource('thesportsdb')
+  );
+
   // 1. SportScore — matches/standings only, not a news source
-  const ssRes = await isolateSource(
+  const ssResPromise = isolateSource(
     'sportscore',
     () => fetchSportScoreMatches(
       options.quick ? { timeoutMs: 4000, retries: 1, retryOnNetworkErrorOnly: true } : {}
@@ -518,6 +557,58 @@ async function executeGatewaySync(
     errors,
     shouldRequireSource('sportscore')
   );
+  // Day fixtures: the rolling widget alone is a 50-match window of live/recent games, so the
+  // full matchday (and tomorrow's whole schedule) only arrives from `/api/v1/fixtures/`. This now
+  // runs on the on-demand path too — before, only the 05:00 UTC cron requested it, so between two
+  // daily crons most of today's and tomorrow's fixtures never reached the site.
+  // Each day is fetched with `fetchSportScoreDayCoverage` (capped lists partitioned by status, plus
+  // a priority-competition sweep for today/tomorrow when the provider cap is hit).
+  const sportScoreDays = syncWindow.dates;
+  const fetchSportScoreDay = (day: string) =>
+    isolateSource(
+      'sportscore',
+      () =>
+        fetchSportScoreDayCoverage(day, {
+          timeoutMs: options.quick ? 5000 : 6000,
+          retries: options.quick ? 1 : 0,
+          retryOnNetworkErrorOnly: options.quick ? true : undefined,
+          prioritySweep: day === todayCairo || day === tomorrowCairo,
+          // Today's sweep must follow live scores; tomorrow's schedule changes far less often.
+          sweepCacheTtlMs: day === todayCairo ? 5 * 60_000 : 30 * 60_000,
+          budgetMs: options.quick ? SPORTSCORE_QUICK_DAY_BUDGET_MS : WIDE_SYNC_SOURCE_BUDGET_MS,
+          concurrency: options.quick ? 2 : 4,
+        }),
+      {
+        ok: false,
+        date: day,
+        complete: false,
+        httpStatus: null,
+        latencyMs: 0,
+        matches: [] as MatchRecord[],
+        skippedRecords: 0,
+        endpoint: null,
+        attempts: [],
+        requests: [],
+        skippedCompetitions: [],
+      } as Awaited<ReturnType<typeof fetchSportScoreDayCoverage>>,
+      errors,
+      shouldRequireSource('sportscore')
+    );
+  const dayResultsPromise: Promise<Array<Awaited<ReturnType<typeof fetchSportScoreDay>>>> = options.quick
+    ? // On-demand: the three days in parallel (each day caps its own concurrency).
+      Promise.all(sportScoreDays.map((day) => fetchSportScoreDay(day)))
+    : (async () => {
+        const results: Array<Awaited<ReturnType<typeof fetchSportScoreDay>>> = [];
+        for (const day of sportScoreDays) {
+          if (wideRun && Date.now() - syncStartedMs > WIDE_SYNC_SOURCE_BUDGET_MS) {
+            windowSkipped.sportscoreDays.push(day);
+            continue;
+          }
+          results.push(await fetchSportScoreDay(day));
+        }
+        return results;
+      })();
+  const ssRes = await ssResPromise;
   writeTotals.recordsSkipped += ssRes.skippedRecords || 0;
 
   // The widget is a rolling 50-match window; the day endpoint fills in the rest of the matchday.
@@ -527,37 +618,18 @@ async function executeGatewaySync(
   let ssLatency = ssRes.latencyMs;
   let ssStatus = ssRes.httpStatus;
   let ssSkipped = ssRes.skippedRecords || 0;
-  if (!options.quick) {
-    const sportScoreDays = wideRun ? syncWindow.dates : [todayCairo, tomorrowCairo];
-    for (const day of sportScoreDays) {
-      if (wideRun && Date.now() - syncStartedMs > WIDE_SYNC_SOURCE_BUDGET_MS) {
-        windowSkipped.sportscoreDays.push(day);
-        continue;
-      }
-      const dayRes = await isolateSource(
-        'sportscore',
-        () => fetchSportScoreFixturesByDate(day, { timeoutMs: 6000, retries: 0 }),
-        {
-          ok: false,
-          httpStatus: null,
-          latencyMs: 0,
-          matches: [] as MatchRecord[],
-          skippedRecords: 0,
-          endpoint: null,
-          attempts: [],
-        },
-        errors,
-        shouldRequireSource('sportscore')
-      );
-      ssLatency += dayRes.latencyMs;
-      if (dayRes.httpStatus) ssStatus = dayRes.httpStatus;
-      ssAttempts.push(...dayRes.attempts);
-      ssSkipped += dayRes.skippedRecords;
-      if (dayRes.ok) {
-        ssEndpoint = ssEndpoint || dayRes.endpoint;
-        ssMatches.push(...dayRes.matches);
-      }
+  const dayResults = await dayResultsPromise;
+  const incompleteDays: string[] = [];
+  for (const dayRes of dayResults) {
+    ssLatency += dayRes.latencyMs;
+    if (dayRes.httpStatus) ssStatus = dayRes.httpStatus;
+    ssAttempts.push(...dayRes.attempts);
+    ssSkipped += dayRes.skippedRecords;
+    if (dayRes.ok) {
+      ssEndpoint = ssEndpoint || dayRes.endpoint;
+      ssMatches.push(...dayRes.matches);
     }
+    if (!dayRes.complete) incompleteDays.push(dayRes.date);
   }
   const ssDeduped = dedupeMatchesById(ssMatches);
   let ssStandingsCount = 0;
@@ -588,7 +660,7 @@ async function executeGatewaySync(
       standingsFetched: ssStandingsCount,
       newsFetched: 0,
       usedCachedSnapshot: false,
-      messageAr: `تم تحديث ${ssDeduped.length} مباراة و${ssStandingsCount} جدول ترتيب من SportScore عبر ${ssEndpoint || 'نقطة النهاية الموثقة'}${ssSkipped ? ` (تخطي ${ssSkipped} سجلًا غير صالح)` : ''}.`,
+      messageAr: `تم تحديث ${ssDeduped.length} مباراة و${ssStandingsCount} جدول ترتيب من SportScore عبر ${ssEndpoint || 'نقطة النهاية الموثقة'}${ssSkipped ? ` (تخطي ${ssSkipped} سجلًا غير صالح)` : ''}${incompleteDays.length ? ` — أيام تجاوزت حدّ المزوّد (200 مباراة لكل طلب) أو فشل فيها طلب: ${incompleteDays.join('، ')}؛ مباريات البطولات ذات الأولوية طُلبت كلٌّ على حدة` : ''}.`,
     });
     sourceUpdates.sportscore = {
       status: 'active',
@@ -625,36 +697,8 @@ async function executeGatewaySync(
     };
   }
 
-  // 2. TheSportsDB — matches only, not a news source
-  const tsdbRes = await isolateSource(
-    'thesportsdb',
-    () => fetchTheSportsDBMatches(syncWindow.dates, {
-        rounds: getEgyptianRoundWindow(todayCairo),
-        maxDayCalls: syncWindow.dates.length,
-        ...(options.quick
-          ? {
-              timeoutMs: 4000,
-              retries: 1,
-              retryOnNetworkErrorOnly: true,
-              budgetMs: options.budgetMs ?? THESPORTSDB_QUICK_BUDGET_MS,
-            }
-          : {}),
-        ...(wideRun ? { budgetMs: WIDE_SYNC_SOURCE_BUDGET_MS } : {}),
-      }),
-    {
-      ok: false,
-      httpStatus: null,
-      latencyMs: 0,
-      matches: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['matches'],
-      endpoints: [] as Awaited<ReturnType<typeof fetchTheSportsDBMatches>>['endpoints'],
-      skippedRecords: 0,
-      skippedEndpoints: 0,
-      dayCallsSkipped: 0,
-      apiKeyProbes: [],
-    },
-    errors,
-    shouldRunSource('thesportsdb')
-  );
+  // 2. TheSportsDB — matches only, not a news source (started in parallel with SportScore above)
+  const tsdbRes = await tsdbResPromise;
   writeTotals.recordsSkipped += tsdbRes.skippedRecords || 0;
   windowSkipped.thesportsdbDayCallsSkipped = tsdbRes.dayCallsSkipped || 0;
   if (tsdbRes.ok) {

@@ -1171,6 +1171,13 @@ export function resolveCompetitionByMeta(params: {
   if (normName === 'bundesliga') return CANONICAL_COMPETITIONS[13];
   if (normName.includes('brazilian serie a') || normName === 'campeonato brasileiro série a') return CANONICAL_COMPETITIONS[16];
   if (normName.includes('usl championship')) return CANONICAL_COMPETITIONS[19];
+  // SportScore names for two canonical African competitions (verified in its search endpoint).
+  if (normName === 'caf africa cup of nations') {
+    return CANONICAL_COMPETITIONS.find((comp) => comp.id === 'comp-afcon') ?? CANONICAL_COMPETITIONS[5];
+  }
+  if (normName === 'fifa world cup qualification (caf)') {
+    return CANONICAL_COMPETITIONS.find((comp) => comp.id === 'comp-wcq-caf') ?? CANONICAL_COMPETITIONS[6];
+  }
 
   // Dynamic fallback competition record for global competitions from SportScore / TheSportsDB
   const slug = (sportscoreSlug || (thesportsdbId ? `tsdb-${thesportsdbId}` : footballDataCode ? `fd-${footballDataCode}` : apiFootballId ? `apif-${apiFootballId}` : '') || normName.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'global');
@@ -1198,6 +1205,50 @@ export function resolveCompetitionByMeta(params: {
 }
 
 /**
+ * أسماء عربية لبطولات تصل من المصادر بأسمائها الإنجليزية **كما وردت حرفيًا** (مطابقة تامة بعد
+ * تحويل الأحرف الصغيرة — فلا تلتقط نسخ الناشئين أو السيدات بالخطأ). كل اسم هنا موجود فعلًا في
+ * SportScore (`/api/v1/search/`، تحقق 2026-10-15).
+ *
+ * الهدف: أولوية الكرة المصرية ثم العربية في ترتيب الجدول. كانت هذه البطولات تسقط إلى الأولوية
+ * الافتراضية 75 وباسم إنجليزي و«دولي» كدولة — فمباريات دوري الدرجة الثانية المصري مثلًا كانت
+ * تظهر في آخر الجدول بعد دوريات الهواة في آسيا وأمريكا الجنوبية.
+ */
+const GLOBAL_COMPETITION_EXACT_AR: Record<
+  string,
+  { nameAr: string; countryAr: string; region: CompetitionRegion; priority: number }
+> = {
+  'egyptian division 2': { nameAr: 'الدوري المصري — الدرجة الثانية', countryAr: 'مصر', region: 'egypt', priority: 15 },
+  'egyptian super cup': { nameAr: 'كأس السوبر المصري', countryAr: 'مصر', region: 'egypt', priority: 13 },
+  'caf super cup': { nameAr: 'كأس السوبر الأفريقي', countryAr: 'أفريقيا', region: 'africa', priority: 19 },
+  'fifa  arab cup': { nameAr: 'كأس العرب', countryAr: 'دولي', region: 'arab', priority: 21 },
+  'fifa arab cup': { nameAr: 'كأس العرب', countryAr: 'دولي', region: 'arab', priority: 21 },
+  'arab club champions cup': { nameAr: 'البطولة العربية للأندية', countryAr: 'دولي', region: 'arab', priority: 21 },
+  'saudi arabia division 1': { nameAr: 'الدوري السعودي — الدرجة الأولى', countryAr: 'السعودية', region: 'arab', priority: 26 },
+  'united arab emirates adnoc pro-league': { nameAr: 'دوري أدنوك للمحترفين الإماراتي', countryAr: 'الإمارات', region: 'arab', priority: 26 },
+  'qatar stars league': { nameAr: 'دوري نجوم قطر', countryAr: 'قطر', region: 'arab', priority: 27 },
+  'iraq stars league': { nameAr: 'دوري نجوم العراق', countryAr: 'العراق', region: 'arab', priority: 28 },
+  'algerian ligue professionnelle 1': { nameAr: 'الدوري الجزائري المحترف الأول', countryAr: 'الجزائر', region: 'arab', priority: 28 },
+  'the botola pro': { nameAr: 'البطولة المغربية الاحترافية', countryAr: 'المغرب', region: 'arab', priority: 28 },
+  'jordan premier league': { nameAr: 'الدوري الأردني للمحترفين', countryAr: 'الأردن', region: 'arab', priority: 29 },
+  'kuwaiti premier league': { nameAr: 'الدوري الكويتي الممتاز', countryAr: 'الكويت', region: 'arab', priority: 29 },
+  'oman professional league': { nameAr: 'دوري المحترفين العُماني', countryAr: 'عُمان', region: 'arab', priority: 29 },
+  'bahrain premier league': { nameAr: 'الدوري البحريني الممتاز', countryAr: 'البحرين', region: 'arab', priority: 29 },
+  'libyan premier league': { nameAr: 'الدوري الليبي الممتاز', countryAr: 'ليبيا', region: 'arab', priority: 29 },
+  'sudanese premier league': { nameAr: 'الدوري السوداني الممتاز', countryAr: 'السودان', region: 'arab', priority: 29 },
+  'lebanese premier league': { nameAr: 'الدوري اللبناني الممتاز', countryAr: 'لبنان', region: 'arab', priority: 29 },
+  'syrian premier league': { nameAr: 'الدوري السوري الممتاز', countryAr: 'سوريا', region: 'arab', priority: 29 },
+  'afc champions league elite': { nameAr: 'دوري أبطال آسيا للنخبة', countryAr: 'آسيا', region: 'asia', priority: 31 },
+  'afc champions league two': { nameAr: 'دوري أبطال آسيا 2', countryAr: 'آسيا', region: 'asia', priority: 33 },
+  'fifa world cup qualification (afc)': { nameAr: 'تصفيات كأس العالم — آسيا', countryAr: 'آسيا', region: 'asia', priority: 23 },
+  'uefa europa conference league': { nameAr: 'دوري المؤتمر الأوروبي', countryAr: 'أوروبا', region: 'europe', priority: 33 },
+  'fifa world cup qualification (uefa)': { nameAr: 'تصفيات كأس العالم — أوروبا', countryAr: 'أوروبا', region: 'europe', priority: 34 },
+  'uefa nations league': { nameAr: 'دوري الأمم الأوروبية', countryAr: 'أوروبا', region: 'europe', priority: 34 },
+  'international friendly': { nameAr: 'مباريات ودية دولية', countryAr: 'دولي', region: 'world', priority: 42 },
+  'netherlands eredivisie': { nameAr: 'الدوري الهولندي الممتاز', countryAr: 'هولندا', region: 'europe', priority: 41 },
+  'conmebol copa libertadores': { nameAr: 'كأس ليبرتادوريس', countryAr: 'أمريكا الجنوبية', region: 'americas', priority: 53 },
+};
+
+/**
  * الاسم العربي للبطولات العالمية التي لا يوجد لها سجل في الكتالوج الرسمي.
  *
  * تعمل هذه الدالة على **أسماء المصادر كما وردت فعلًا**، لا على أسماء مثالية: فاسم البطولة
@@ -1210,6 +1261,8 @@ export function translateGlobalCompetitionAr(
   countryEn?: string
 ): { nameAr: string; countryAr: string; region: CompetitionRegion; priority: number } {
   const n = nameEn.toLowerCase();
+  const exact = GLOBAL_COMPETITION_EXACT_AR[n.trim()];
+  if (exact) return { ...exact };
   if (
     n.includes('united states mls') ||
     n === 'mls' ||

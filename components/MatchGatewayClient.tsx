@@ -8,6 +8,7 @@ import { MatchRecord } from '@/lib/types';
 import AdsterraBanner from './AdsterraBanner';
 import AdsterraNative from './AdsterraNative';
 import MatchCard from './MatchCard';
+import ScheduleAutoRefresh from './ScheduleAutoRefresh';
 
 export interface GatewayClientProps {
   selectedDate: string;
@@ -39,6 +40,11 @@ export default function MatchGatewayClient({
 
   return (
     <section className="kl-matches-section" aria-label="جدول المباريات">
+      {/* لا يرسم شيئًا: يعيد قراءة الجدول دوريًا وعند منتصف الليل بتوقيت القاهرة */}
+      <ScheduleAutoRefresh
+        todayCairo={todayCairo}
+        hasLiveMatches={allMatchesOnDate.some((match) => match.status === 'live')}
+      />
       {/* Unified Header Box with Title + Date Badge + 3 Clean Day Buttons */}
       <div className="kl-schedule-header">
         <div className="kl-schedule-top-row">
@@ -129,6 +135,18 @@ export default function MatchGatewayClient({
           </div>
         </div>
       )}
+
+      {/*
+        نسب البيانات المطلوب في شروط SportScore المجانية (https://sportscore.com/developers/terms/):
+        رابط مرئي قابل للزحف إلى sportscore.com في كل صفحة تعرض بياناته.
+      */}
+      <p className="kl-news-updated kl-source-attribution">
+        بيانات المباريات من{' '}
+        <a href="https://sportscore.com/" rel="dofollow" title="Sports data by SportScore">
+          SportScore
+        </a>{' '}
+        وTheSportsDB
+      </p>
     </section>
   );
 }
