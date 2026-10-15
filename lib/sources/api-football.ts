@@ -8,6 +8,7 @@ import {
   NEMO_SPORTS_BASE_URL,
   resolveCompetitionByMeta,
   resolveEgyptianTeam,
+  resolveTeamNameFromSource,
   translateTeamNameAr,
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
@@ -156,14 +157,14 @@ export function mapApiFootballFixtureItem(item: ApiFootballFixtureItem): MatchRe
       cairoTime: mCairoTime,
       homeTeam: {
         id: homeId,
-        nameAr: homeEq?.nameAr || translateTeamNameAr(item.teams.home.name),
+        nameAr: homeEq?.nameAr || resolveTeamNameFromSource(item.teams.home.name, homeId).nameAr,
         nameEn: item.teams.home.name,
         logoUrl: item.teams.home.logo || homeEq?.logoUrl || null,
         isEgyptian: Boolean(homeEq),
       },
       awayTeam: {
         id: awayId,
-        nameAr: awayEq?.nameAr || translateTeamNameAr(item.teams.away.name),
+        nameAr: awayEq?.nameAr || resolveTeamNameFromSource(item.teams.away.name, awayId).nameAr,
         nameEn: item.teams.away.name,
         logoUrl: item.teams.away.logo || awayEq?.logoUrl || null,
         isEgyptian: Boolean(awayEq),

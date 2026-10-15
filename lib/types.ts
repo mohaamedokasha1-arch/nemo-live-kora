@@ -138,6 +138,16 @@ export interface NemoLinkResolution {
   scheduleUrl: string | null;
 }
 
+/**
+ * حالة اسم الفريق كما وصل من المصدر:
+ *  • `verified`   — اسم موثّق في كتالوج الأندية (عربي/إنجليزي معروفان).
+ *  • `translated` — الاسم الإنجليزي من المصدر مع ترجمة عربية معتمدة في `TEAM_ARABIC_NAMES`.
+ *  • `source`     — لم تتوفر ترجمة موثّقة، فيُعرض اسم المصدر نفسه كما هو (بلا تخمين).
+ *  • `placeholder`— اسم تقني/مؤقت من المصدر (`Team dj2ryoh2w90q1zp`) لا يمثّل ناديًا معلومًا،
+ *                   فلا نعرضه كاسم فريق أبدًا ونُظهر عبارة واضحة بدلًا منه.
+ */
+export type MatchTeamNameStatus = 'verified' | 'translated' | 'source' | 'placeholder';
+
 export interface MatchTeamSummary {
   id: string;
   nameAr: string;
@@ -145,6 +155,11 @@ export interface MatchTeamSummary {
   logoUrl: string | null;
   isEgyptian: boolean;
   nemoTeamUrl?: string | null;
+  /**
+   * اختياري: يُضاف عند بناء السجل من المصدر. غيابه في السجلات القديمة لا يعني شيئًا؛
+   * طبقة العرض تحسب الحالة بنفسها من الاسم المخزَّن (انظر `resolveTeamDisplayIdentityAr`).
+   */
+  nameStatus?: MatchTeamNameStatus;
 }
 
 export interface MatchScore {
@@ -210,6 +225,30 @@ export interface MatchRecord {
   };
   nemoLink: NemoLinkResolution;
   lastUpdatedAt: string;
+  /**
+   * عندما يُثبت أن هذا السجل هو نفس المباراة التي يصفها سجل آخر من مصدر مختلف، يُعلَّم هذا
+   * السجل تكرارًا (`duplicateOfId` = معرّف السجل الأساسي) ويُستبعد من كل مسارات العرض
+   * والعدّ وخريطة الموقع — **دون حذف أي بيانات مصدر**. أما صفحاته القديمة فتبقى تعمل
+   * وتُحوَّل قراءتها إلى السجل الأساسي (Canonical) فلا ينكسر أي رابط موجود.
+   */
+  duplicateOfId?: string | null;
+  /** دليل الدمج: على أي أساس قيل إن السجلين مباراة واحدة، ومتى. */
+  duplicateEvidence?: MatchDuplicateEvidence | null;
+}
+
+export interface MatchDuplicateEvidence {
+  /** مصدر السجل الأساسي الذي استُوعب فيه هذا السجل. */
+  survivorId: string;
+  survivorSource: SourceId;
+  /** السبب المختصر (تطابق الفريقين + البطولة/النافذة الزمنية). */
+  reason: string;
+  /** المعايير التي تحققت فعلًا: `teams` · `competition` · `kickoff_window` · `cairo_date`. */
+  matchedOn: string[];
+  /** فرق وقت الانطلاق بين المصدرين بالدقائق (null إن كان أحد الموعدين غير مؤكد). */
+  kickoffDeltaMinutes: number | null;
+  /** هل التُقط هذا السجل من نافذة زمنية غير مطابقة للبطولة (يحتاج مراجعة بشرية). */
+  requiresReview: boolean;
+  resolvedAt: string;
 }
 
 export interface StandingRowRecord {
@@ -323,6 +362,17 @@ export interface NewsSourceSyncRecord {
   updatedCount: number;
   errorCount: number;
   messageAr: string;
+  /**
+   * هل استجاب المصدر فعليًا (HTTP 2xx + XML صالح)؟ يُفصل عن `ok` عن قصد:
+   * `feedOk: true, ok: false` تعني «المصدر يعمل لكن لم يجتز أي عنوان شروط النشر» — وهي
+   * حالة مختلفة تمامًا عن انقطاع الاتصال، ولا يجوز وصفها بأنها فشل في الجلب.
+   */
+  feedOk?: boolean;
+  /**
+   * عدّاد أسباب الرفض لهذه المحاولة (`invalid_url` … إلخ). بلا هذا العدّاد كان المشغّل يرى
+   * «٠ منشور» فقط ولا يعرف إن كان السبب رابطًا وسيطًا لم يُحلّ أو نتيجة مباراة رُفضت.
+   */
+  rejectionBreakdown?: Record<string, number>;
   /** How Google News relay links were resolved during this run (absent on older records). */
   resolutionReport?: {
     attempted: number;
@@ -468,6 +518,17 @@ export interface GatewayDatabase {
       recordsSkipped?: number;
       /** Per-source HTTP status and error summary for the attempt. */
       sourceStatus?: Partial<Record<SourceId, { httpStatus: number | null; ok: boolean; error?: string }>>;
+    } | null;
+    /**
+     * حصيلة آخر عملية توحيد للمباريات المكررة عبر المصادر (بلا حذف أي سجل).
+     * تُقرأ في اللوحة وفي `/api/sources` كدليل على أن التكرار عولج فعلًا.
+     */
+    lastFixtureConsolidation?: {
+      at: string;
+      groups: number;
+      markedDuplicates: number;
+      repointedDuplicates: number;
+      requiresReview: number;
     } | null;
   };
   sources: Record<SourceId, SourceDefinition>;

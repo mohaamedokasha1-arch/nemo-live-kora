@@ -202,9 +202,30 @@ function migrateMatches(matches: MatchRecord[]): {
   const idByDedupKey = new Map<string, string>();
   const oldToNewId = new Map<string, string>();
 
+  /**
+   * ═══ احترام التوحيد المُثبت عند قراءة اللقطة ═══
+   *
+   * بعد توحيد مباراة واحدة جاءت من مصدرين، يحمل السجل الأساسي معرّفات المصدرين معًا
+   * (مطلوب: لا يُفقد معرّف أي مصدر)، ومنها معرّف المزوّد الذي يشتق منه `getStableMatchId`
+   * معرّفًا جديدًا — وهو المعرّف نفسه الذي يحمله السجل المُعلَّم كتكرار. إعادة الاشتقاق هنا
+   * كانت تُسقط أحد السجلين أو تخلط معرّفيهما. لذلك:
+   *   • سجل مُعلَّم كتكرار (`duplicateOfId`) يبقى **بمعرّفه وبياناته كما هي** بلا إعادة اشتقاق،
+   *     فيظل رابط صفحته صالحًا للتحويل إلى السجل الأساسي.
+   *   • سجل أساسي في عملية توحيد (يشير إليه سجل آخر) يبقى **بمعرّفه** كذلك، فلا يتغيّر
+   *     الرابط المعروض على الموقع بعد كل قراءة لقطة.
+   */
+  const consolidationSurvivorIds = new Set(
+    matches.map((match) => match.duplicateOfId).filter((id): id is string => Boolean(id))
+  );
+
   for (const original of matches) {
+    if (original.duplicateOfId) {
+      byId.set(original.id, original);
+      oldToNewId.set(original.id, original.duplicateOfId);
+      continue;
+    }
     const externalIds = original.externalIds || {};
-    const id = getStableMatchId({
+    const derivedId = getStableMatchId({
       externalIds,
       competitionCode: original.competitionCode,
       homeTeamId: original.homeTeam.id,
@@ -237,6 +258,8 @@ function migrateMatches(matches: MatchRecord[]): {
     const cairoTime = kickoffConfirmed && hasValidKickoff
       ? toCairoTimeArabic(original.utcKickoff)
       : 'الموعد غير مؤكد';
+    // سجل أساسي لعملية توحيد: يبقى بمعرّفه المعروض (روابط ثابتة)، وإلا يُشتق المعرّف كالمعتاد.
+    const id = consolidationSurvivorIds.has(original.id) ? original.id : derivedId;
     const match: MatchRecord = {
       ...original,
       id,

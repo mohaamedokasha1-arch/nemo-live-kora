@@ -1,6 +1,12 @@
 import { buildMatchRecordFromManual, ManualCompetitionOverride, ManualDocument } from './manual-document';
 import { applyOverrideToMatch, clearManualRecordCache } from './overrides';
-import type { GatewayDatabase, MatchRecord, NewsItemRecord } from '../types';
+import { findManualOverride, getSourceControl } from './manual-store';
+import {
+  consolidateDuplicateFixtures,
+  type FixtureConsolidationReport,
+} from '../matches/fixture-consolidation';
+import { defaultSourceRank } from '../sources/priority';
+import type { GatewayDatabase, MatchRecord, NewsItemRecord, SourceId } from '../types';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
@@ -129,6 +135,9 @@ export function mergeManualLayerIntoDatabase(
     (a, b) => Date.parse(b.publishedAt || b.lastSyncedAt) - Date.parse(a.publishedAt || a.lastSyncedAt)
   );
 
+  // التوحيد بعد الطبقة اليدوية: أي مباراة مكررة تعود من اللقطات القديمة أو من مصدرين
+  // تُعلَّم وتُوجَّه إلى سجل أساسي واحد — بلا حذف أي سجل (انظر consolidateDuplicatesInDatabase).
+  consolidateDuplicatesInDatabase(db);
   clearManualRecordCache();
 
   return {
@@ -137,6 +146,43 @@ export function mergeManualLayerIntoDatabase(
     manualNews: document.news.length,
     competitionOverrides: overridesByCode.size,
   };
+}
+
+/**
+ * توحيد المباريات المكررة عبر المصادر على قاعدة البيانات هذه.
+ *
+ * تُستدعى من مكانين فقط، وكلاهما يملك قاعدة البيانات في يده:
+ *  ① `lib/db/store.ts` بعد كل رفع للمصادر (فتُدمج الحالة الجديدة والحالة المخزَّنة معًا).
+ *  ② `mergeManualLayerIntoDatabase` عند تحميل/تحديث المخزن (فتُعالج لقطة قديمة فيها تكرار).
+ *
+ * الدالة مصممة لتكون idempotent: تشغيلها مرارًا لا يغيّر شيئًا بعد الجولة الأولى.
+ */
+export function consolidateDuplicatesInDatabase(db: GatewayDatabase): FixtureConsolidationReport {
+  const sourceRank = (sourceId: SourceId): number => {
+    const control = getSourceControl(sourceId);
+    const priority = Number(control?.priority);
+    if (Number.isFinite(priority) && priority > 0) return priority;
+    return defaultSourceRank(sourceId);
+  };
+  const result = consolidateDuplicateFixtures(db.matches, {
+    sourceRank,
+    isFrozen: (matchId) => findManualOverride(matchId)?.lockAll === true,
+  });
+  if (result.matches !== db.matches) db.matches = result.matches;
+  if (result.report.markedDuplicates > 0 || result.report.repointedDuplicates > 0) {
+    db.meta.lastFixtureConsolidation = {
+      at: new Date().toISOString(),
+      groups: result.report.groups,
+      markedDuplicates: result.report.markedDuplicates,
+      repointedDuplicates: result.report.repointedDuplicates,
+      requiresReview: result.report.requiresReview.length,
+    };
+    console.info(
+      '[store] fixture_duplicates_consolidated',
+      JSON.stringify(db.meta.lastFixtureConsolidation)
+    );
+  }
+  return result.report;
 }
 
 /** للاختبارات: يُصفّر أي ذاكرة عرض مرتبطة بالطبقة اليدوية. */

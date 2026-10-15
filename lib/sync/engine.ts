@@ -14,6 +14,7 @@ import {
   upsertCompetitionsInStore,
   upsertStandingsInStore,
 } from '../db/store';
+import { summarizeNewsRejectionsAr } from '../news/validate';
 import { getSiteSettings, isSourceEnabled, loadManualDocument } from '../admin/manual-store';
 import { maybeCreateScheduledBackup } from '../admin/backups';
 import { fetchApiFootballSync } from '../sources/api-football';
@@ -238,6 +239,7 @@ async function executeNewsSync(
       rejectedCount: 0,
       updatedCount: 0,
       errorCount: 1,
+      feedOk: false,
       messageAr:
         gnRes.errorAr ||
         'تعذر جلب الأخبار من Google News RSS. لم تُحذف الأخبار المنشورة سابقًا.',
@@ -249,12 +251,24 @@ async function executeNewsSync(
 
   const ingest = await ingestNewsCandidatesInStore(gnRes.news);
   const finishedAt = new Date().toISOString();
+  /**
+   * فصل صريح بين «هل يعمل المصدر؟» و«هل نتج عنوان قابل للنشر؟».
+   * كان `ok` يُسقط أي حالة بلا نشر/تكرار إلى «تعذر جلب الأخبار من المصدر»، وهو وصف غير
+   * صحيح لمصدر استجاب فعلًا وأعاد عناوين لم تجتز شروط الجودة — يُضلّل المشغّل ويدفعه للبحث
+   * عن عطل شبكة لا وجود له.
+   */
+  const feedOk = gnRes.ok && gnRes.news.length > 0;
+  const producedPublishedNews = ingest.published > 0 || ingest.duplicates > 0 || ingest.updated > 0;
+  /** أكثر سبب رفض تكرارًا في هذه الدفعة: يُكتب في وصف المزامنة ليُقرأ السبب لا النتيجة فقط. */
+  const rejectionSummary = summarizeNewsRejectionsAr(ingest.rejectionBreakdown);
   const sync: NewsSourceSyncRecord = {
     id: `news-sync-${Date.now()}`,
     sourceId: 'google-news-rss',
     startedAt,
     finishedAt,
-    ok: ingest.published > 0 || ingest.duplicates > 0,
+    ok: feedOk && producedPublishedNews,
+    feedOk,
+    rejectionBreakdown: ingest.rejectionBreakdown,
     httpStatus: gnRes.httpStatus,
     latencyMs: gnRes.latencyMs,
     fetchedCount: gnRes.news.length,
@@ -267,7 +281,13 @@ async function executeNewsSync(
     messageAr:
       gnRes.news.length === 0
         ? `تم الاتصال بـ Google News RSS دون عناصر جديدة. ${trigger}`
-        : `جُلب ${gnRes.news.length} عنوانًا من RSS، حُلَّت ${gnRes.resolvedCount} من ${gnRes.resolution.attempted} روابط وسيطة إلى مقالات الناشرين، أُثري ${gnRes.enrichedCount} بمحتوى المصدر، نُشر ${ingest.published}، تحديث ${ingest.updated}، تكرار ${ingest.duplicates}، رفض ${ingest.rejected}.`,
+        : `جُلب ${gnRes.news.length} عنوانًا من RSS، حُلَّت ${gnRes.resolvedCount} من ${gnRes.resolution.attempted} روابط وسيطة إلى مقالات الناشرين، أُثري ${gnRes.enrichedCount} بمحتوى المصدر، نُشر ${ingest.published}، تحديث ${ingest.updated}، تكرار ${ingest.duplicates}، رفض ${ingest.rejected}.${
+            producedPublishedNews
+              ? ''
+              : ` المصدر استجاب فعلًا، ولم يجتز أي عنوان شرط النشر (جودة/رابط ناشر).${
+                  rejectionSummary ? ` الأكثر: ${rejectionSummary.labelAr} (${rejectionSummary.count}).` : ''
+                }`
+          }`,
     resolutionReport: gnRes.resolution,
   };
   await recordNewsSync(sync);

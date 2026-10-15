@@ -21,14 +21,25 @@ import {
   getManualDocument,
   loadManualDocument,
 } from '../admin/manual-store';
-import { mergeManualLayerIntoDatabase, stripManualLayerFromDatabase } from '../admin/merge';
+import {
+  consolidateDuplicatesInDatabase,
+  mergeManualLayerIntoDatabase,
+  stripManualLayerFromDatabase,
+} from '../admin/merge';
 import { applyOverrideToMatch } from '../admin/overrides';
 import { isValidDateParam } from '../cairo-time';
-import { buildMatchDedupKey } from '../match-identity';
+import { buildMatchDedupKey, compareFixtureIdentity } from '../match-identity';
+import {
+  activeMatches,
+  isDuplicateFixtureRecord,
+  type FixtureConsolidationReport,
+} from '../matches/fixture-consolidation';
+import { defaultSourceRank } from '../sources/priority';
 import { resolveNemoSportsLink } from '../nemo-resolver';
 
 export { buildMatchDedupKey };
 import { migrateGatewayDatabase } from '../news/migrate';
+import { summarizeNewsRejectionsAr } from '../news/validate';
 import {
   getArchiveNews,
   getLatestNews,
@@ -450,15 +461,40 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
   const db = getGatewayDatabase();
   const byId = new Map<string, MatchRecord>();
   const idByDedupKey = new Map<string, string>();
+  /**
+   * السجلات النشطة فقط (بلا سجلات مُعلَّمة كتكرار) هي مرشّحة للمطابقة الجديدة،
+   * وسجل مُعلَّم يحمل معرّفًا يطابق سجلًا قادمًا يقود إلى **السجل الأساسي** له،
+   * لا إلى نفسه — فلا يُنشأ سجل ثالث لنفس المباراة بعد الدمج.
+   */
+  const activeRecords: MatchRecord[] = [];
+  const survivorIdByDuplicateId = new Map<string, string>();
   for (const m of db.matches) {
     byId.set(m.id, m);
+    if (m.duplicateOfId) {
+      survivorIdByDuplicateId.set(m.id, m.duplicateOfId);
+      continue;
+    }
+    activeRecords.push(m);
     const key = buildMatchDedupKey(m);
     if (!idByDedupKey.has(key)) idByDedupKey.set(key, m.id);
   }
+  /**
+   * مطابقة الهوية القوية: نفس الفريقين بالترتيب + هوية بطولة مشتركة (أو بطولتان غير
+   * معروفتين مع نافذة انطلاق ضيقة) + نفس يوم القاهرة. هي التي تمنع تكرار
+   * «Chicago Fire ضد Philadelphia Union» حين يسمّي كل مصدر البطولة والموعد بشكل مختلف.
+   * الترتيب مقصود: معرّف ← مفتاح المباراة الحرفي ← الهوية القوية.
+   */
+  const findStrongIdentityTwin = (incoming: MatchRecord): MatchRecord | null =>
+    activeRecords.find((candidate) => compareFixtureIdentity(candidate, incoming).same) ?? null;
 
   for (const inc of incomingMatches) {
     const dedupKey = buildMatchDedupKey(inc);
-    const existingId = byId.has(inc.id) ? inc.id : idByDedupKey.get(dedupKey);
+    const idMatch = byId.has(inc.id) ? inc.id : idByDedupKey.get(dedupKey);
+    const resolvedId = idMatch && survivorIdByDuplicateId.has(idMatch)
+      ? survivorIdByDuplicateId.get(idMatch)
+      : idMatch;
+    const strongTwin = resolvedId ? null : findStrongIdentityTwin(inc);
+    const existingId = resolvedId ?? strongTwin?.id;
     const existing = existingId ? byId.get(existingId) : undefined;
     stats.processed++;
 
@@ -482,6 +518,15 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
     } else {
       // Keep the record's existing id so links/news references stay stable; union ids/links.
       const mergedRaw = refreshNemoLink({ ...mergeMatchRecords(existing, { ...inc, id: existing.id }), id: existing.id });
+      /**
+       * تحديث اسم البطولة المعروض من السجل القادم عندما يكون عربيًا والسجل المخزَّن
+       * يحمل الاسم الأجنبي — يظهر الأثر على البطاقات القديمة فور أول مزامنة بعد الإصلاح
+       * بلا أي تغيير في كود البطولة ولا في الروابط ولا في ترتيب الصف.
+       */
+      if (hasArabicLetters(inc.competitionNameAr) && !hasArabicLetters(mergedRaw.competitionNameAr)) {
+        mergedRaw.competitionNameAr = inc.competitionNameAr;
+        if (inc.countryAr && isGenericCountryAr(mergedRaw.countryAr)) mergedRaw.countryAr = inc.countryAr;
+      }
       // (3) الحقول المثبَّتة تُعاد فوق نتيجة الدمج، فلا تمحوها أي مزامنة قادمة.
       const merged = applyOverrideToMatch(mergedRaw, override);
       if (matchContentFingerprint(merged) === matchContentFingerprint(existing)) {
@@ -500,8 +545,74 @@ export function upsertMatchesInStoreWithStats(incomingMatches: MatchRecord[]): M
   });
 
   db.meta.lastLiveSyncAt = new Date().toISOString();
+  // خطوة التوحيد تعمل على ما استُقبل وما هو مخزَّن معًا: فتدمج أي تكرار جديد **و** أي تكرار
+  // قديم موجود في اللقطة قبل الإصلاح — بلا حذف أي سجل (انظر lib/matches/fixture-consolidation.ts).
+  consolidateDuplicateMatchesInStore(db);
   persistGatewayDatabase(db);
   return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * توحيد المباراة الواحدة القادمة من أكثر من مصدر
+ *
+ * كل كتابة للمخزن تُتبع بخطوة توحيد واحدة (idempotent) تعمل على **كل** السجلات:
+ *   • تُثبت التكرار بين مصدرين وتُعيد توجيه السجل المكرر إلى سجل أساسي واحد.
+ *   • لا تحذف سجلًا ولا تُغيّر أي معرّف: الملف النصي للسجل المكرر يبقى كاملًا ببيانات
+ *     مصدره، وتحمل صفحته القديمة الرابط ذاته وتُقرأ من السجل الأساسي.
+ * ولماذا داخل المخزن؟ لأن الرحلة تمرّ من هنا: رفع المصادر (`upsertMatchesInStoreWithStats`)
+ * ودمج طبقة الإدارة عند التحميل/التحديث (`mergeManualLayerIntoDatabase`).
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** يُشغّل التوحيد على قاعدة البيانات هذه (تنفيذ واحد مشترك مع طبقة الإدارة). */
+export function consolidateDuplicateMatchesInStore(db: GatewayDatabase): FixtureConsolidationReport {
+  return consolidateDuplicatesInDatabase(db);
+}
+
+/** هل هذا السجل تكرار مثبت لمباراة يصفها سجل آخر؟ (يُستبعد من العرض والعدّ والخريطة) */
+export function isDuplicateMatchRecord(match: MatchRecord): boolean {
+  return isDuplicateFixtureRecord(match);
+}
+
+/**
+ * السجلات التي تُعرض للزائر: كل مباراة مرة واحدة. سجل مُعلَّم كتكرار يُستبعد، **إلا** إذا
+ * اختفى السجل الأساسي من المخزن (استعادة نسخة قديمة/تنظيف يدوي) فيُعاد عرضه بدل اختفاء
+ * مباراة من الموقع.
+ */
+export function getActiveMatches(db: GatewayDatabase = getGatewayDatabase()): MatchRecord[] {
+  return activeMatches(db.matches);
+}
+
+/**
+ * قراءة سجل مباراة بمعرّفه مع احترام التكرار المُثبت: طلب صفحة سجل مُعلَّم كتكرار
+ * يُعيد السجل الأساسي، فتبقى صفحته القديمة تعمل وتُشير إلى الصفحة الأساسية (Canonical)
+ * ولا ينكسر أي رابط قائم ولا يظهر محتوى مكرر لمحركات البحث.
+ */
+export function findMatchRecordById(
+  id: string,
+  db: GatewayDatabase = getGatewayDatabase()
+): MatchRecord | null {
+  if (!id) return null;
+  let decoded = id;
+  try {
+    decoded = decodeURIComponent(id);
+  } catch {
+    decoded = id;
+  }
+  const direct = db.matches.find((match) => match.id === id || match.id === decoded) ?? null;
+  if (!direct || !direct.duplicateOfId) return direct;
+  const survivor =
+    db.matches.find((match) => match.id === direct.duplicateOfId && !match.duplicateOfId) ?? null;
+  return survivor ?? direct;
+}
+
+function hasArabicLetters(value: string | null | undefined): boolean {
+  return /[\u0600-\u06FF]/.test(value || '');
+}
+
+/** هل قيمة الدولة عامة بلا معلومة (فارغة / «دولي» / world)؟ تُستخدم لتقرير ما إذا كانت تُعرض. */
+export function isGenericCountryAr(value: string | null | undefined): boolean {
+  const normalized = (value || '').trim().toLowerCase();
+  return normalized === '' || normalized === 'دولي' || normalized === 'world' || normalized === 'global';
 }
 
 /** Season label (e.g. "2026-2027") for a Cairo date; the Egyptian season starts in July. */
@@ -546,20 +657,12 @@ export function recordMatchesSyncAttempt(result: NonNullable<GatewayDatabase['me
  * الترتيب الأفضل (الأصغر) الذي ضبطه المدير من لوحة الإدارة. وإن لم يضبط المدير ترتيبًا
  * نستخدم الترتيب الطبيعي للمحرّك نفسه (الموثّق أدناه) فلا تتغيّر أي سلوكية قديمة.
  */
-const DEFAULT_SOURCE_RANK: Record<SourceId, number> = {
-  sportscore: 10,
-  thesportsdb: 20,
-  'football-data': 30,
-  'api-football': 40,
-  'google-news-rss': 90,
-};
-
 /** رتبة المصدر الفعلية = ترتيب المدير إن ضُبط (1–999)، وإلا الترتيب الطبيعي. */
 export function sourcePriorityRank(sourceId: SourceId): number {
   const control = getSourceControl(sourceId);
   const priority = Number(control?.priority);
   if (Number.isFinite(priority) && priority > 0) return priority;
-  return DEFAULT_SOURCE_RANK[sourceId] ?? 50;
+  return defaultSourceRank(sourceId);
 }
 
 export function upsertStandingsInStore(tables: CompetitionStandingTable[]): number {
@@ -623,7 +726,8 @@ export function upsertNewsInStore(newsItems: NewsItemRecord[]): number {
       fetchedAt: item.fetchedAt,
     })),
     {
-      matches: db.matches,
+      // الأخبار ترتبط بالمباريات المعروضة فقط: لا رابط إلى سجل أُثبت أنه تكرار.
+      matches: getActiveMatches(db),
       teams: db.teams,
       competitions: db.competitions,
     }
@@ -639,13 +743,15 @@ export function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): {
   duplicates: number;
   rejected: number;
   updated: number;
+  /** عدّاد أسباب الرفض: `invalid_url: 10` تعني أن ١٠ روابط لم تُقبل كروابط ناشر مباشرة. */
+  rejectionBreakdown: Record<string, number>;
 } {
   if (!candidates || candidates.length === 0) {
-    return { imported: 0, published: 0, duplicates: 0, rejected: 0, updated: 0 };
+    return { imported: 0, published: 0, duplicates: 0, rejected: 0, updated: 0, rejectionBreakdown: {} };
   }
   const db = getGatewayDatabase();
   const result = processNewsBatch(db.news, candidates, {
-    matches: db.matches,
+    matches: getActiveMatches(db),
     teams: db.teams,
     competitions: db.competitions,
   });
@@ -653,12 +759,18 @@ export function ingestNewsCandidatesInStore(candidates: RawNewsCandidate[]): {
   db.newsImportErrors = [...result.errors, ...db.newsImportErrors].slice(0, 80);
   db.newsDedupRecords = [...result.dedupRecords, ...db.newsDedupRecords].slice(0, 80);
   persistGatewayDatabase(db);
+  const rejectionBreakdown: Record<string, number> = {};
+  for (const error of result.errors) {
+    const code = error.errorCode || 'rejected';
+    rejectionBreakdown[code] = (rejectionBreakdown[code] || 0) + 1;
+  }
   return {
     imported: result.stats.imported,
     published: result.stats.published,
     duplicates: result.stats.duplicates,
     rejected: result.stats.rejected,
     updated: result.stats.updated,
+    rejectionBreakdown,
   };
 }
 
@@ -685,12 +797,32 @@ export function recordNewsSync(sync: NewsSourceSyncRecord, errors: NewsImportErr
       (item) => item.sourceId === sync.sourceId && item.publishStatus === 'published'
     ).length;
     source.recordsImported = source.newsPublishedCount;
-    source.errorCount = sync.ok ? source.errorCount : (source.errorCount || 0) + 1;
+    /**
+     * ثلاث حالات مختلفة تمامًا، وكانت كلها تُوصف بالفشل في الجلب:
+     *  ① المصدر غير متاح فعلًا → `degraded` + عدّاد أخطاء.
+     *  ② المصدر متاح والخلاصة صالحة لكن لا عنوان جديد يستحق النشر → المصدر **يعمل**،
+     *     فالوصف يكون عن النتيجة لا عن «تعذر الجلب»، ولا يُحتسب خطأً على المصدر.
+     *  ③ مزامنة ناجحة أنتجت نشرًا/تكرارًا/تحديثًا → `active` وتُسجَّل آخر مزامنة ناجحة.
+     */
+    const feedReachableWithoutPublishableTitles = sync.feedOk === true && !sync.ok;
     if (sync.ok) {
+      source.errorCount = source.errorCount || 0;
       source.status = 'active';
       source.statusLabelAr = `تم جلب أخبار حقيقية ونشر ${sync.publishedCount} خبرًا بعد التحقق`;
       source.lastSuccessfulNewsSyncAt = sync.finishedAt;
+    } else if (feedReachableWithoutPublishableTitles) {
+      source.status = 'active';
+      /**
+       * الوصف يحمل **سبب** عدم النشر (أكثر سبب رفض تكرارًا) لا مجرّد رقم: «٠ منشور» وحدها
+       * لا تقول للمشغّل إن كان العطل في الرابط الوسيط أم في جودة العنوان.
+       */
+      const summary = summarizeNewsRejectionsAr(sync.rejectionBreakdown);
+      source.statusLabelAr =
+        `المصدر يعمل وتم قراءة الخلاصة (${sync.fetchedCount} عنوانًا)، ولم يجتز أي عنوان شروط النشر بعد التحقق` +
+        (summary ? ` — الأكثر: ${summary.labelAr} (${summary.count})` : '') +
+        ' — لم يُحذف أي خبر منشور';
     } else {
+      source.errorCount = (source.errorCount || 0) + 1;
       source.status = 'degraded';
       source.statusLabelAr =
         'تعذر جلب الأخبار من المصدر — لم تُحذف الأخبار المنشورة سابقًا ولم يُعرض فشل HTTP باعتباره نجاحًا';
@@ -844,8 +976,15 @@ export function queryGatewayMatches(params: {
   const db = getGatewayDatabase();
   const targetDate = params.cairoDate;
 
+  /**
+   * السجلات المُعلَّمة كتكرار (نفس المباراة من مصدر آخر) تُستبعد من كل ما يراه الزائر:
+   * الجدول، التصفية، الأعداد، والتواريخ المتاحة. فهي محفوظة للمراجعة ومصادرها مسجّلة في
+   * السجل الأساسي — لكنها لا تُعرض مرتين أبدًا.
+   */
+  const readableMatches = getActiveMatches(db);
+
   // Step 1: Filter by date first to compute real available competitions & countries on that date
-  const matchesWithValidDate = db.matches
+  const matchesWithValidDate = readableMatches
     .filter((match) => isValidDateParam(match.cairoDate))
     .map((match) => guardStaleLiveStatus(match));
   const matchesOnDate = targetDate
@@ -888,7 +1027,7 @@ export function queryGatewayMatches(params: {
 
   // Compute all dates that have matches in the database
   const dateCounts = new Map<string, { date: string; total: number; egyptianCount: number }>();
-  for (const m of db.matches) {
+  for (const m of readableMatches) {
     const entry = dateCounts.get(m.cairoDate) || {
       date: m.cairoDate,
       total: 0,
@@ -967,7 +1106,9 @@ export function queryGatewayMatches(params: {
     matches: filtered,
     groups,
     totalOnDate: matchesOnDate.length,
-    totalInStore: db.matches.length,
+    totalInStore: readableMatches.length,
+    /** كيف تُقرأ الأعداد أعلاه: مباريات معروضة + سجلات تكرار مُثبتة محفوظة للمراجعة. */
+    totalInStoreIncludingDuplicates: db.matches.length,
     availableCompetitions,
     availableCountries,
     availableDates,

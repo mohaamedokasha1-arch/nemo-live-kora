@@ -6,7 +6,7 @@ import {
   toCairoTimeArabic,
 } from '../cairo-time';
 import { CANONICAL_COMPETITIONS } from '../catalog';
-import { getGatewayDatabase } from '../db/store';
+import { getActiveMatches, getGatewayDatabase } from '../db/store';
 import { applyManualLayerToMatch, manualMatchAsRecord } from '../admin/overrides';
 import { GATEWAY_SITE_URL } from '../site-url';
 import type { MatchRecord, MatchScore, MatchStatusCode } from '../types';
@@ -63,7 +63,9 @@ const MAX_PLAUSIBLE_MATCH_MINUTES = 180;
  */
 export function resolveSourceMatchRecord(entry: MatchCatalogEntry): MatchRecord | null {
   const db = getGatewayDatabase();
-  const fromStore = db.matches.find((match) => findServedCatalogEntryForMatch(match)?.id === entry.id) ?? null;
+  // سجلات التكرار المُثبتة لا تُغذّي صفحة الهبوط: السجل الأساسي وحده هو مصدر الحالة والنتيجة.
+  const fromStore =
+    getActiveMatches(db).find((match) => findServedCatalogEntryForMatch(match)?.id === entry.id) ?? null;
   const record = fromStore ?? manualMatchAsRecord(entry.id);
   return record ? applyManualLayerToMatch(record) : null;
 }

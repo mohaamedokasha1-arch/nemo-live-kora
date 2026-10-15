@@ -214,3 +214,37 @@ export function validateNewsCandidate(candidate: RawNewsCandidate): NewsValidati
 }
 
 export { isBlockedArticleHost, isTrustedPublisherArticleUrl, samePublisherHost };
+
+/**
+ * شرح عربي لكل رمز رفض ينتجه خط الأخبار. الرموز تُسجَّل في المخزن (`newsImportErrors`)
+ * وتُعرض في `/api/sources` وفي اللوحة، فتصبح «لماذا لا يوجد خبر؟» سؤالًا له جواب مكتوب
+ * بدل تخمين: قد يكون الرابط الوسيط من Google News لم يُحلّ، أو العنوان نتيجة مباراة، إلخ.
+ */
+export const NEWS_REJECTION_LABELS_AR: Record<string, string> = {
+  missing_title: 'عنوان فارغ أو غير صالح',
+  missing_publisher: 'اسم الناشر الأصلي غير معروف',
+  invalid_url: 'الرابط ليس رابط مقالة مباشرة من الناشر (رابط Google News الوسيط لم يُحلّ)',
+  error_page: 'المحتوى يشبه صفحة خطأ أو حظر',
+  match_score_only: 'العنوان نتيجة مباراة وليس خبرًا صحفيًا',
+  empty_or_technical: 'المحتوى فارغ أو تقني أو ليس خبرًا رياضيًا',
+  rejected: 'لم يستوفِ شروط النشر',
+};
+
+export function describeNewsRejectionAr(code: string | null | undefined): string {
+  const key = (code || '').trim();
+  return NEWS_REJECTION_LABELS_AR[key] || `سبب غير مُصنَّف (${key || 'غير معروف'})`;
+}
+
+/**
+ * أكثر سبب رفض تكرارًا في دفعة واحدة، مع عدّاده — يُستخدم في وصف حالة المصدر
+ * وفي `/api/sources` حتى يقرأ المشغّل السبب الفعلي لا مجرّد «صفر أخبار».
+ */
+export function summarizeNewsRejectionsAr(
+  breakdown: Record<string, number> | null | undefined
+): { code: string; count: number; labelAr: string } | null {
+  const entries = Object.entries(breakdown || {}).filter(([, count]) => count > 0);
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const [code, count] = entries[0];
+  return { code, count, labelAr: describeNewsRejectionAr(code) };
+}

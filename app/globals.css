@@ -520,6 +520,19 @@ a {
   color: var(--kl-text);
   line-height: 1.3;
   word-break: break-word;
+  /* عزل الاتجاه: اسم لاتيني داخل صفحة RTL يبقى مقروءًا من اليسار لليمين. */
+  unicode-bidi: isolate;
+}
+
+/* السطر الثاني: الاسم الأجنبي المرجعي للفريق عندما يكون المعروض بالعربية. */
+.kl-team-name-alt {
+  display: block;
+  font-family: 'Cairo', system-ui, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--kl-text-muted);
+  line-height: 1.25;
+  unicode-bidi: isolate;
 }
 
 /* Center Column: Time + Score + Status Pin */

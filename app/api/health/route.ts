@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDurableStoreStatus, getGatewayDatabase, getPersistenceState, hydrateStore, verifyStorageRoundTrip } from '@/lib/db/store';
+import { getActiveMatches, getDurableStoreStatus, getGatewayDatabase, getPersistenceState, hydrateStore, verifyStorageRoundTrip } from '@/lib/db/store';
 import { describeStorage } from '@/lib/storage';
 import { describeSourceConfiguration } from '@/lib/config/env';
 
@@ -25,6 +25,8 @@ export async function GET() {
   const persistence = getPersistenceState();
   const storage = describeStorage();
 
+  const readableMatches = getActiveMatches(db);
+  const mergedDuplicateMatches = db.matches.length - readableMatches.length;
   const publishedNews = db.news.filter((item) => item.publishStatus === 'published').length;
   const rejectedNews = db.news.filter((item) => item.publishStatus === 'rejected').length;
 
@@ -47,7 +49,7 @@ export async function GET() {
     // Informational: false on serverless warm-instance storage, which is expected, not a failure.
     storageDurable: roundTrip.durable,
     lastWritePersisted: persistence.ok,
-    matchesPresent: db.matches.length > 0,
+    matchesPresent: readableMatches.length > 0,
     newsPresent: publishedNews > 0,
   };
   const ok = checks.storageRoundTrip && checks.lastWritePersisted && checks.matchesPresent;
@@ -60,8 +62,10 @@ export async function GET() {
       storage: { ...storage, roundTrip, persistence, durable: getDurableStoreStatus() },
       keys: describeSourceConfiguration(),
       counts: {
-        matches: db.matches.length,
-        egyptianMatches: db.matches.filter((m) => m.isEgyptianInterest).length,
+        matches: readableMatches.length,
+        egyptianMatches: readableMatches.filter((m) => m.isEgyptianInterest).length,
+        /** سجلات تكرار مُثبتة محفوظة للمراجعة ولا تُعرض للزائر. */
+        mergedDuplicateMatches,
         standings: Object.keys(db.standings).length,
         competitions: db.competitions.length,
         news: db.news.length,

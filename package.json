@@ -17,6 +17,7 @@
     "store:check": "node --import tsx scripts/check-store.ts",
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev --audit-level=low",
+    "audit:duplicates": "node --import tsx scripts/audit-fixture-duplicates.ts",
     "audit:all": "npm audit --audit-level=low",
     "security": "npm run audit:prod && node --import tsx scripts/security-check.ts",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit:prod",

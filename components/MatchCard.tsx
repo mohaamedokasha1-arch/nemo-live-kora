@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { formatScoreDisplay, toCairoTimeArabic } from '@/lib/cairo-time';
-import { getMatchSourceLabelAr } from '@/lib/catalog';
+import { getMatchSourceLabelAr, resolveTeamDisplayIdentity } from '@/lib/catalog';
 import { buildMatchLandingPath, findCatalogEntryForMatch } from '@/lib/matches/match-links';
 import { MatchRecord } from '@/lib/types';
 import TeamCrest from './TeamCrest';
@@ -25,6 +25,21 @@ export default function MatchCard({
   landingPath?: string | null;
 }) {
   const scoreDisplay = formatScoreDisplay(match.score, match.status);
+  /**
+   * أسماء الفريقين كما تُعرض فعلًا: الاسم العربي الموثّق إن وُجد، وإلا اسم المصدر نفسه،
+   * وإن أرسل المصدر قيمة تقنية (`Team dj2ryoh2w90q1zp`) فعبارة واضحة بدل عرضها كاسم نادٍ.
+   * و`hasArabicName` يضبط اتجاه النص فلا ينقلب اسم لاتيني داخل تخطيط RTL.
+   */
+  const homeName = resolveTeamDisplayIdentity(match.homeTeam);
+  const awayName = resolveTeamDisplayIdentity(match.awayTeam);
+  /**
+   * سياسة عرض الاسم المرجعي: لا يظهر السطر الإنجليزي الثاني إلا في البطاقة **المختلطة**
+   * (فريق معروض بالعربية وفريق معروض باللاتينية) — وهي الحالة المُبلَّغ عنها في التدقيق
+   * («كولورادو رابيدز ضد Minnesota United FC»). البطاقات العربية الخالصة تبقى بسطر واحد.
+   */
+  const mixedScripts = homeName.isArabicName !== awayName.isArabicName;
+  const homeReference = mixedScripts ? homeName.secondaryName : null;
+  const awayReference = mixedScripts ? awayName.secondaryName : null;
   const sourceLabel = getMatchSourceLabelAr(match.primarySource);
   const kickoffConfirmed =
     match.kickoffConfirmed === true && Number.isFinite(Date.parse(match.utcKickoff));
@@ -107,7 +122,7 @@ export default function MatchCard({
    * مُربك لرابط قابل للنقر ويقود إلى صفحة مباراة كاملة. الآن يصف الوجهة دائمًا،
    * وتبقى حالة البث الخارجية موضّحة في شريط البطاقة السفلي كما هي.
    */
-  const ariaLabel = `${MATCH_PAGE_LINK_LABEL_AR} — ${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr}`;
+  const ariaLabel = `${MATCH_PAGE_LINK_LABEL_AR} — ${homeName.displayName} ضد ${awayName.displayName}`;
 
   const cardContent = (
     <>
@@ -116,11 +131,22 @@ export default function MatchCard({
         {/* Right Side: Home Team */}
         <div className="kl-team-side kl-team-right">
           <TeamCrest
-            nameAr={match.homeTeam.nameAr}
+            nameAr={homeName.displayName}
             logoUrl={match.homeTeam.logoUrl}
             isEgyptian={match.homeTeam.isEgyptian}
           />
-          <span className="kl-team-name">{match.homeTeam.nameAr}</span>
+          <span
+            className="kl-team-name"
+            dir="auto"
+            lang={homeName.isArabicName ? 'ar' : 'en'}
+          >
+            {homeName.displayName}
+          </span>
+          {homeReference ? (
+            <span className="kl-team-name-alt" dir="ltr" lang="en">
+              {homeReference}
+            </span>
+          ) : null}
         </div>
 
         {/* Center: Kickoff Time + Score (when available) + Status Pin */}
@@ -150,11 +176,22 @@ export default function MatchCard({
         {/* Left Side: Away Team */}
         <div className="kl-team-side kl-team-left">
           <TeamCrest
-            nameAr={match.awayTeam.nameAr}
+            nameAr={awayName.displayName}
             logoUrl={match.awayTeam.logoUrl}
             isEgyptian={match.awayTeam.isEgyptian}
           />
-          <span className="kl-team-name">{match.awayTeam.nameAr}</span>
+          <span
+            className="kl-team-name"
+            dir="auto"
+            lang={awayName.isArabicName ? 'ar' : 'en'}
+          >
+            {awayName.displayName}
+          </span>
+          {awayReference ? (
+            <span className="kl-team-name-alt" dir="ltr" lang="en">
+              {awayReference}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -236,7 +273,7 @@ export default function MatchCard({
     <Link
       href={detailPath}
       className={cardClass}
-      title={`${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — صفحة المباراة على نيمو كورة لايف`}
+      title={`${homeName.displayName} ضد ${awayName.displayName} — صفحة المباراة على نيمو كورة لايف`}
       aria-label={ariaLabel}
     >
       {cardContent}

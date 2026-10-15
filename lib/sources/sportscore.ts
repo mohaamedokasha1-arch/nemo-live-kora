@@ -8,6 +8,7 @@ import {
   NEMO_SPORTS_BASE_URL,
   resolveCompetitionByMeta,
   resolveEgyptianTeam,
+  resolveTeamNameFromSource,
   resolveVerifiedTeamLogo,
   translateTeamNameAr,
 } from '../catalog';
@@ -231,6 +232,15 @@ export function mapSportScoreMatchToRecord(
     cairoDate,
   });
 
+  // أسماء الفرق: الكتالوج الموثّق أولًا، ثم قاموس الترجمة، ثم اسم المصدر — وإن أرسل المصدر
+  // قيمة تقنية بدل اسم نادٍ (`Team dj2ryoh2w90q1zp`) تُعرض عبارة واضحة وتُسجَّل للمراجعة.
+  const homeName = homeEq
+    ? { nameAr: homeEq.nameAr, nameStatus: 'verified' as const }
+    : resolveTeamNameFromSource(raw.home, homeId);
+  const awayName = awayEq
+    ? { nameAr: awayEq.nameAr, nameStatus: 'verified' as const }
+    : resolveTeamNameFromSource(raw.away, awayId);
+
   const incidents: MatchIncidentSummary[] | undefined = raw.incidents?.map((inc) => ({
     minute: inc.time,
     type:
@@ -267,16 +277,18 @@ export function mapSportScoreMatchToRecord(
     cairoTime,
     homeTeam: {
       id: homeId,
-      nameAr: homeEq?.nameAr || translateTeamNameAr(raw.home),
+      nameAr: homeName.nameAr,
       nameEn: raw.home,
+      nameStatus: homeName.nameStatus,
       logoUrl: resolveVerifiedTeamLogo(raw.home, raw.home_logo),
       isEgyptian: Boolean(homeEq?.isEgyptian),
       nemoTeamUrl: homeEq?.nemoTeamUrl || `${NEMO_SPORTS_BASE_URL}/teams/${encodeURIComponent(raw.home)}`,
     },
     awayTeam: {
       id: awayId,
-      nameAr: awayEq?.nameAr || translateTeamNameAr(raw.away),
+      nameAr: awayName.nameAr,
       nameEn: raw.away,
+      nameStatus: awayName.nameStatus,
       logoUrl: resolveVerifiedTeamLogo(raw.away, raw.away_logo),
       isEgyptian: Boolean(awayEq?.isEgyptian),
       nemoTeamUrl: awayEq?.nemoTeamUrl || `${NEMO_SPORTS_BASE_URL}/teams/${encodeURIComponent(raw.away)}`,

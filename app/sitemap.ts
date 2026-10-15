@@ -5,7 +5,7 @@ import {
   isValidDateParam,
   shiftDateString,
 } from '@/lib/cairo-time';
-import { getGatewayDatabase, hydrateStore, queryGatewayMatches } from '@/lib/db/store';
+import { getActiveMatches, getGatewayDatabase, hydrateStore, queryGatewayMatches } from '@/lib/db/store';
 import { getCatalogSitemapItems } from '@/lib/matches/match-catalog';
 import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
@@ -134,7 +134,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
     .map((entry) => {
       const updatedAt = mostRecentDate(
-        db.matches
+        getActiveMatches(db)
           .filter((match) => match.cairoDate === entry.date)
           .map((match) => parseDate(match.lastUpdatedAt)),
         now
@@ -174,7 +174,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    *
    * للحصول على رقم تحقّقي: كم سجل مصدر خام استُثني من الخريطة الآن.
    */
-  const excludedSourceOnlyCount = db.matches.filter(
+  const excludedSourceOnlyCount = getActiveMatches(db).filter(
     (match) =>
       !findServedCatalogEntryForMatch(match) &&
       match.kickoffConfirmed === true &&
