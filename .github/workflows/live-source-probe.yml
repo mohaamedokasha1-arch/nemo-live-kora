@@ -6,9 +6,12 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci --no-audit --no-fund > /dev/null 2>&1
       - name: probes
         run: bash .github/probe/raw.sh > /tmp/raw.txt 2>&1 || true
       - run: bash .github/probe/emit.sh /tmp/raw.txt 0

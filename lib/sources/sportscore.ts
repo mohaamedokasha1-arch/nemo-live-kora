@@ -62,12 +62,70 @@ export function buildSportscoreMatchEndpoints(limit = 50): string[] {
   ];
 }
 
-/** Fixtures/results for one calendar day (wider coverage than the rolling 50-match widget). */
-export function buildSportscoreFixturesEndpoint(date: string): string {
+/**
+ * Fixtures/results for one **UTC** calendar day (wider coverage than the rolling 50-match widget).
+ *
+ * Documented in the provider's OpenAPI spec (`https://sportscore.com/developers/openapi.yaml`):
+ * `limit` defaults to 100 and is capped at 200, and the list can be filtered by `status`
+ * (`live` | `finished` | `upcoming`) and by `competition` slug. Without extra parameters the URL is
+ * unchanged from the original single-call form.
+ */
+export function buildSportscoreFixturesEndpoint(
+  date: string,
+  params: { limit?: number; status?: SportScoreFixtureStatus; competition?: string } = {}
+): string {
+  const extra = [
+    params.limit ? `&limit=${Math.min(Math.max(1, Math.floor(params.limit)), SPORTSCORE_FIXTURES_MAX_LIMIT)}` : '',
+    params.status ? `&status=${encodeURIComponent(params.status)}` : '',
+    params.competition ? `&competition=${encodeURIComponent(params.competition)}` : '',
+  ].join('');
   return `${sportscoreSiteOrigin()}/api/v1/fixtures/?sport=football&date=${encodeURIComponent(
     date
-  )}&src=${encodeURIComponent(SPORTSCORE_SRC)}`;
+  )}${extra}&src=${encodeURIComponent(SPORTSCORE_SRC)}`;
 }
+
+/** Provider cap for `/api/v1/fixtures/` (`limit` maximum in the OpenAPI spec). */
+export const SPORTSCORE_FIXTURES_MAX_LIMIT = 200;
+
+export type SportScoreFixtureStatus = 'live' | 'finished' | 'upcoming';
+
+/**
+ * Competition slugs requested one by one when a day is too large for the provider cap (a busy
+ * matchday has 400+ fixtures, and the capped list is sorted by kick-off time — so the evening
+ * matches, which include most Egyptian, Arab and European fixtures, are the ones cut off).
+ *
+ * Every slug was verified against the provider's own search endpoint
+ * (`/api/v1/search/?sport=football&q=…`) on 2026-10-15. Order = display priority: Egyptian first.
+ * Egypt Cup / Egypt League Cup do not exist on SportScore (searched); the League Cup comes from
+ * TheSportsDB (league 5185).
+ */
+export const SPORTSCORE_PRIORITY_COMPETITION_SLUGS: readonly string[] = [
+  'egyptian-premier-league',
+  'egyptian-division-2',
+  'egyptian-super-cup',
+  'caf-champions-league',
+  'caf-confederation-cup',
+  'caf-super-cup',
+  'caf-africa-cup-of-nations',
+  'fifa-world-cup-qualification-caf',
+  'fifa-arab-cup',
+  'arab-club-champions-cup',
+  'saudi-professional-league',
+  'united-arab-emirates-adnoc-pro-league',
+  'qatar-stars-league',
+  'afc-champions-league-elite',
+  'fifa-world-cup-qualification-afc',
+  'uefa-champions-league',
+  'uefa-europa-league',
+  'uefa-europa-conference-league',
+  'english-premier-league',
+  'spanish-la-liga',
+  'italian-serie-a',
+  'bundesliga',
+  'french-ligue-1',
+  'fifa-world-cup-qualification-uefa',
+  'international-friendly',
+];
 
 export function buildSportscoreStandingsEndpoint(slug: string): string {
   return `${sportscoreSiteOrigin()}/api/widget/standings/?sport=football&slug=${encodeURIComponent(
@@ -77,7 +135,9 @@ export function buildSportscoreStandingsEndpoint(slug: string): string {
 
 function sportscoreHeaders(): Record<string, string> {
   const key = sportscoreKey();
-  return key ? { 'x-sportscore-key': key } : {};
+  // The OpenAPI spec names the header `X-Api-Key` (registered free key → 6,000 req/min); the
+  // legacy header is kept so an existing deployment keeps behaving the same.
+  return key ? { 'x-sportscore-key': key, 'X-Api-Key': key } : {};
 }
 
 /**
@@ -477,6 +537,184 @@ export async function fetchSportScoreFixturesByDate(
     skippedRecords,
     endpoint: url,
     attempts: [{ url, ok: true, httpStatus: res.httpStatus }],
+  };
+}
+
+/** One request made while building a full day (for the sync log / audit). */
+export interface SportScoreDayRequest {
+  url: string;
+  kind: 'all' | 'status' | 'competition';
+  label: string;
+  ok: boolean;
+  httpStatus: number | null;
+  count: number;
+  /** True when the provider returned exactly the cap, i.e. the list was cut. */
+  capped: boolean;
+  fromCache?: boolean;
+  error?: string;
+}
+
+export interface SportScoreDayCoverageResult extends SportScoreMatchesFetchResult {
+  date: string;
+  /** True when every request needed for the full day succeeded and none hit the provider cap. */
+  complete: boolean;
+  requests: SportScoreDayRequest[];
+  /** Priority competitions not requested because the time budget ran out. */
+  skippedCompetitions: string[];
+}
+
+export interface SportScoreDayCoverageOptions extends SportScoreFetchOptions {
+  /**
+   * Request the priority competitions one by one when the capped lists are not enough.
+   * Default true. The sweep only runs when a status list hit the provider cap.
+   */
+  prioritySweep?: boolean;
+  /** Cache TTL for the per-competition sweep (it changes less often than the live lists). */
+  sweepCacheTtlMs?: number;
+  /** Wall-clock budget for the whole day (sweep requests that would start after it are skipped). */
+  budgetMs?: number;
+  /** Max parallel requests to the provider (fair use: well under its ~15 req/s anonymous limit). */
+  concurrency?: number;
+  /** Slugs for the sweep (defaults to SPORTSCORE_PRIORITY_COMPETITION_SLUGS). */
+  competitionSlugs?: readonly string[];
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Every fixture SportScore has for one UTC day, not just the first 100 (the documented default).
+ *
+ * The provider caps one response at 200 fixtures, has no pagination, and sorts by kick-off — so on
+ * a busy day a single call silently drops the evening. Strategy (all documented parameters):
+ *  1. `limit=200` — if fewer than 200 come back, that is the whole day.
+ *  2. Otherwise the day is partitioned by `status` (finished / live / upcoming), each with its
+ *     own 200 cap. Their union covers up to 600 fixtures.
+ *  3. If a partition still hits the cap, the priority competitions (Egyptian first) are requested
+ *     one by one with `competition=<slug>`, so Egyptian/Arab/European fixtures are never the
+ *     ones cut off. Anything still beyond the cap is reported via `complete: false`.
+ *
+ * One failed request never discards the others; records are de-duplicated by their stable id.
+ */
+export async function fetchSportScoreDayCoverage(
+  date: string,
+  options: SportScoreDayCoverageOptions = {}
+): Promise<SportScoreDayCoverageResult> {
+  const startedAt = Date.now();
+  const budgetMs = options.budgetMs ?? Number.POSITIVE_INFINITY;
+  const concurrency = options.concurrency ?? 4;
+  const requests: SportScoreDayRequest[] = [];
+  const byId = new Map<string, MatchRecord>();
+  let skippedRecords = 0;
+  let totalLatency = 0;
+  let lastStatus: number | null = null;
+  let lastError: string | undefined;
+
+  const run = async (
+    kind: SportScoreDayRequest['kind'],
+    label: string,
+    params: { status?: SportScoreFixtureStatus; competition?: string },
+    cacheTtlMs: number
+  ): Promise<SportScoreDayRequest> => {
+    const url = buildSportscoreFixturesEndpoint(date, { limit: SPORTSCORE_FIXTURES_MAX_LIMIT, ...params });
+    const res = await fetchWithProtection<unknown>(url, {
+      timeoutMs: options.timeoutMs ?? 8000,
+      retries: options.retries ?? 1,
+      cacheTtlMs,
+      retryOnNetworkErrorOnly: options.retryOnNetworkErrorOnly,
+      headers: sportscoreHeaders(),
+    });
+    totalLatency += res.latencyMs;
+    if (res.httpStatus) lastStatus = res.httpStatus;
+    const list = res.ok ? extractSportscoreMatchList(res.data) : null;
+    if (!res.ok || !list) {
+      lastError = res.error || 'unusable_payload_shape';
+      const failed: SportScoreDayRequest = {
+        url, kind, label, ok: false, httpStatus: res.httpStatus, count: 0, capped: false,
+        fromCache: res.fromCache, error: lastError,
+      };
+      requests.push(failed);
+      return failed;
+    }
+    for (const raw of list) {
+      if (sportScoreSkipReason(raw)) {
+        skippedRecords += 1;
+        continue;
+      }
+      try {
+        const record = mapSportScoreMatchToRecord(raw);
+        // Later (more specific) requests win: same provider, same instant, but a status- or
+        // competition-filtered list is never older than the unfiltered one.
+        byId.set(record.id, record);
+      } catch {
+        skippedRecords += 1;
+      }
+    }
+    const done: SportScoreDayRequest = {
+      url, kind, label, ok: true, httpStatus: res.httpStatus, count: list.length,
+      capped: list.length >= SPORTSCORE_FIXTURES_MAX_LIMIT, fromCache: res.fromCache,
+    };
+    requests.push(done);
+    return done;
+  };
+
+  const liveTtl = options.cacheTtlMs ?? 60_000;
+  const all = await run('all', 'كل مباريات اليوم', {}, liveTtl);
+  let complete = all.ok && !all.capped;
+  const skippedCompetitions: string[] = [];
+
+  if (!complete) {
+    const partitions = await mapWithConcurrency(
+      ['finished', 'live', 'upcoming'] as const,
+      concurrency,
+      (status) => run('status', `حالة: ${status}`, { status }, liveTtl)
+    );
+    const partitionsOk = partitions.every((p) => p.ok);
+    const partitionCapped = partitions.some((p) => p.capped);
+    complete = partitionsOk && !partitionCapped;
+
+    if (partitionCapped && options.prioritySweep !== false) {
+      const slugs = options.competitionSlugs ?? SPORTSCORE_PRIORITY_COMPETITION_SLUGS;
+      const sweepTtl = options.sweepCacheTtlMs ?? 10 * 60_000;
+      await mapWithConcurrency(slugs, concurrency, async (slug) => {
+        if (Date.now() - startedAt >= budgetMs) {
+          skippedCompetitions.push(slug);
+          return null;
+        }
+        return run('competition', `بطولة: ${slug}`, { competition: slug }, sweepTtl);
+      });
+    }
+  }
+
+  const anyOk = requests.some((r) => r.ok);
+  return {
+    ok: anyOk,
+    date,
+    complete,
+    httpStatus: lastStatus,
+    latencyMs: totalLatency,
+    matches: Array.from(byId.values()),
+    skippedRecords,
+    endpoint: anyOk ? buildSportscoreFixturesEndpoint(date, { limit: SPORTSCORE_FIXTURES_MAX_LIMIT }) : null,
+    attempts: requests.map((r) => ({ url: r.url, ok: r.ok, httpStatus: r.httpStatus, error: r.error })),
+    requests,
+    skippedCompetitions,
+    error: anyOk ? undefined : lastError || 'All SportScore fixture requests failed',
   };
 }
 
