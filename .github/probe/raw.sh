@@ -2,8 +2,8 @@
 set +e
 export NEMO_DATA_DIR=/tmp/nemo-e2e NEMO_GATEWAY_STORE_PERSIST=on
 mkdir -p $NEMO_DATA_DIR
-echo "### LIVE ENGINE"
-node --import tsx .github/probe/live.ts 2>&1 | tail -150
+echo "### LIVE ENGINE"; echo skip-verbose
+node --import tsx .github/probe/live.ts 2>&1 | grep -E "^(NOW|QUICK|DATE|STATUS|DUP|WRONG|EGYPT|SECOND|WIDE DATE)" | cut -c1-300
 echo "### BUILD"
 npm run build > /tmp/build.log 2>&1; echo "build exit $?"; tail -5 /tmp/build.log
 echo "### SERVER"
@@ -24,4 +24,9 @@ for i in ids:
     print('DETAIL',i,out,'has_title', ms[0]['homeTeam']['nameAr'][:6] in html or 'ضد' in html, 'attribution', 'sportscore.com/' in html)
 PY
 curl -s -A 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' -o /tmp/m http://127.0.0.1:3000/ -w 'MOBILE UA home %{http_code}\n'
+echo "### BROWSER"
+mkdir -p /tmp/pp && (cd /tmp/pp && npm init -y >/dev/null && npm i puppeteer-core@23 --no-audit --no-fund >/dev/null 2>&1)
+cp .github/probe/shots.mjs /tmp/pp/ && (cd /tmp/pp && TOM=$TOM CHROME=$(which google-chrome || which chromium) node shots.mjs 2>&1 | head -120)
+for n in m-home m-tomorrow d-matches-tab m-detail; do convert /tmp/$n.png -resize 380x -quality 38 /tmp/$n.jpg 2>/dev/null; done
+ls -la /tmp/*.jpg
 echo "### SERVER LOG (errors)"; grep -iE "error|warn|unhandled" /tmp/server.log | head -20; tail -5 /tmp/server.log

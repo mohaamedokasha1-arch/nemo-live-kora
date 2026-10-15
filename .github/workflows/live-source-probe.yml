@@ -2,7 +2,7 @@ name: live-source-probe
 on:
   push:
     branches: ['arena/10602981-nemo-live-kora']
-    paths: ['.github/workflows/live-source-probe.yml', '.github/probe/*.sh', '.github/probe/*.ts']
+    paths: ['.github/workflows/live-source-probe.yml', '.github/probe/*.sh', '.github/probe/*.ts', '.github/probe/*.mjs']
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -14,8 +14,11 @@ jobs:
       - run: npm ci --no-audit --no-fund > /dev/null 2>&1
       - name: probes
         run: bash .github/probe/raw.sh > /tmp/raw.txt 2>&1 || true
+      - run: |
+          for n in m-home m-tomorrow d-matches-tab m-detail; do echo "@@IMG $n"; base64 -w0 /tmp/$n.jpg 2>/dev/null; echo; done > /tmp/img.txt
+          wc -c /tmp/raw.txt /tmp/img.txt
       - run: bash .github/probe/emit.sh /tmp/raw.txt 0
-      - run: bash .github/probe/emit.sh /tmp/raw.txt 10
-      - run: bash .github/probe/emit.sh /tmp/raw.txt 20
-      - run: bash .github/probe/emit.sh /tmp/raw.txt 30
-      - run: bash .github/probe/emit.sh /tmp/raw.txt 40
+      - run: bash .github/probe/emit.sh /tmp/img.txt 0
+      - run: bash .github/probe/emit.sh /tmp/img.txt 10
+      - run: bash .github/probe/emit.sh /tmp/img.txt 20
+      - run: bash .github/probe/emit.sh /tmp/img.txt 30
