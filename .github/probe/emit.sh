@@ -3,7 +3,7 @@
 python3 - "$1" "$2" <<'PY'
 import sys
 data=open(sys.argv[1],encoding='utf-8',errors='replace').read()
-off=int(sys.argv[2]); size=20000
+off=int(sys.argv[2]); size=4000
 chunks=[data[i:i+size] for i in range(0,len(data),size)]
 for i,c in enumerate(chunks[off:off+10]):
     c=c.replace('%','%25').replace('\r','').replace('\n','%0A')

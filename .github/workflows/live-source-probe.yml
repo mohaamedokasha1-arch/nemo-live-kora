@@ -9,7 +9,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: raw probes
+      - name: probes
         run: bash .github/probe/raw.sh > /tmp/raw.txt 2>&1 || true
       - run: bash .github/probe/emit.sh /tmp/raw.txt 0
       - run: bash .github/probe/emit.sh /tmp/raw.txt 10
+      - run: bash .github/probe/emit.sh /tmp/raw.txt 20
+      - run: bash .github/probe/emit.sh /tmp/raw.txt 30
+      - run: bash .github/probe/emit.sh /tmp/raw.txt 40
