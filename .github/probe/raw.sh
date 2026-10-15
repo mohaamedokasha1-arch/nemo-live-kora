@@ -4,48 +4,34 @@ export TODAY=$(TZ=Africa/Cairo date +%F) TOM=$(TZ=Africa/Cairo date -d tomorrow 
 python3 - <<'PY'
 import json, os, urllib.request, collections, re
 T=os.environ['TODAY']; M=os.environ['TOM']
-def get(u, raw=False):
+UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36'
+def get(u, raw=False, ua='nemo-live-kora-probe'):
     try:
-        r=urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':'nemo-live-kora-probe'}),timeout=25)
+        r=urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':ua,'Accept':'*/*'}),timeout=25)
         b=r.read(); return r.status, (b.decode('utf-8','replace') if raw else json.loads(b))
     except Exception as e:
-        return getattr(e,'code',None), str(e)[:200]
-print('TODAY',T,'TOM',M)
-for d in (T,M):
-  for q in ['', '&page=2', '&offset=100', '&limit=500', '&per_page=500']:
-    s,j=get(f'https://sportscore.com/api/v1/fixtures/?sport=football&date={d}&src=nemo-live-kora{q}')
+        body=''
+        try: body=e.read().decode()[:300]
+        except Exception: pass
+        return getattr(e,'code',None), (str(e)[:150]+' '+body)
+B='https://sportscore.com/api/v1/fixtures/?sport=football&src=nemo-live-kora&date='
+def summ(tag,u):
+    s,j=get(u)
     if isinstance(j,dict):
         ms=j.get('matches',[])
-        print('SS fixtures',d,q,s,'count',j.get('count'),'len',len(ms),'keys',list(j.keys()),'first',ms[0]['home'] if ms else None,'last',ms[-1]['home'] if ms else None, 'times', ms[0]['time'] if ms else None, ms[-1]['time'] if ms else None)
-    else: print('SS fixtures',d,q,s,j)
-s,j=get(f'https://sportscore.com/api/v1/fixtures/?sport=football&date={T}&src=nemo-live-kora')
-if isinstance(j,dict):
-    ms=j['matches']; print('status values',collections.Counter(m.get('status') for m in ms)); print('extra keys',set(k for m in ms for k in m))
-    print('comps',collections.Counter(m['competition'] for m in ms).most_common())
-s,html=get('https://sportscore.com/developers/',raw=True)
-if isinstance(html,str):
-    txt=re.sub(r'<script.*?</script>|<style.*?</style>','',html,flags=re.S); txt=re.sub(r'<[^>]+>',' ',txt); txt=re.sub(r'\s+',' ',txt)
-    print('DEVELOPERS PAGE',s,txt[:9000])
-for d in (T,M):
-    s,j=get(f'https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={d}&s=Soccer')
-    ev=(j.get('events') or []) if isinstance(j,dict) else []
-    print('TSDB day',d,s,len(ev),[(e['strLeague'],e['strEvent']) for e in ev][:10])
-for lid in ['4829','4668','4806','4807','4328','4335']:
-    s,j=get(f'https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={lid}')
-    ev=(j.get('events') or []) if isinstance(j,dict) else []
-    print('TSDB next',lid,s,len(ev),[(e['strLeague'],e['strEvent'],e.get('strTimestamp'),e.get('intRound'),e.get('strSeason')) for e in ev][:3])
-for L in ['egy.1','egy.2','egy.cup','ksa.1','uae.1','qat.1','caf.champions','caf.confed','eng.1','esp.1','ita.1','ger.1','fra.1','uefa.champions','fifa.worldq.afr','fifa.friendly']:
-    for d in (T,M):
-        s,j=get(f'https://site.api.espn.com/apis/site/v2/sports/soccer/{L}/scoreboard?dates={d.replace("-","")}')
-        ev=j.get('events',[]) if isinstance(j,dict) else []
-        print('ESPN',L,d,s,len(ev),[e.get('name') for e in ev][:5])
-for path in [f'/api/matches?date={T}',f'/api/matches?date={M}']:
-    s,j=get('https://nemo-live-kora.vercel.app'+path)
-    if isinstance(j,dict):
-        print('PROD',path,s,{k:(v if not isinstance(v,(list,dict)) else len(v)) for k,v in j.items()})
-        ms=j.get('matches') or []
-        print('  comps',collections.Counter(m.get('competitionNameEn') for m in ms).most_common(40))
-    else: print('PROD',path,s,j)
-s,j=get('https://nemo-live-kora.vercel.app/api/health')
-print('HEALTH',s,json.dumps(j,ensure_ascii=False)[:3000] if isinstance(j,dict) else j)
+        print(tag,s,'count',j.get('count'),'len',len(ms),'keys',list(j.keys()),'t0',ms[0]['time'] if ms else None,'tN',ms[-1]['time'] if ms else None, 'firstHome', ms[0]['home'] if ms else None)
+        return ms
+    print(tag,s,j); return []
+for q in ['&limit=200','&limit=1000','&limit=200&offset=200','&limit=200&page=2','&limit=200&skip=200','&limit=200&start=200','&limit=200&cursor=200','&limit=200&from=200','&limit=200&status=upcoming','&limit=200&status=finished','&limit=200&status=live','&limit=200&order=desc','&limit=200&sort=-time','&limit=200&timezone=Africa/Cairo','&limit=200&tz=Africa/Cairo','&limit=200&time_from=15:00','&limit=200&after=2026-10-15T15:00:00Z','&limit=200&competition=egyptian-premier-league','&limit=200&competition_slug=saudi-professional-league','&limit=200&country=egypt']:
+    summ('SS '+T+q, B+T+q)
+ms=summ('SS tom 200',B+M+'&limit=200')
+print('tom comps 200',collections.Counter(m['competition'] for m in ms).most_common())
+ms=summ('SS today 200',B+T+'&limit=200')
+print('today comps 200',collections.Counter(m['competition'] for m in ms).most_common())
+print('status vals', collections.Counter((m['status'],m.get('status_text')) for m in ms))
+for u in ['https://sportscore.com/developers/','https://sportscore.com/api/','https://sportscore.com/api/v1/','https://sportscore.com/api/docs/','https://sportscore.com/openapi.json','https://sportscore.com/api/v1/openapi.json','https://sportscore.com/robots.txt','https://sportscore.com/terms/','https://sportscore.com/llms.txt']:
+    s,h=get(u,raw=True,ua=UA)
+    if isinstance(h,str):
+        t=re.sub(r'<script.*?</script>|<style.*?</style>','',h,flags=re.S); t=re.sub(r'<[^>]+>',' ',t); t=re.sub(r'\s+',' ',t)
+        print('PAGE',u,s,t[:5000])
 PY
