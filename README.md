@@ -175,6 +175,7 @@
 │   ├── nemo-resolver.ts
 │   └── types.ts
 ├── scripts/
+│   ├── audit-analytics.ts          # تدقيق وسوم Google Analytics على الموقع المنشور (npm run audit:analytics)
 │   ├── check-store.ts              # فحص قراءة فقط لجاهزية التخزين الدائم (npm run store:check)
 │   └── run-sync.ts
 ├── tests/
@@ -228,7 +229,10 @@
   الداخلية محكومة الصيغة (`G-[A-Z0-9]{4,32}`) فلا تُقبل قيمة تُفسد الوسم، والقياس يُرسل
   `page_view` عند كل تنقّل داخلي بلا احتساب صفحة الدخول مرتين. الإيقاف الكامل
   (`NEXT_PUBLIC_GA_ENABLED=off`) يزيل السكربتات وكل أثرها من HTML، والتبديل من
-  `NEXT_PUBLIC_GA_MEASUREMENT_ID`. وكل ذلك محروس بـ 9 اختبارات في `tests/google-analytics.test.ts`،
+  `NEXT_PUBLIC_GA_MEASUREMENT_ID`. وكل ذلك محروس بـ 10 اختبارات في `tests/google-analytics.test.ts`،
+  وبعد كل نشر يُتحقّق من الوسم على الموقع الحقيقي بأمر واحد: `npm run audit:analytics`
+  (قراءة فقط، يفحص كل الصفحات ويُرجع رمز خروج `1` عند أي نقص — النتيجة محفوظة في
+  `docs/evidence/analytics-2026-10-15.json`: 9/9 صفحة مطابقة).
   والتفاصيل في [`docs/GOOGLE-ANALYTICS-2026-10-15.md`](docs/GOOGLE-ANALYTICS-2026-10-15.md).
 
 📘 التفاصيل الكاملة، وجدول الحقول، وخطوات التحقق قبل النشر في
@@ -315,7 +319,8 @@ npm run dev
 ```bash
 npm run verify        # lint + typecheck + test + build + npm audit --omit=dev
 npm run security      # بوابة الأمان دون شبكة (ثغرات معروفة، أسرار، حقن HTML)
-npm test              # 314 اختبارًا
+npm test              # 315 اختبارًا
+npm run audit:analytics   # تدقيق كود Google Analytics على الموقع المنشور (قراءة فقط، رمز خروج 1 عند أي نقص)
 npm run build
 npm run store:check
 node --import tsx scripts/audit-connectivity.ts --out=docs/evidence/connectivity.json

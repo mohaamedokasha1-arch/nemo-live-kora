@@ -1,0 +1,144 @@
+{
+  "testedAt": "2026-10-15T07:06:45.691Z",
+  "todayCairo": "2026-10-15",
+  "base": "http://127.0.0.1:3000",
+  "measurementId": "G-HH8N3QCBFV",
+  "tagEnabled": true,
+  "expected": {
+    "placement": "داخل <head> في كل الصفحات",
+    "tagsPerPage": [
+      "google-analytics-loader (async gtag.js)",
+      "google-analytics-init (dataLayer + js + config)"
+    ],
+    "measurementIdOccurrencesInHead": 2,
+    "dnsPrefetchHosts": [
+      "www.googletagmanager.com",
+      "www.google-analytics.com"
+    ]
+  },
+  "summary": {
+    "pages": 9,
+    "passed": 9,
+    "failed": 0
+  },
+  "pages": [
+    {
+      "path": "/",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/matches",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/news",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/about",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/contact",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/terms",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/privacy-policy",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/matches/2026-10-14",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    },
+    {
+      "path": "/matches/zed-vs-azam-2026-10-16",
+      "ok": true,
+      "httpStatus": 200,
+      "measurementIdInHead": 2,
+      "hasLoader": true,
+      "hasInlineInit": true,
+      "hasConfigCommand": true,
+      "hasDnsPrefetch": true,
+      "hasPreconnect": false,
+      "gaTagInsideBody": false,
+      "missing": []
+    }
+  ],
+  "ok": true
+}

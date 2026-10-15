@@ -276,3 +276,29 @@ test('9) المعرّف قابل للاستبدال من البيئة، والق
     });
   }
 });
+
+/* ────────────────────────────────────────────────────────────────────────────
+ *  ⑦ أداة التحقّق الحيّة (بعد كل نشر)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+test('10) أداة التحقّق على الموقع المنشور تقرأ المصدر الواحد ولا تكتب معرّفًا بنفسها', () => {
+  const script = stripComments(read('scripts/audit-analytics.ts'));
+
+  // تقرأ المعرّف والنطاقات من المصدر الواحد — لا نسخة ثانية تتباعد مع الوقت
+  assert.match(script, /from '\.\.\/lib\/analytics\/google-analytics'/, 'الأداة لا تستورد المصدر الواحد');
+  assert.match(script, /resolveGaMeasurementId\(\)/, 'الأداة لا تحلّ المعرّف من المصدر الواحد');
+  assert.match(script, /buildGaScriptUrl\(/, 'الأداة لا تبني رابط المكتبة من نفس الدالة');
+
+  const violations = scanForbiddenPatterns(repoRoot, ['scripts'], [
+    { regex: /G-HH8N3QCBFV/, reason: 'معرّف القياس مكتوب داخل الأداة' },
+    { regex: /googletagmanager\.com/, reason: 'نطاق gtag مكتوب داخل الأداة' },
+  ]);
+  assert.deepEqual(
+    violations.map((violation) => `${violation.file}: ${violation.reason}`),
+    []
+  );
+
+  // ومُسجَّلة كأمر npm مثل بقية أدوات التدقيق في المستودع
+  const pkg = JSON.parse(read('package.json')) as { scripts?: Record<string, string> };
+  assert.equal(pkg.scripts?.['audit:analytics'], 'node --import tsx scripts/audit-analytics.ts');
+});
