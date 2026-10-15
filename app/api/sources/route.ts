@@ -28,12 +28,15 @@ export async function GET() {
       warnings: integrity.issues.filter((issue) => issue.severity === 'warning').length,
       errors: blockingLinkIssues(integrity).length,
       /**
-       * فحص التكرار عبر المصادر: المباراة نفسها في سجلين. `mergedDuplicates` = سجلات
-       * أُثبت أنها تكرار وأُدمجت منطقيًا (فلا تُعرض)، و`unresolvedDuplicateGroups` = ما
-       * لم يُعالَج بعد ويحتاج مراجعة. لا تُحذف أي سجلات: السجل المكرر يبقى ببيانات مصدره.
+       * فحص التكرار عبر المصادر: المباراة نفسها في سجلين. الفحص أعلاه (`checked`/`linked`)
+       * يعمل على السجلات **المعروضة**، وهذان الرقمان يوضّحان ما أُخفي عن العرض:
+       * `mergedDuplicateMatches` = سجلات أُثبت أنها تكرار وأُدمجت منطقيًا ولا تُعرض،
+       * و`unresolvedDuplicateGroups` = مجموعات لم تُعالَج بعد (المتوقع 0).
+       * لا تُحذف أي سجلات: السجل المكرر يبقى ببيانات مصدره كاملة.
        */
-      mergedDuplicates: integrity.mergedDuplicates,
-      unresolvedDuplicateGroups: integrity.unresolvedDuplicateGroups,
+      mergedDuplicateMatches: db.matches.length - activeMatchRecords.length,
+      unresolvedDuplicateGroups: integrity.unresolvedDuplicateGroups.length,
+      unresolvedDuplicateGroupIds: integrity.unresolvedDuplicateGroups.map((group) => group.ids),
       lastConsolidation: db.meta.lastFixtureConsolidation ?? null,
     },
     newsResolution: newsSync?.resolutionReport ?? null,

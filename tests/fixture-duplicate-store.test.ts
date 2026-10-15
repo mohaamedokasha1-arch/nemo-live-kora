@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as store from '../lib/db/store';
 import { generateMetadata as matchPageMetadata } from '../app/matches/[id]/page';
+import { GET as sourcesGET } from '../app/api/sources/route';
 import { auditMatchLinkIntegrity, blockingLinkIssues, findDuplicateFixtureGroups } from '../lib/match-identity';
 import type { GatewayDatabase, MatchRecord, NemoLinkResolution } from '../lib/types';
 
@@ -255,4 +256,31 @@ test('صفحة المعرّف القديم: تعمل بلا 404، ومحتواه
   const urls = entries.map((entry) => entry.url);
   assert.equal(urls.some((url) => url.endsWith(`/matches/${marked.id}`)), false);
   assert.equal(urls.some((url) => url.endsWith(`/matches/${survivorId}`)), false);
+});
+
+test('واجهة الفحص العامة تفرّق بين «معروض» و«مُدمج» ولا تُظهر تكرارًا مفتوحًا', async () => {
+  store.upsertMatchesInStoreWithStats(liveRecords());
+  const response = await sourcesGET();
+  const payload = (await response.json()) as {
+    linkIntegrity: {
+      checked: number;
+      errors: number;
+      mergedDuplicateMatches: number;
+      unresolvedDuplicateGroups: number;
+      unresolvedDuplicateGroupIds: string[][];
+      lastConsolidation: { groups: number; markedDuplicates: number; requiresReview: number } | null;
+    };
+    matchesCount: number;
+    matchesStoredTotal: number;
+  };
+
+  assert.equal(payload.linkIntegrity.checked, 2, 'الفحص يعمل على المعروض: مباراتان');
+  assert.equal(payload.linkIntegrity.errors, 0);
+  assert.equal(payload.linkIntegrity.mergedDuplicateMatches, 2, 'سجلان مُدمجان محفوظان بلا عرض');
+  assert.equal(payload.linkIntegrity.unresolvedDuplicateGroups, 0);
+  assert.deepEqual(payload.linkIntegrity.unresolvedDuplicateGroupIds, []);
+  assert.equal(payload.linkIntegrity.lastConsolidation?.markedDuplicates, 2);
+  assert.equal(payload.linkIntegrity.lastConsolidation?.requiresReview, 0);
+  assert.equal(payload.matchesCount, 2, 'المعروض للزائر');
+  assert.equal(payload.matchesStoredTotal, 4, 'المحفوظ في المخزن (لا حذف)');
 });
