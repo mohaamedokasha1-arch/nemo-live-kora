@@ -5,6 +5,7 @@ import { formatArabicFullDate, formatArabicTimestamp, toCairoTimeArabic } from '
 import { getGatewayDatabase, guardStaleLiveStatus } from '@/lib/db/store';
 import { findServedCatalogEntryForMatch } from '@/lib/admin/served-catalog';
 import { resolveWatchDestinationForRecord } from '@/lib/nemo-watch';
+import { sortMatchesByKickoffProximity } from '@/lib/matches/related-matches';
 import AdSlot from './AdSlot';
 import { shouldRenderAdSlot } from '@/lib/ads/config';
 import WatchStreamBlock from './WatchStreamBlock';
@@ -20,9 +21,16 @@ import WatchStreamBlock from './WatchStreamBlock';
  */
 export default function SourceMatchDetails({ record }: { record: MatchRecord }) {
   const match = guardStaleLiveStatus(record);
-  const related = getGatewayDatabase().matches.filter((m) => m.id !== match.id &&
-    [m.homeTeam.id, m.awayTeam.id].some((id) => [match.homeTeam.id, match.awayTeam.id].includes(id)))
-    .sort((a, b) => Math.abs(Date.parse(a.utcKickoff) - Date.parse(b.utcKickoff)) - Math.abs(Date.parse(b.utcKickoff) - Date.parse(match.utcKickoff))).slice(0, 6);
+  const related = sortMatchesByKickoffProximity(
+    getGatewayDatabase().matches.filter(
+      (candidate) =>
+        candidate.id !== match.id &&
+        [candidate.homeTeam.id, candidate.awayTeam.id].some((teamId) =>
+          [match.homeTeam.id, match.awayTeam.id].includes(teamId)
+        )
+    ),
+    match.utcKickoff
+  ).slice(0, 6);
   // وجهة المشاهدة الموحّدة: معرّف المباراة يختاره المحرّك المركزي من معرّفات المصادر
   // (sportscore ← api-football ← thesportsdb ← معرّف السجل)، وإن وُجد رابط NEMO مُتحقَّق
   // منه لصفحة هذه المباراة تحديدًا فهو الأسبق. لا كود خاص بأي مباراة بعينها هنا.
