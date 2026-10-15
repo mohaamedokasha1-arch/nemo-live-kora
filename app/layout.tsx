@@ -12,7 +12,10 @@ import SiteBanner from '@/components/SiteBanner';
 import AdsterraBanner from '@/components/AdsterraBanner';
 import AdsterraPopunder from '@/components/AdsterraPopunder';
 import AdsterraSocialBar from '@/components/AdsterraSocialBar';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
+import GoogleAnalyticsPageViews from '@/components/GoogleAnalyticsPageViews';
 import { ADSTERRA_HOSTS } from '@/lib/ads/adsterra';
+import { GA_HOSTS, isGoogleAnalyticsActive, resolveGaMeasurementId } from '@/lib/analytics/google-analytics';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
 
@@ -107,9 +110,22 @@ export default async function RootLayout({
   // تحميل مستند الإدارة هنا يجعل الشريط والصفحات تقرأ أحدث قرار إداري في نفس الطلب،
   // والقراءة مخزَّنة في الذاكرة فلا تُضيف أي طلب شبكة بعد أول تحميل.
   await loadManualDocument();
+  // معرّف القياس الفعّال (أو null عند الإيقاف/معرّف غير صالح) لتشغيل قياس التنقّل الداخلي.
+  const gaMeasurementId = isGoogleAnalyticsActive() ? resolveGaMeasurementId() : null;
   return (
     <html lang="ar" dir="rtl" data-theme="light" suppressHydrationWarning>
       <head>
+        {/*
+          ═══════════════════════════════════════════════════════════════════════
+           Google Analytics (gtag.js) — **أول ما يُرسم داخل <head>** في كل الصفحات
+          ═══════════════════════════════════════════════════════════════════════
+          طلب صاحب المنتج (2026-10-15): كود Google Analytics مباشرةً بعد وسم <head>
+          في جميع الصفحات لمتابعة الزيارات. والتنفيذ هنا في التخطيط العام (الجذر الذي
+          يمرّ منه كل مسار) — لا في كل صفحة على حدة — فلا يمكن أن تُنسى صفحة أو أن
+          تختلف نسخة الكود عن أخرى. المعرّف والنص كلاهما من
+          `lib/analytics/google-analytics.ts` (مصدر واحد)، والإيقاف بمتغيّر بيئة واحد.
+        */}
+        <GoogleAnalytics />
         {/*
           ربط الشبكة الإعلانية مسبقًا (dns-prefetch فقط):
           يحلّ اسم النطاق قبل أن يطلب المتصفح سكربت الإعلان، فلا تُضاف زمن انتظار
@@ -119,6 +135,14 @@ export default async function RootLayout({
         {ADSTERRA_HOSTS.map((host) => (
           <link key={host} rel="dns-prefetch" href={`//${host}`} />
         ))}
+        {/*
+          ونفس المعاملة لنطاقَي Google Analytics (تحميل المكتبة ثم إرسال القياس).
+          مشروطة بتشغيل الوسم: عند `NEXT_PUBLIC_GA_ENABLED=off` أو معرّف غير صالح لا
+          يبقى في الرأس أي أثر لـ Google إطلاقًا — ولا حتى تحليل اسم نطاقها.
+        */}
+        {gaMeasurementId
+          ? GA_HOSTS.map((host) => <link key={host} rel="dns-prefetch" href={`//${host}`} />)
+          : null}
         {ADSENSE_CLIENT ? (
           <>
             {/* توثيق حساب الناشر في AdSense + تحميل السكربت بشكل غير معطّل للعرض */}
@@ -135,6 +159,12 @@ export default async function RootLayout({
         <AdsterraPopunder />
       </head>
       <body className="kl-page-shell">
+        {/*
+          قياس التنقّل داخل الموقع: كل صفحة مشاهَدَة بعد صفحة الدخول تُرسل حدث
+          `page_view` صريحًا لأن Next.js يبدّل الصفحات بلا إعادة تحميل للمستند.
+          المكوّن يرسم `null` ولا يظهر في الشاشة، ولا يعمل إطلاقًا عند إيقاف الوسم.
+        */}
+        {gaMeasurementId ? <GoogleAnalyticsPageViews measurementId={gaMeasurementId} /> : null}
         <SiteBanner />
         <Header />
         {/*
