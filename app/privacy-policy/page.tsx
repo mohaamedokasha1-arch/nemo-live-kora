@@ -6,7 +6,7 @@ import { buildStaticPageMetadata } from '@/lib/seo/metadata';
 export const metadata: Metadata = buildStaticPageMetadata({
   title: 'سياسة الخصوصية',
   description:
-    'سياسة الخصوصية في نيمو كورة لايف: البيانات التي نجمعها، ملفات تعريف الارتباط (الكوكيز)، إعلانات الطرف الثالث (Adsterra وGoogle AdSense)، وحقوق المستخدم.',
+    'سياسة الخصوصية في نيمو كورة لايف: البيانات التي نجمعها، ملفات تعريف الارتباط (الكوكيز)، قياس الزيارات (Google Analytics)، إعلانات الطرف الثالث (Adsterra وGoogle AdSense)، وحقوق المستخدم.',
   path: '/privacy-policy',
 });
 
@@ -34,6 +34,20 @@ export default function PrivacyPolicyPage() {
         نستخدم ملفات تعريف الارتباط والوسوم المشابهة لتشغيل الموقع وتحسين التجربة وقياس الأداء.
         تُستخدم هذه الملفات أيضًا من قِبل شبكات إعلانية خارجية لضبط الإعلانات التي تراها. يمكنك ضبط
         متصفحك لرفض ملفات تعريف الارتباط، مع العلم أن بعض خصائص الموقع قد لا تعمل بشكل كامل بعد ذلك.
+      </p>
+      <p>
+        <strong>قياس الزيارات (Google Analytics):</strong> نستخدم خدمة Google Analytics 4 لقياس عدد
+        الزيارات والصفحات الأكثر مشاهدة ومدة التصفّح، وذلك عبر وسم «gtag.js» موضوع في رأس كل صفحات
+        الموقع. تضع هذه الخدمة كوكيز مثل <code>_ga</code> و<code>_ga_*</code> لتمييز الزيارة عن غيرها
+        وقياس الزيارات المتكرّرة، وترسل البيانات إلى Google بصورة إحصائية مجمّعة، ولا تُستخدم عندنا
+        لتعريف هويتك الشخصية ولا تُربط بأي حساب أو بيانات دفع. ويمكنك رفضها بثلاث طرق: إعدادات
+        المتصفح، أو إضافة
+        {' '}
+        <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer">
+          Google Analytics Opt-out
+        </a>
+        {' '}
+        الرسمية، أو وضع «عدم التتبّع/حجب أدوات التحليل» إن كان متاحًا في متصفحك.
       </p>
 
       <h2>٣) الإعلانات ومزوّدو الإعلانات من الأطراف الثالثة</h2>
@@ -81,6 +95,16 @@ export default function PrivacyPolicyPage() {
           سياسة Adsterra للخصوصية:{' '}
           <a href="https://adsterra.com/privacy-policy/" target="_blank" rel="noopener noreferrer">
             adsterra.com/privacy-policy
+          </a>
+        </li>
+        <li>
+          سياسة Google للخصوصية (وتشمل Google Analytics):{' '}
+          <a
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            policies.google.com/privacy
           </a>
         </li>
       </ul>

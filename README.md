@@ -16,7 +16,14 @@
 > `375a8323…`) · `app/apple-icon.png` (180×180 مُشتقّة من الأيقونة الأصلية). وقد حُذف
 > الأصل النقطي القديم نهائيًا (2.5MB، لم يكن شعار الموقع المرجعي). التفاصيل والإثباتات في
 > [docs/LOGO-REPLACEMENT-2026-10-14.md](docs/LOGO-REPLACEMENT-2026-10-14.md).
-> **تغيير 2026-10-15 (الحالي):** رُكّبت وحدات **Adsterra** الست في مواضعها الاستراتيجية
+> **تغيير 2026-10-15 (الحالي — القياس):** أُضيف كود **Google Analytics 4 (gtag.js)** داخل `<head>`
+> في **كل صفحات الموقع** (التخطيط العام وحده ⇒ لا صفحة تُنسى ولا نسخة مختلفة من الكود)، مع
+> `dns-prefetch` لنطاقَي Google، ومع قياس **صفحات التنقّل الداخلي** (لأن Next.js يبدّل الصفحات
+> بلا إعادة تحميل، فبلا ذلك تُحسب الزيارة كلها صفحةً واحدة). المعرّف `G-HH8N3QCBFV` مكتوب مرة
+> واحدة في `lib/analytics/google-analytics.ts`، والإيقاف بمتغيّر بيئة واحد
+> (`NEXT_PUBLIC_GA_ENABLED=off`)، والتبديل من `NEXT_PUBLIC_GA_MEASUREMENT_ID`. والإثبات المطبوع
+> من HTML الإنتاج مع خطوات القبول في [docs/GOOGLE-ANALYTICS-2026-10-15.md](docs/GOOGLE-ANALYTICS-2026-10-15.md).
+> **تغيير 2026-10-15 (قبلها في اليوم نفسه):** رُكّبت وحدات **Adsterra** الست في مواضعها الاستراتيجية
 > (Popunder في `<head>` · Social Bar قبل `</body>` · بانر 300×250 فوق زر البث وتحته وفي جانب
 > المحتوى · بانر 728×90 أعلى الصفحة على شاشات الكمبيوتر · Native Banner بين كروت المباريات ووسط
 > الأخبار · Smartlink مع أزرار التحويل بوسم إعلاني صريح)، بلا أي تأثير على سرعة التحميل ولا على
@@ -119,6 +126,8 @@
 │   ├── AdsterraSocialBar.tsx       # البار الاجتماعي — lazyOnload قبل </body>
 │   ├── SmartlinkCta.tsx            # زر الراعي المموّل (Smartlink) بوسم sponsored/nofollow
 │   ├── FeaturedMatches.tsx         # بوابة المباريات في الصفحة الرئيسية
+│   ├── GoogleAnalytics.tsx         # وسم Google Analytics (gtag.js) في أول <head> — كل الصفحات
+│   ├── GoogleAnalyticsPageViews.tsx # قياس صفحات التنقّل الداخلي (page_view عند كل تنقّل)
 │   ├── LiveBroadcastView.tsx       # واجهة صفحة البث الداخلية
 │   ├── MatchLandingView.tsx        # واجهة صفحة هبوط المباراة + زر التحويل للبث
 │   ├── SportsEventJsonLd.tsx       # مكوّن JSON-LD المخصص لـ SportsEvent
@@ -137,6 +146,8 @@
 │   ├── ads/
 │   │   ├── adsterra.ts             # ⭐ مصدر واحد لمفاتيح Adsterra ونطاقاتها ومفاتيح الإيقاف
 │   │   └── config.ts               # بوابة مساحات AdSense (لا تُرسم بلا معرّف ناشر)
+│   ├── analytics/
+│   │   └── google-analytics.ts     # ⭐ مصدر واحد لمعرّف GA4 ووسمه ومفتاح الإيقاف
 │   ├── matches/
 │   │   ├── types.ts                # أنواع سجل المباراة والرؤية المدمجة
 │   │   ├── match-links.ts          # مسارات صفحة الهبوط/البث وربط البطاقات (client-safe)
@@ -211,6 +222,14 @@
   الخصوصية تذكر Adsterra صراحةً.
   التفاصيل الكاملة وقائمة التحقّق بعد النشر في
   [`docs/ADSTERRA-INTEGRATION-2026-10-15.md`](docs/ADSTERRA-INTEGRATION-2026-10-15.md).
+- **التحليلات (Google Analytics 4):** كود `gtag.js` في **أول `<head>`** من التخطيط العام ⇒ في كل
+  صفحات الموقع، بنفس الكود المطلوب حرفيًا (المكتبة `async` + أوامر `js`/`config`). المعرّف
+  والنطاقات ونص الأوامر كلها في `lib/analytics/google-analytics.ts` (مصدر واحد)، والسكربتات
+  الداخلية محكومة الصيغة (`G-[A-Z0-9]{4,32}`) فلا تُقبل قيمة تُفسد الوسم، والقياس يُرسل
+  `page_view` عند كل تنقّل داخلي بلا احتساب صفحة الدخول مرتين. الإيقاف الكامل
+  (`NEXT_PUBLIC_GA_ENABLED=off`) يزيل السكربتات وكل أثرها من HTML، والتبديل من
+  `NEXT_PUBLIC_GA_MEASUREMENT_ID`. وكل ذلك محروس بـ 9 اختبارات في `tests/google-analytics.test.ts`،
+  والتفاصيل في [`docs/GOOGLE-ANALYTICS-2026-10-15.md`](docs/GOOGLE-ANALYTICS-2026-10-15.md).
 
 📘 التفاصيل الكاملة، وجدول الحقول، وخطوات التحقق قبل النشر في
 [`docs/MATCH-ENGINE-AND-SEO.md`](docs/MATCH-ENGINE-AND-SEO.md).
@@ -263,6 +282,7 @@ npm run dev
   - **التخزين:** لا يتطلب أي متغير. (`NEMO_DATA_DIR` اختياري لتغيير مجلد الملف.) الفحص: `npm run store:check`.
   - **مفاتيح المصادر:** `API_FOOTBALL_KEY` (مطلوب لـ API-Football)، `FOOTBALL_DATA_API_KEY` (اختياري)، `THESPORTSDB_API_KEY` (افتراضيًا `123`)
   - **الأخبار:** `NEMO_PUBLISHER_RSS_FEEDS` اختياري (روابط RSS/Atom إضافية للناشرين، أو `none` لتعطيل المصدر السادس)؛ `NEMO_NEWS_ENRICH=off` لتعطيل إثراء الملخصات
+  - **التحليلات:** لا تحتاج أي إعداد (الوسم مفعّل بالمعرّف `G-HH8N3QCBFV`). للتبديل: `NEXT_PUBLIC_GA_MEASUREMENT_ID`، وللإيقاف الكامل: `NEXT_PUBLIC_GA_ENABLED=off`
   - **الروابط:** `NEXT_PUBLIC_NEMO_SPORTS_URL=https://nemo-sports.vercel.app`، `GATEWAY_SITE_URL=https://nemo-live-kora.vercel.app` (Canonicals وSitemap وOpen Graph؛ يفضّل على `VERCEL_PROJECT_PRODUCTION_URL` ثم متغير التوافق `NEXT_PUBLIC_GATEWAY_URL`)
 - **`CRON_SECRET` يحمي `/api/cron/sync` و`/api/cron/sync-news` ولوحة الإدارة**. اضبطه في متغيرات بيئة الاستضافة، واحتفظ به خارج GitHub ولا تستخدم بادئة `NEXT_PUBLIC_` له. مسار `/api/cron/update-matches` لا يتطلب سرًا. بدونه تُرجع هذه المسارات `500 Misconfigured` ولا تنفّذ شيئًا (حماية مقصودة، لا تُفتح للعامة).
 
@@ -295,7 +315,7 @@ npm run dev
 ```bash
 npm run verify        # lint + typecheck + test + build + npm audit --omit=dev
 npm run security      # بوابة الأمان دون شبكة (ثغرات معروفة، أسرار، حقن HTML)
-npm test              # 169 اختبارًا
+npm test              # 314 اختبارًا
 npm run build
 npm run store:check
 node --import tsx scripts/audit-connectivity.ts --out=docs/evidence/connectivity.json
