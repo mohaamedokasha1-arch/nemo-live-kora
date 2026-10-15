@@ -142,8 +142,13 @@ test('5) المساحات الإعلانية غير المضبوطة لا تُر
   const gate = stripComments(read('lib/ads/config.ts'));
   assert.match(gate, /export function shouldRenderAdSlot/);
   assert.match(gate, /export const ADSENSE_CLIENT_ID = \(process\.env\.NEXT_PUBLIC_ADSENSE_CLIENT \|\| ''\)\.trim\(\)/);
+  /*
+   * ملاحظة (2026-10-15): خرج `components/WatchStreamBlock.tsx` من هذه القائمة لأن
+   * الموضعين المحيطين بزر المشاهدة أصبحا لوحدتي Adsterra المربعتين (300×250) —
+   * وحراستهما انتقلت إلى `tests/adsterra-ads.test.ts` بنفس الصرامة: العدد، والترتيب
+   * حول الزر، والحجز المسبق للارتفاع، ولا أثر لأي وحدة عند إيقاف الإعلانات.
+   */
   for (const file of [
-    'components/WatchStreamBlock.tsx',
     'components/LiveBroadcastView.tsx',
     'components/MatchLandingView.tsx',
     'components/SourceMatchDetails.tsx',

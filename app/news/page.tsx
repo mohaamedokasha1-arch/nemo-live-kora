@@ -65,9 +65,15 @@ export default async function NewsIndexPage() {
           </Link>
         </section>
       ) : null}
+      {/*
+        إعلان مدمج واحد وسط الأخبار. هذه الصفحة لا تحمل جدول مباريات، فهي الموضع
+        الوحيد الذي يُفعَّل فيه الإعلان المدمج داخل قسم الأخبار (معرّف حاوية واحد
+        لكل صفحة كما تشترط الشبكة).
+      */}
       <NewsSection
         news={displayed}
         lastUpdatedLabel={lastOk ? formatArabicTimestamp(lastOk) : null}
+        withNativeAd
       />
       {archiveCount > 0 ? (
         <p className="kl-news-archive-link">

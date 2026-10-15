@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatArabicFullDate, isValidDateParam, shiftDateString } from '@/lib/cairo-time';
 import { MatchRecord } from '@/lib/types';
+import AdsterraBanner from './AdsterraBanner';
+import AdsterraNative from './AdsterraNative';
 import MatchCard from './MatchCard';
 
 export interface GatewayClientProps {
@@ -28,6 +30,12 @@ export default function MatchGatewayClient({
   const yesterdayDate = shiftDateString(todayCairo, -1);
   const tomorrowDate = shiftDateString(todayCairo, 1);
   const readableDate = formatArabicFullDate(selectedDate);
+  /**
+   * موضع الإعلان المدمج (Native) داخل قائمة المباريات: بعد الكرت الرابع.
+   * الشرط `>= 4` يمنع ظهور إعلان في وسط قائمة قصيرة (يوم بمباراتين فقط) لأنه
+   * سيلتفّ حوله المحتوى ويبدو مقحَمًا؛ وفي تلك الحالة يظهر بانر أسفل القائمة فقط.
+   */
+  const inFeedAdIndex = allMatchesOnDate.length >= 4 ? 3 : -1;
 
   return (
     <section className="kl-matches-section" aria-label="جدول المباريات">
@@ -89,9 +97,27 @@ export default function MatchGatewayClient({
       {/* Stack of Clean White Match Cards */}
       {allMatchesOnDate.length > 0 ? (
         <div className="kl-cards-list">
-          {allMatchesOnDate.map((match) => (
-            <MatchCard key={match.id} match={match} landingPath={landingPaths?.[match.id] ?? null} />
+          {allMatchesOnDate.map((match, index) => (
+            <React.Fragment key={match.id}>
+              <MatchCard match={match} landingPath={landingPaths?.[match.id] ?? null} />
+              {/*
+                الإعلان المدمج في الوسط: بنفس بطاقة الموقع (حدود وزوايا وظل) فيبدو
+                جزءًا طبيعيًا من القائمة لا جسيمًا دخيلًا، مع وسم «إعلان» الصغير.
+              */}
+              {index === inFeedAdIndex ? (
+                <AdsterraNative
+                  className="kl-ad-native-in-feed"
+                  label="مساحة إعلانية مدفوعة داخل قائمة المباريات"
+                />
+              ) : null}
+            </React.Fragment>
           ))}
+          {/* جانب المحتوى على شاشات الكمبيوتر وأسفل القائمة على الهاتف */}
+          <AdsterraBanner
+            size="300x250"
+            className="kl-ad-after-cards"
+            label="مساحة إعلانية أسفل جدول المباريات"
+          />
         </div>
       ) : (
         <div className="kl-empty-box">

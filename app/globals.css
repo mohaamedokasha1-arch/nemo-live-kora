@@ -2403,3 +2403,179 @@ a {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   وحدات Adsterra الإعلانية (Popunder / Social Bar / 300×250 / 728×90 / Native)
+   — كل المقاسات محجوزة سلفًا (بدون إزاحة تخطيط CLS)، وكل الصنوف تعمل في الوضع
+     الفاتح والداكن عبر متغيّرات الهوية نفسها (لا ألوان جديدة في المشروع).
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* — البانرات الثابتة (300×250 و728×90) — */
+.kl-ad-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.kl-ad-banner-frame {
+  display: block;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  /* على شاشة أضيق من 300 بكسل لا يحدث تمرير أفقي: الإطار يتقلّص بلا كسر التخطيط */
+  max-width: 100%;
+}
+
+.kl-ad-banner-300x250,
+.kl-ad-banner-728x90 {
+  /* الارتفاع محجوز بالمقاس الفعلي للوحدة: لا قفزة في المحتوى عند وصول الإعلان */
+  align-items: center;
+}
+
+.kl-ad-banner-300x250 {
+  min-height: 250px;
+}
+
+.kl-ad-banner-728x90 {
+  min-height: 90px;
+}
+
+/*
+ * البانر العريض 728×90 مخصّص لشاشات الكمبيوتر والأجهزة الكبيرة (المقاس نفسه
+ * أوسع من شاشة الهاتف). وحين يُخفى هنا لا يُنزَّل الإعلان أصلًا — لأن الإطار
+ * بـ loading="lazy" داخل عنصر display:none لا يُحمَّل — فلا ندفع ثمن عرض لا يراه أحد.
+ */
+.kl-ad-leaderboard-slot {
+  display: none;
+}
+
+@media (min-width: 800px) {
+  .kl-ad-leaderboard-slot {
+    display: block;
+    margin-top: 14px;
+  }
+}
+
+/* البانر المربع أسفل جدول المباريات: مسافة صغيرة تكفي داخل القائمة المتباعدة */
+.kl-ad-after-cards {
+  margin-top: 4px;
+}
+
+/* البانر المربع داخل صفحة الخبر (موضع العمود الجانبي في تصميم أحادي العمود) */
+.kl-ad-article-side {
+  margin-block: 6px 10px;
+}
+
+/* — الإعلان المدمج (Native) بنفس هيئة بطاقات الموقع — */
+.kl-ad-native {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--kl-card-bg);
+  border: 1px solid var(--kl-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  /* حجز ارتفاع أقرب ما يكون لمقاس وحدة الإعلان المدمج (منع إزاحة التخطيط) */
+  min-height: 250px;
+  overflow: hidden;
+}
+
+.kl-ad-native-in-feed {
+  border-radius: 14px;
+}
+
+/* في شبكة الأخبار يأخذ الإعلان عرض الصف كاملًا فلا يكسر توزيع البطاقات */
+.kl-ad-native-grid-item {
+  grid-column: 1 / -1;
+}
+
+.kl-ad-native-container {
+  width: 100%;
+  flex: 1;
+}
+
+.kl-ad-native-caption {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--kl-text-muted);
+}
+
+/* — زر السمارت لينك (الرابط الذكي) — */
+.kl-smartlink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.kl-smartlink-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  font-weight: 800;
+  border-radius: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.kl-smartlink-button .kl-smartlink-link {
+  width: 100%;
+  max-width: 420px;
+  padding: 11px 16px;
+  background: var(--kl-accent-primary);
+  color: #ffffff;
+  border: 1px solid var(--kl-accent-primary);
+}
+
+.kl-smartlink-button .kl-smartlink-link:hover {
+  background: var(--kl-accent-primary-hover);
+  border-color: var(--kl-accent-primary-hover);
+}
+
+.kl-smartlink-inline .kl-smartlink-link {
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  color: var(--kl-accent-primary);
+  border: 1px dashed var(--kl-border);
+}
+
+.kl-smartlink-inline .kl-smartlink-link:hover {
+  border-color: var(--kl-accent-primary);
+}
+
+.kl-smartlink-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+}
+
+.kl-smartlink-arrow {
+  font-weight: 800;
+}
+
+.kl-smartlink-note {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.7;
+  color: var(--kl-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  /*
+   * الإعلان المدمج يصبح أطول على الهاتف (بطاقات بعمود واحد)، فنرفع الحجز الرأسي
+   * إلى 300 بكسل — لا لنجعل المساحة أكبر، بل لنمنع انزلاق المحتوى تحت الإعلان.
+   */
+  .kl-ad-native {
+    min-height: 300px;
+  }
+}
