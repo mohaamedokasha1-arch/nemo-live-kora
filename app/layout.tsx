@@ -4,7 +4,6 @@ import '@fontsource/cairo/700.css';
 import '@fontsource/cairo/800.css';
 import '@fontsource/cairo/900.css';
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -24,8 +23,14 @@ const SITE_TITLE = 'نيمو كورة لايف | جدول مباريات الي�
 const SITE_DESCRIPTION =
   'بوابة عربية لمباريات كرة القدم: جدول المواعيد والنتائج وحالات المباريات بتوقيت القاهرة، مع صفحات هبوط لكل مباراة ورابط مشاهدة التغطية المباشرة، وإسناد بيانات كل مباراة إلى مصدرها.';
 
-/** معرّف ناشر AdSense (اختياري) — عند ضبطه يُحمَّل السكربت وتظهر المساحات الإعلانية. */
-const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || '';
+/**
+ * معرّف ناشر AdSense — كود إثبات الملكية وتفعيل الإعلانات (طلب 2026-10-15).
+ * السكربت يُحمَّل افتراضيًا بالمعرّف الصريح المعتمد حتى لا تُنسى صفحة ولا يحتاج
+ * فحص «تحقق» في AdSense إلى أي إعداد بيئة مسبق، ويمكن لمتغيّر البيئة
+ * `NEXT_PUBLIC_ADSENSE_CLIENT` تجاوزه بمعرّف آخر دون تعديل الكود.
+ */
+const ADSENSE_CLIENT =
+  process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || 'ca-pub-5770911159315916';
 
 /**
  * metadataBase تثبّت النطاق الرسمي لكل الروابط المطلقة (canonical/openGraph/sitemap).
@@ -145,11 +150,34 @@ export default async function RootLayout({
           : null}
         {ADSENSE_CLIENT ? (
           <>
-            {/* توثيق حساب الناشر في AdSense + تحميل السكربت بشكل غير معطّل للعرض */}
+            {/*
+              ═══════════════════════════════════════════════════════════════════════
+               كود إثبات الملكية + تفعيل Google AdSense — كما طُلب حرفيًا داخل <head>
+              ═══════════════════════════════════════════════════════════════════════
+              الطلب (2026-10-15): سكربت adsbygoogle بمعايرة الناشر المطلوبة و
+              `crossorigin="anonymous"`، بين <head> و </head> بالكامل، بتحميل سليم بلا
+              أخطاء hydration حتى ترصد أداة التحقق من Google الرمز فورًا عند الضغط على
+              زر «تحقق».
+
+              • وسم `google-adsense-account` يوثّق حساب الناشر عند Google (أقوى إشارة
+                للتحقق من ملكية الموقع للحساب).
+              • السكربت `async` لا يحجب تحليل HTML ولا يؤخّر أول رسم (LCP) ولا يحجب
+                الترطيب — والقراءة هنا من HTML المُرسل قبل أي جافاسكربت، وهو ما يفحصه
+                أداة التحقق.
+
+              لماذا `<script>` مباشر لا `next/script`؟ (نفس قرار GoogleAnalytics
+              وAdsterraPopunder الموثّق على بناء إنتاجي حقيقي 2026-10-15):
+              `next/script` بأي استراتيجية (عدا beforeInteractive التي تحجب العرض)
+              يُلحق الوسم في نهاية `<body>` بعد الترطيب — أي خارج الرأس تمامًا، فيفشل
+              شرط «بين وسوم <head> و </head>» ويتأخر الرصد حتى يعمل JavaScript.
+              الوسم المباشر يُرفع إلى الرأس مع كل سكربت `async` في React 19، ويعمل
+              نفس النمط في المشروع منذ إضافة الوسمين السابقين بلا أي انحراف hydration
+              — فالخادم والعميل يرسمان الوسم نفسه حرفيًا.
+            */}
             <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
-            <Script
+            <script
+              id="google-adsense"
               async
-              strategy="afterInteractive"
               src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
               crossOrigin="anonymous"
             />
