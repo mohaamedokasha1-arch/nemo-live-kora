@@ -7,7 +7,8 @@
  *   node --import tsx scripts/audit-connectivity.ts
  *   node --import tsx scripts/audit-connectivity.ts --out=docs/evidence/connectivity.json
  *
- * Exit code is 0 only when at least one match source AND the news source returned real data.
+ * Exit code is 0 only when at least one match source AND at least one news source
+ * (Google News RSS or the direct publisher feeds) returned real data.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +20,8 @@ import {
 import { fetchFootballDataSync } from '../lib/sources/football-data';
 import { fetchApiFootballSync } from '../lib/sources/api-football';
 import { fetchGoogleNewsRss } from '../lib/sources/google-news-rss';
+import { fetchPublisherRss } from '../lib/sources/publisher-rss';
+import { decodeGoogleNewsArticleToken } from '../lib/news/google-news-resolver';
 import { getTodayCairoDate, shiftDateString } from '../lib/cairo-time';
 import { describeSourceConfiguration } from '../lib/config/env';
 import { describeStorage, getStorageDriver } from '../lib/storage';
@@ -70,7 +73,10 @@ async function probe(source: string, run: () => Promise<Record<string, unknown>>
       news: Array.isArray(data.news) ? (data.news as unknown[]).length : 0,
       newsResolved: (data.resolvedCount as number) ?? 0,
       newsPublishedCandidates: (data.enrichedCount as number) ?? 0,
-      endpoints: (data.attempts as ProbeResult['endpoints']) ?? (data.endpoints as ProbeResult['endpoints']),
+      endpoints:
+        (data.attempts as ProbeResult['endpoints']) ??
+        (data.endpoints as ProbeResult['endpoints']) ??
+        ((data.feedResults as unknown) as ProbeResult['endpoints']),
       error: (data.errorCode as string) || (data.error as string) || undefined,
     };
   } catch (error) {
@@ -102,7 +108,28 @@ async function main() {
     probe('google-news-rss', () =>
       fetchGoogleNewsRss({ timeoutMs: 8000, retries: 1, limitFeeds: 3 }) as unknown as Promise<Record<string, unknown>>
     ),
+    probe('publisher-rss', () =>
+      fetchPublisherRss({ timeoutMs: 8000, retries: 1, cacheTtlMs: 0, budgetMs: 40_000 }) as unknown as Promise<Record<string, unknown>>
+    ),
   ]);
+
+  /**
+   * Offline proof of the relay root cause (needs no network): every link captured from the live
+   * Arabic Google feed on 2026-10-15 must decode to NOTHING without an authenticated fetch.
+   * If this ever becomes non-zero, Google changed the format and resolver upgrades may pay off.
+   */
+  const relaySamplePath = path.join(process.cwd(), 'tests/fixtures/google-news/rss-live-relay-tokens-2026-10-15.json');
+  let relayOffline = { captured: 0, decodable: 0, note: 'fixture missing' };
+  if (fs.existsSync(relaySamplePath)) {
+    const relaySample = JSON.parse(fs.readFileSync(relaySamplePath, 'utf-8')) as {
+      items: Array<{ relayUrl: string }>;
+    };
+    relayOffline = {
+      captured: relaySample.items.length,
+      decodable: relaySample.items.filter((item) => decodeGoogleNewsArticleToken(item.relayUrl).url !== null).length,
+      note: 'recorded 2026-10-15 from news.google.com/rss/search (Arabic, ceid EG:ar)',
+    };
+  }
 
   const storageRoundTrip = await verifyStorageRoundTrip();
   const report = {
@@ -113,9 +140,13 @@ async function main() {
     thesportsdbKeyProbes: thesportsdbKeyProbeLog(),
     results,
     summary: {
-      matchSourcesOk: results.filter((r) => r.source !== 'google-news-rss' && r.ok && r.matches > 0).length,
-      newsSourceOk: results.some((r) => r.source === 'google-news-rss' && r.ok),
-      newsItemsFetched: results.find((r) => r.source === 'google-news-rss')?.news ?? 0,
+      matchSourcesOk: results.filter((r) => !['google-news-rss', 'publisher-rss'].includes(r.source) && r.ok && r.matches > 0).length,
+      newsSourceOk: results.some((r) => ['google-news-rss', 'publisher-rss'].includes(r.source) && r.ok),
+      newsItemsFetched:
+        (results.find((r) => r.source === 'google-news-rss')?.news ?? 0) +
+        (results.find((r) => r.source === 'publisher-rss')?.news ?? 0),
+      publisherFeedsOk: results.find((r) => r.source === 'publisher-rss')?.endpoints?.filter((f) => f.ok).length ?? 0,
+      googleRelayLinksDecodableOffline: relayOffline,
       newsRelayLinksResolved: results.find((r) => r.source === 'google-news-rss')?.newsResolved ?? 0,
       storageVerified: storageRoundTrip.ok,
       storageDurable: storageRoundTrip.durable,

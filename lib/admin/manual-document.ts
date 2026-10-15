@@ -338,7 +338,7 @@ export const MATCH_SOURCE_IDS: SourceId[] = [
   'api-football',
 ];
 
-export const ALL_SOURCE_IDS: SourceId[] = [...MATCH_SOURCE_IDS, 'google-news-rss'];
+export const ALL_SOURCE_IDS: SourceId[] = [...MATCH_SOURCE_IDS, 'google-news-rss', 'publisher-rss'];
 
 /** أقصى عدد سطور محفوظة في سجل التدقيق (يُقصّ من الأقدم). */
 export const AUDIT_LOG_LIMIT = 400;

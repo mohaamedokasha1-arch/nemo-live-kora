@@ -20,6 +20,7 @@ import { maybeCreateScheduledBackup } from '../admin/backups';
 import { fetchApiFootballSync } from '../sources/api-football';
 import { fetchFootballDataSync } from '../sources/football-data';
 import { fetchGoogleNewsRss, NEWS_FEEDS } from '../sources/google-news-rss';
+import { fetchPublisherRss } from '../sources/publisher-rss';
 import {
   fetchSportScoreFixturesByDate,
   fetchSportScoreMatches,
@@ -179,6 +180,10 @@ export function runNewsSync(trigger = 'مزامنة أخبار', errors: SourceE
     limitFeeds?: number;
     /** موضع البداية داخل مجموعات الخلاصات — للتدوير في التحديث السريع عند الطلب. */
     feedOffset?: number;
+    /** Retry only instant network failures on the on-demand path. */
+    retryOnNetworkErrorOnly?: boolean;
+    /** قيود مسار الخلاصات المباشرة عند التحديث عند الطلب (ميزانية زمن قصيرة). */
+    publisher?: { timeoutMs?: number; retries?: number; maxItemsPerFeed?: number; budgetMs?: number; retryOnNetworkErrorOnly?: boolean };
   }): Promise<NewsSourceSyncRecord> {
   if (newsInFlight) return newsInFlight;
   newsInFlight = executeNewsSync(trigger, errors, options).finally(() => { newsInFlight = null; });
@@ -193,13 +198,75 @@ async function executeNewsSync(
     retries?: number;
     limitFeeds?: number;
     feedOffset?: number;
+    retryOnNetworkErrorOnly?: boolean;
+    publisher?: { timeoutMs?: number; retries?: number; maxItemsPerFeed?: number; budgetMs?: number; retryOnNetworkErrorOnly?: boolean };
   }
 ): Promise<NewsSourceSyncRecord> {
   const startedAt = new Date().toISOString();
   // Adopt the shared snapshot first (as the gateway sync does), so a cold instance never builds
   // on its bundled copy and later overwrites newer shared news with it.
   await hydrateStore();
+
+  /*
+   * مصدر الأخبار المباشر من الناشرين (خلاصات RSS عامة تنشرها المؤسسة نفسها): يعمل **بالتوازي**
+   * مع Google News RSS وبمعزل عنه — لا source معطّل إداريًا ولا عطل خلاصة يوقف الأخرى.
+   * يُسجَّل ويُدقَّم أولًا (دوره في الاستيعاب يسبق Google) حتى تُدمج نسخ Google الوسيطة لنفس
+   * المقال عبر طابق الرابط المطبَّع داخل `processNewsBatch`، فلا يظهر الخبر مرتين.
+   */
+  const prRes = await isolateSource(
+    'publisher-rss',
+    () => fetchPublisherRss(fetchOptions?.publisher),
+    {
+      ok: false,
+      httpStatus: null,
+      latencyMs: 0,
+      news: [],
+      feedResults: [],
+      rejectedCount: 0,
+      error: 'publisher-rss-unreachable',
+      errorAr: 'تعذر الاتصال بخلاصات الناشرين المباشرة.',
+    },
+    errors,
+    isSourceEnabled('publisher-rss')
+  );
+  {
+    const prIngest = prRes.ok && prRes.news.length > 0
+      ? await ingestNewsCandidatesInStore(prRes.news)
+      : { imported: 0, published: 0, duplicates: 0, rejected: 0, updated: 0, rejectionBreakdown: {} as Record<string, number> };
+    const prFeedOk = prRes.ok && prRes.news.length > 0;
+    const prSync: NewsSourceSyncRecord = {
+      id: `news-sync-${Date.now()}-publisher`,
+      sourceId: 'publisher-rss',
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      ok: prFeedOk && (prIngest.published > 0 || prIngest.duplicates > 0 || prIngest.updated > 0),
+      feedOk: prFeedOk,
+      rejectionBreakdown: prIngest.rejectionBreakdown,
+      httpStatus: prRes.httpStatus,
+      latencyMs: prRes.latencyMs,
+      fetchedCount: prRes.news.length,
+      importedCount: prIngest.imported,
+      publishedCount: prIngest.published,
+      duplicateCount: prIngest.duplicates,
+      rejectedCount: prIngest.rejected,
+      updatedCount: prIngest.updated,
+      errorCount: prRes.ok ? prIngest.rejected : 1,
+      messageAr: !prRes.ok
+        ? prRes.errorAr || 'تعذر جلب خلاصات الناشرين المباشرة. لم تُحذف الأخبار المنشورة سابقًا.'
+        : `جُلب ${prRes.news.length} مقالًا من ${prRes.feedResults.filter((f) => f.ok).length} من ${prRes.feedResults.length} خلاصات ناشرين مباشرة، نُشر ${prIngest.published}، تحديث ${prIngest.updated}، تكرار ${prIngest.duplicates}، رفض ${prIngest.rejected}.`,
+      resolutionReport: {
+        attempted: 0,
+        resolved: prRes.news.length,
+        unresolved: 0,
+        strategies: { 'publisher-direct': prRes.news.length },
+        errors: {},
+      },
+    };
+    await recordNewsSync(prSync);
+  }
+
   const gnRes = await isolateSource(
+
     'google-news-rss',
     () => fetchGoogleNewsRss(fetchOptions),
     {
@@ -300,9 +367,9 @@ export async function ensureFreshNews(maxAgeMs?: number): Promise<NewsSourceSync
   await loadManualDocument();
   // نافذة تحديث الأخبار من إعدادات اللوحة (قابلة للتغيير بلا إعادة نشر).
   maxAgeMs = maxAgeMs ?? getSiteSettings().newsFreshnessMinutes * 60 * 1000;
-  // مصدر الأخبار الوحيد قابل للتعطيل من اللوحة: بلا هذا الفحص كان زر التعطيل
+  // مصدرَا الأخبار قابلان للتعطيل من اللوحة: بلا هذا الفحص كان زر التعطيل
   // سيبدو فعّالًا ثم تعود الأخبار تتحدّث عند أول زيارة.
-  if (!isSourceEnabled('google-news-rss')) return null;
+  if (!isSourceEnabled('google-news-rss') && !isSourceEnabled('publisher-rss')) return null;
   const db = await hydrateStore();
   const lastAttempt = db.meta.lastNewsSyncAt || db.meta.lastSuccessfulNewsSyncAt;
   if (lastAttempt) {
@@ -321,9 +388,13 @@ export async function ensureFreshNews(maxAgeMs?: number): Promise<NewsSourceSync
   const feedOffset = Math.floor(Date.now() / feedWindowMs) % Math.max(NEWS_FEEDS.length, 1);
   newsRefreshInFlight = runNewsSync('تحديث أخبار عند الطلب', [], {
     timeoutMs: 4000,
-    retries: 0,
+    // إعادة محاولة واحدة عند عطل شبكة لحظي (خطأ الاتصال الفوري عند إقلاع نسخة Vercel
+    // الباردة كان يُنهي محاولة كاملة بلا أي خبر — مثبت من /api/health يوم 2026-10-15).
+    retries: 1,
     limitFeeds: 1,
     feedOffset,
+    retryOnNetworkErrorOnly: true,
+    publisher: { timeoutMs: 2500, retries: 1, maxItemsPerFeed: 6, budgetMs: 3500, retryOnNetworkErrorOnly: true },
   }).finally(() => {
     newsRefreshInFlight = null;
   });
@@ -432,7 +503,9 @@ async function executeGatewaySync(
   // 1. SportScore — matches/standings only, not a news source
   const ssRes = await isolateSource(
     'sportscore',
-    () => fetchSportScoreMatches(options.quick ? { timeoutMs: 4000, retries: 0 } : {}),
+    () => fetchSportScoreMatches(
+      options.quick ? { timeoutMs: 4000, retries: 1, retryOnNetworkErrorOnly: true } : {}
+    ),
     {
       ok: false,
       httpStatus: null,
@@ -561,7 +634,8 @@ async function executeGatewaySync(
         ...(options.quick
           ? {
               timeoutMs: 4000,
-              retries: 0,
+              retries: 1,
+              retryOnNetworkErrorOnly: true,
               budgetMs: options.budgetMs ?? THESPORTSDB_QUICK_BUDGET_MS,
             }
           : {}),

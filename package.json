@@ -21,7 +21,8 @@
     "audit:all": "npm audit --audit-level=low",
     "security": "npm run audit:prod && node --import tsx scripts/security-check.ts",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit:prod",
-    "admin:password": "node --import tsx scripts/admin-password.ts"
+    "admin:password": "node --import tsx scripts/admin-password.ts",
+    "audit:connectivity": "node --import tsx scripts/audit-connectivity.ts"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",

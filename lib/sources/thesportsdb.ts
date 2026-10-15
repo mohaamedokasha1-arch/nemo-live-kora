@@ -72,7 +72,8 @@ export async function resolveTheSportsDBApiKey(options: {
     const url = `${THESPORTSDB_BASE_URL}/${key}/lookupleague.php?id=${THESPORTSDB_LEAGUES.egyptianPremierLeague}`;
     const res = await fetchWithProtection<{ leagues?: unknown[] }>(url, {
       timeoutMs: options.timeoutMs ?? 6000,
-      retries: 0,
+      retries: 1,
+      retryOnNetworkErrorOnly: true,
       cacheTtlMs: 30 * 60_000,
     });
     const rejected = res.httpStatus === 400 || res.httpStatus === 401 || res.httpStatus === 403;
@@ -396,6 +397,8 @@ export interface TheSportsDBFetchOptions {
   timeoutMs?: number;
   retries?: number;
   cacheTtlMs?: number;
+  /** Retry only instant network errors (see http-client docs). */
+  retryOnNetworkErrorOnly?: boolean;
   /** Total wall-clock budget for this fetch. Endpoints that would start after it are skipped. */
   budgetMs?: number;
   rounds?: TheSportsDBRoundWindow | null;
@@ -471,6 +474,7 @@ export async function fetchTheSportsDBMatches(
       timeoutMs: options.timeoutMs ?? 7000,
       retries: options.retries ?? 1,
       cacheTtlMs: options.cacheTtlMs ?? 3 * 60_000,
+      retryOnNetworkErrorOnly: options.retryOnNetworkErrorOnly,
     });
     totalLatency += res.latencyMs;
     if (res.httpStatus) lastStatus = res.httpStatus;

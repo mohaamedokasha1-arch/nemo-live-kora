@@ -4,7 +4,7 @@ import {
   NEMO_SPORTS_BASE_URL,
 } from '../catalog';
 import { resolveNemoSportsLink, VERIFIED_NEMO_MAPPING_TABLE } from '../nemo-resolver';
-import { getStableMatchId } from '../match-identity';
+import { buildTeamIdentityKey, getStableMatchId } from '../match-identity';
 import {
    SportScoreRawMatch,
   mapSportScoreMatchToRecord,
@@ -992,7 +992,12 @@ export const VERIFIED_FOOTBALL_DATA_SEASONS: SeasonRecord[] = [
 /**
  * Builds the initial verified GatewayDatabase seeded with the real data from all 5 approved sources.
  */
-export function buildInitialVerifiedDatabase(): GatewayDatabase {
+/**
+ * تعريفات المصادر الأولية (seed). تُستدعى أيضًا من ترحيل اللقطات القديمة حتى
+ * تظهر أي إضافات جديدة في `/api/sources` وفي حالة المزامنة رغم أن لقطة المخزن
+ * العاملة قُبلت قبل وجود المصدر (ترقية بدون إعادة بناء كاملة).
+ */
+export function buildSeedSourceDefinitions(): Record<SourceId, SourceDefinition> {
   const hasFdKey = Boolean((process.env.FOOTBALL_DATA_API_KEY || '').trim());
   const hasApifKey = Boolean((process.env.API_FOOTBALL_KEY || '').trim());
 
@@ -1180,7 +1185,50 @@ export function buildInitialVerifiedDatabase(): GatewayDatabase {
       newsImportedCount: 0,
       newsPublishedCount: 0,
     },
+    'publisher-rss': {
+      id: 'publisher-rss',
+      name: 'Publisher Direct RSS (BBC AR/EN · Guardian · FilGoal)',
+      nameAr: 'خلاصات الناشرين المباشرة (BBC عربي · BBC Sport · الجارديان · في الجول)',
+      type: 'RSS 2.0 XML Feed',
+      baseUrl: 'https://feeds.bbci.co.uk/arabic/sport/rss.xml',
+      requiresKey: false,
+      keyEnvVar: 'NEMO_PUBLISHER_RSS_FEEDS',
+      isKeyConfigured: true,
+      status: 'degraded',
+      statusLabelAr: 'مصدر أخبار مباشر من الناشرين — بانتظار مزامنة حية ناجحة',
+      dataTypesProvided: [
+        'عناوين مقالات الناشر الأصلي بروابطها المباشرة (بلا رابط وسيط)',
+        'تاريخ النشر الأصلي والمقتطف والصورة عند توفرها',
+      ],
+      rateLimitPolicy: 'تخزين مؤقت 10 دقائق لكل خلاصة؛ تُجلب الخلاصات مستقلة، فشل واحدة لا يوقف الباقي',
+      testedEndpoints: [
+        'GET https://feeds.bbci.co.uk/arabic/sport/rss.xml',
+        'GET https://feeds.bbci.co.uk/sport/football/rss.xml',
+        'GET https://www.theguardian.com/football/rss',
+        'GET https://www.filgoal.com/rss/News',
+      ],
+      lastSyncAt: null,
+      lastHttpStatus: null,
+      lastLatencyMs: null,
+      recordsImported: 0,
+      errorCount: 0,
+      notesAr: 'خلاصات عامة ينشرها الناشر نفسه للنقل الإخباري؛ روابط المقالات أصلية مباشرة. القائمة قابلة للتوسعة بمتغير NEMO_PUBLISHER_RSS_FEEDS (بقائمة ناشرين موثوقين فقط).',
+      providesMatches: false,
+      providesStandings: false,
+      providesNews: true,
+      lastSuccessfulNewsSyncAt: null,
+      newsImportedCount: 0,
+      newsPublishedCount: 0,
+    },
   };
+  return sources;
+}
+
+export function buildInitialVerifiedDatabase(): GatewayDatabase {
+  const sources = buildSeedSourceDefinitions();
+  const hasFdKey = Boolean((process.env.FOOTBALL_DATA_API_KEY || '').trim());
+  const hasApifKey = Boolean((process.env.API_FOOTBALL_KEY || '').trim());
+
 
   // Map SportScore matches
   const sportScoreRecords = VERIFIED_SPORTSCORE_MATCHES.map((item) => {
@@ -1379,10 +1427,41 @@ export function mergeMatchRecords(
     )
   ) as typeof existing.externalIds;
 
+  /*
+   * تصحيح provider لمفهوم المباراة تحت نفس المعرّف المستقر (مثبت من الإنتاج 2026-10-15:
+   * سجل TheSportsDB eventId 2561130 كان يخزّن «سموحة × سيراميكا» بينما أعاد المزوّد نفس
+   * الـ id بمباراة «الجونة × سموحة» — والسياسة القديمة لا تحدّث أسماء الفرق أبدًا فبقيت
+   * بطاقة قديمة معلقة بتاريخ خاطئ للأبد). القاعدة الآمنة:
+   *   • يُتبنى تبديل الفرق فقط عندما تكون الملاحظة القادمة أحدث، ولا يكون مخزَّنًا نتيجة أو
+   *     حالة تشغيلية (live/finished/postponed مثبّتة لا تُمسّ)، والطرفان اسمان حقيقيان لا قيم تقنية،
+   *   • لا يمسّ ذلك التطابق بالهوية (الفرق المختلفة لا تُدمج بحسب الاسم — البوابات في
+   *     compareFixtureIdentity محفوظة)؛ هذا المسار الوحيد المشترك هو **معرّف المزوّد نفسه**.
+   */
+  const existingHasNoResult =
+    !['live', 'finished', 'half_time', 'paused', 'postponed', 'cancelled'].includes(existing.status) &&
+    existing.score.home === null &&
+    existing.score.away === null;
+  const incomingTeamsKnown =
+    !incoming.homeTeam?.nameAr?.includes('فريق غير معروف') &&
+    !incoming.awayTeam?.nameAr?.includes('فريق غير معروف') &&
+    Boolean(incoming.homeTeam?.nameEn) &&
+    Boolean(incoming.awayTeam?.nameEn);
+  const teamsChanged =
+    incomingIsNewer &&
+    existingHasNoResult &&
+    incomingTeamsKnown &&
+    (buildTeamIdentityKey(existing.homeTeam) !== buildTeamIdentityKey(incoming.homeTeam) ||
+      buildTeamIdentityKey(existing.awayTeam) !== buildTeamIdentityKey(incoming.awayTeam));
+
   const merged = {
     ...existing,
-    roundLabelAr: existing.roundLabelAr || incoming.roundLabelAr,
-    venue: existing.venue || incoming.venue,
+    homeTeam: teamsChanged ? incoming.homeTeam : existing.homeTeam,
+    awayTeam: teamsChanged ? incoming.awayTeam : existing.awayTeam,
+    // ملعب المباراة القديمة لم يعد يخصّ المباراة الجديدة؛ عند التبديل يُؤخذ ملعب المزوّد الحالي.
+    roundLabelAr: teamsChanged
+      ? incoming.roundLabelAr || existing.roundLabelAr
+      : existing.roundLabelAr || incoming.roundLabelAr,
+    venue: teamsChanged ? incoming.venue || existing.venue : existing.venue || incoming.venue,
     status: useIncomingStatus ? incoming.status : existing.status,
     statusLabelAr: useIncomingStatus ? incoming.statusLabelAr : existing.statusLabelAr,
     statusNoteAr: useIncomingStatus ? incoming.statusNoteAr : existing.statusNoteAr,

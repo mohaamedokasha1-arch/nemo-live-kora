@@ -34,6 +34,11 @@ export interface ResolvedArticleUrl {
   strategy: ResolverStrategy | null;
   /** Machine-readable reason when resolution failed. */
   error: string | null;
+  /**
+   * Deeper failure detail for operators — why the error happened (e.g. which sub-step of the
+   * interstitial path failed). Purely additive: the stable `error` code never changes.
+   */
+  detail?: string | null;
   /** How many network round-trips this resolution cost. */
   requests: number;
   latencyMs: number;
@@ -229,10 +234,12 @@ export async function resolveViaBatchExecute(
 
 /**
  * The relay page embeds `AF_initDataCallback({key: 'ds:0' … })`; the array after
- * `[null,null,"` holds `signature","timestamp`. Exported for unit tests.
+ * `[null,null,"` holds `signature","timestamp`. Google has moved the payload between `ds:N`
+ * keys, so any `AF_initDataCallback` block is searched, not only `ds:0`. Exported for unit tests.
  */
 export function extractBatchExecuteParams(html: string): { signature: string; timestamp: string } | null {
-  const callbackIndex = html.indexOf("AF_initDataCallback({key: 'ds:0'");
+  const callbackMatch = html.match(/AF_initDataCallback\(\{key:\s*'ds:\d+'/);
+  const callbackIndex = callbackMatch ? (callbackMatch.index as number) : -1;
   const scoped = callbackIndex >= 0 ? html.slice(callbackIndex) : html;
   const marker = scoped.indexOf('[null,null,"');
   if (marker === -1) return null;
@@ -261,7 +268,22 @@ export function parseBatchExecuteResponse(text: string): string | null {
   } catch {
     return null;
   }
-  return findDecodedUrl(parsed, 0);
+  const structural = findDecodedUrl(parsed, 0);
+  if (structural) return structural;
+  // Shape fallback (matches how public decoders read the RPC): the destination is the first
+  // absolute URL in the payload, `\/` unescaped. Google hosts can never win here because the
+  // caller re-validates against the publisher-domains trust check.
+  const scanned = cleaned.replace(/\\+\//g, '/').match(/https?:\/\/[^"'\\<>\s]{20,}/);
+  if (!scanned) return null;
+  const candidate = scanned[0];
+  let hostname = '';
+  try {
+    hostname = new URL(candidate).hostname;
+  } catch {
+    return null;
+  }
+  if (isGoogleNewsHost(candidate) || /(google|gstatic|doubleclick)/.test(hostname)) return null;
+  return candidate.length > 12 ? candidate : null;
 }
 
 function findDecodedUrl(node: unknown, depth: number): string | null {
@@ -324,10 +346,12 @@ export async function resolveGoogleNewsRelayUrl(
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl || fetch;
   let requests = 0;
+  let detail: string | null = null;
   const finish = (url: string | null, strategy: ResolverStrategy | null, error: string | null): ResolvedArticleUrl => ({
     url,
     strategy,
     error,
+    detail,
     requests,
     latencyMs: Date.now() - startedAt,
   });
@@ -352,6 +376,8 @@ export async function resolveGoogleNewsRelayUrl(
     if (viaRpc.url) {
       const check = isTrustedPublisherArticleUrl(viaRpc.url, null);
       if (check.ok && check.normalized) return finish(check.normalized, 'batchexecute', null);
+    } else {
+      detail = `opaque_rpc:${viaRpc.error || 'no_url'}`;
     }
   }
 
@@ -419,6 +445,11 @@ export async function resolveGoogleNewsRelayUrl(
               const check = isTrustedPublisherArticleUrl(viaRpc.url, null);
               if (check.ok && check.normalized) return finish(check.normalized, 'batchexecute', null);
             }
+            detail = detail ? `${detail};relay_rpc:${viaRpc.error || 'no_url'}` : `relay_rpc:${viaRpc.error || 'no_url'}`;
+          } else {
+            detail = detail
+              ? `${detail};relay_params_not_found`
+              : 'relay_params_not_found';
           }
         }
         return finish(null, null, 'interstitial_without_destination');

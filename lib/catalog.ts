@@ -1312,6 +1312,8 @@ export function getMatchSourceLabelAr(sourceId: SourceId): string {
       return 'Football-Data.org';
     case 'google-news-rss':
       return 'Google News RSS';
+    case 'publisher-rss':
+      return 'خلاصات الناشرين المباشرة';
     default:
       return 'غير متاح';
   }

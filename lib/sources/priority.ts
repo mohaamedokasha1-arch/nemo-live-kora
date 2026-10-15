@@ -19,6 +19,7 @@ export const DEFAULT_SOURCE_RANK: Record<SourceId, number> = {
   thesportsdb: 20,
   'football-data': 30,
   'api-football': 40,
+  'publisher-rss': 85,
   'google-news-rss': 90,
 };
 

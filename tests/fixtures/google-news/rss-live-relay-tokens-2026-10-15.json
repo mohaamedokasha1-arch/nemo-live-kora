@@ -1,0 +1,25 @@
+{
+  "_note": "RECORDED FIXTURE — not mock-generated. Three consecutive <item> entries captured verbatim (link/title/pubDate/source only) from the live URL https://news.google.com/rss/search?q=%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%8A&hl=ar&gl=EG&ceid=EG:ar on 2026-10-15T05:31Z via the audit environment's egress. Used to prove the CURRENT Google relay format carries no embedded publisher URL (opaque AU_yqL payload), which is why production resolves 0 links. No article bodies are stored.",
+  "capturedAt": "2026-10-15T05:31:18Z",
+  "feedUrl": "https://news.google.com/rss/search?q=الدوري المصري&hl=ar&gl=EG&ceid=EG:ar",
+  "items": [
+    {
+      "title": "مدرب الاتحاد: أرقام مؤمن عوض أفضل من هاني والشيبي ويستحق الانضمام للمنتخب",
+      "publisher": "اليوم السابع",
+      "pubDate": "Thu, 15 Oct 2026 03:30:00 GMT",
+      "relayUrl": "https://news.google.com/rss/articles/CBMi1wNBVV95cUxPRVhwTVg2SEJRVjFKRk5WUEtGQWh1MFFVV1hQallqWVJFdnVuNmNsaTFQeDJCaWRvZTFGSzNmOHVUR1h6SzMwNHMwc2VIMWxkZVFTclpUU0NyX2lCc3YzeXJnc25WMHhsUDdhQU55c1pLRlVWbjhmZl84a1V4UWg3QXBaZEJ0UE5aeXh2UWhGNWItNFdMVXpobWljbmxob2ZTbm5hU1FZT0dZOGpvRkp4STJzVTVwV2k0UjFSbzA5NU5yXzBianhvMW9GdWJpSWxVRndiQnNvaERra2M0MFBJWU9RdnBMblZoZ2wtRnU0bmotWXk5RE92VlVVRTVsWVE1SzNqXzJnVVNMTEdieFZGQk80UThQTmRoa0NXR0ZqNHdIVHF2YjZUTWFhMkdoRHg2YVh0S2s3RlV1NTVXTU1iMDM3ZnUybnhkcGJhM2NpYy1OcHhKUXkxSEZEYzRna3drV3NuTUtFbk1lUHhJdmN0clJneU5JZEl3c2NkSTVfSXQwcHQxX0tYSm9pRHItSHk3STNZeEZydmNMb3BSck8tNVZMejNGcnhiV01JNlJ2ejNFVUIzOFBUMUswX3Vhem5xUlp4YnZrMGU0U21GcFNEdENjVlhXT03SAdIDQVVfeXFMTUY4eEVPZ1A0S3hZN3VUWENocEpvNkhCc0pscnNUanRNRUdqTEFKWlR6ZllVLWVkZGh1c0ExbkJ2eXlMYnV2SG5laGhRaGp5aTlqMXFnTkxyTlpCcUQyTzM0aDFjVHJUSkFVOTB2b0VBcmdlemlQSzBnUGIwbTJpRlV0bHRKR3Y5TFN6REZjam8yNEh2MnFFMVNFenlmZF9iWU04eU9fYzZCNzA2SXAtS2tzVlVSbjJ1SjFob1pWUlNxS0xQWnQzdnRHejFDTU1wZTRzd25aaWlJMjE1ZWpwZlNGVkg5VHpOZm9aRlN0ZmcyUVJ5SzVzVnZjVmQ3ZWppYlpDckl1YWpWZFVMVUoyMUJ5bFBrVmdIMzNHQU8zaVVYaW0xclhfSDB0OHZLS3hYU1U0aE9ReTdPY29kLU9sQnIyS0RTRU42TE4tQUxON0otTndaMFhfWVVnOGd3ZnFaRTVsQ1JuNU1KS3VJOG5ZOVJZanFQZUdpbzB4TWVhU3k2cXdSQm93a2JOaEo1RGsydWFmUXZUZzV2MXp2dndQZHdMdmZmRmJvNDlHWjBuUWtGczEwMWo4eDQyenpsWHFfWEpoOHMyNF96UHZnSFMySTlOUQ?oc=5"
+    },
+    {
+      "title": "اهداف مباراة بيراميدز وسيراميكا كليوباترا (4-1) الدوري المصري",
+      "publisher": "بطولات",
+      "pubDate": "Mon, 12 Oct 2026 17:13:00 GMT",
+      "relayUrl": "https://news.google.com/rss/articles/CBMiSkFVX3lxTE5TenFZWTNVd0Vpc0Jrd0RUSjl6SnU0Yzl6YmhYNmN3c3JFX3NYbFR0VC1fdkJlZm9GTjI4bWpDanJpZGpxUm92dVhR0gFPQVVfeXFMTUdfUHptVGlGMllOUnZ6YXBYaGkyV2xzeWhER1V2MGJOeERVaWR6a05vS0plZk9YS214TnE2XzRfTEllOXE2UElNb0RWMnlOQQ?oc=5"
+    },
+    {
+      "title": "فيديوهات | هدف بيراميدز الأول ضد سيراميكا - مصطفى زيكو (الدوري المصري)",
+      "publisher": "FilGoal",
+      "pubDate": "Mon, 12 Oct 2026 17:52:00 GMT",
+      "relayUrl": "https://news.google.com/rss/articles/CBMiTEFVX3lxTFA0Z1hYRXJ0SjhUNF9YR052dFAweXdWdkdVZ2hNR3QyRzFJTEdzb2k2OXlRT2dYeEQ3YUVGMnh0dFgwT1N6RTRiN01za0Q?oc=5"
+    }
+  ]
+}

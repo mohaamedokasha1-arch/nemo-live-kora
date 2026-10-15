@@ -253,7 +253,8 @@ test('5. Five Approved Sources Adapters & Deduplication: normalizes and merges w
 
 test('6. Egyptian Priority & Filter Integrity: Egyptian Premier League appears first on 2026-10-12 and filters only expose real data', async () => {
   const db = getGatewayDatabase();
-  assert.equal(Object.keys(db.sources).length, 5);
+  assert.equal(Object.keys(db.sources).length, 6);
+  assert.ok(db.sources['publisher-rss'], 'مصدر الخلاصات المباشرة مُسجَّل في اللوحة من لحظة البذر');
 
   const todayQuery = queryGatewayMatches({ cairoDate: '2026-10-12' });
   assert.ok(todayQuery.totalOnDate > 0);
