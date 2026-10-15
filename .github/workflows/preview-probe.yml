@@ -1,0 +1,41 @@
+name: preview-probe
+on:
+  push:
+    branches: [arena/10602981-nemo-live-kora]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: probe
+        run: |
+          cat > p.mjs <<'JS'
+          const hosts = {
+            preview: 'https://nemo-live-kora-git-arena-10602-1ce487-mohamed-akasha-s-projects.vercel.app',
+            prod: process.env.PROD || '',
+          };
+          const fmt = (d) => new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo'}).format(d);
+          const today = fmt(new Date()); const tomorrow = fmt(new Date(Date.now()+864e5));
+          const out = [];
+          for (const [name, base] of Object.entries(hosts)) {
+            if (!base) continue;
+            for (const date of [today, tomorrow]) {
+              const t0 = Date.now();
+              try {
+                const r = await fetch(`${base}/api/matches?date=${date}`, {redirect:'manual'});
+                const txt = await r.text(); let j = null; try { j = JSON.parse(txt);} catch {}
+                if (!j) { out.push(`${name} ${date} HTTP ${r.status} non-json ${txt.slice(0,120).replace(/\s+/g,' ')}`); continue; }
+                const ms = j.matches||[];
+                const keys = new Set(); let dup=0, wrong=0, eg=0;
+                for (const m of ms) { const k=[m.homeTeam?.name||m.homeTeamName||m.homeTeam, m.awayTeam?.name||m.awayTeamName||m.awayTeam, m.kickoffUtc||m.startTime||m.kickoff].map(x=>typeof x==='string'?x:JSON.stringify(x)).join('|'); if(keys.has(k)) dup++; keys.add(k); if(m.cairoDate!==date) wrong++; if(JSON.stringify(m).match(/Egypt|مصر|مصري/)) eg++; }
+                const sources = {}; for (const m of ms) { const s = m.source||m.primarySource||'?'; sources[s]=(sources[s]||0)+1; }
+                out.push(`${name} ${date} HTTP ${r.status} ${Date.now()-t0}ms matches=${ms.length} groups=${(j.groups||[]).length} egypt~${eg} dup=${dup} wrongDate=${wrong} lastSync=${j.lastSuccessfulMatchesSyncAt} src=${JSON.stringify(sources).slice(0,200)}`);
+              } catch (e) { out.push(`${name} ${date} ERROR ${e.message}`); }
+            }
+            for (const p of ['/', '/matches']) {
+              try { const r = await fetch(base+p,{redirect:'manual'}); const h = await r.text(); out.push(`${name} ${p} HTTP ${r.status} len=${h.length} sportscoreLink=${h.includes('https://sportscore.com')}`);} catch(e){ out.push(`${name} ${p} ERROR ${e.message}`);}
+            }
+          }
+          for (const l of out) console.log('::notice::'+l);
+          JS
+          PROD=https://nemo-live-kora.vercel.app node p.mjs
