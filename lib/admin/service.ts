@@ -39,7 +39,8 @@ import {
 import { CANONICAL_COMPETITIONS } from '../catalog';
 import { NEWS_INDEX_MIN_FIRST_PARTY, isIndexableNewsArticle } from '../news/validate';
 import { getGatewayDatabase, persistGatewayDatabase } from '../db/store';
-import { buildMatchDedupKey } from '../match-identity';
+import { buildMatchDedupKey, findDuplicateFixtureGroups } from '../match-identity';
+import { describeDuplicateAr } from '../matches/fixture-consolidation';
 import { buildMatchLandingPath } from '../matches/match-links';
 import { findServedCatalogEntryForMatch } from './served-catalog';
 import { getTodayCairoDate } from '../cairo-time';
@@ -188,6 +189,10 @@ export interface AdminDashboard {
     matches: number;
     liveMatches: number;
     todayMatches: number;
+    /** سجلات أُثبت أنها نسخة ثانية لمباراة موجودة: محفوظة للمراجعة ولا تُعرض للزائر. */
+    mergedDuplicateMatches: number;
+    /** مجموعات فيها نفس المباراة أكثر من مرة ولم تُعالج تلقائيًا (تحتاج قرارًا). */
+    unresolvedDuplicateGroups: number;
     manualMatches: number;
     overriddenMatches: number;
     teams: number;
@@ -229,6 +234,15 @@ export async function getDashboard(): Promise<AdminDashboard> {
     (override) => override.locked.length > 0 || override.lockAll || override.suppressedSources.length > 0
   ).length;
 
+  /**
+   * التكرار عبر المصادر: سجل مُعلَّم كتكرار = نسخة ثانية لنفس المباراة محفوظة ببيانات
+   * مصدرها ولا تُعرض. والمجموعات غير المُعلَّمة = ما يحتاج مراجعة بشرية.
+   */
+  const standaloneMatches = db.matches.filter((match) => !match.duplicateOfId);
+  const standaloneMatchCount = standaloneMatches.length;
+  const mergedDuplicateMatches = db.matches.length - standaloneMatchCount;
+  const unresolvedDuplicateGroups = findDuplicateFixtureGroups(standaloneMatches);
+
   const warnings: string[] = [];
   const staleSources = sources.filter((source) => source.stale && source.enabled).map((source) => source.id);
   if (staleSources.length > 0) {
@@ -249,14 +263,29 @@ export async function getDashboard(): Promise<AdminDashboard> {
     warnings.push('كل المصادر معطّلة من اللوحة — الموقع يعرض البيانات المحفوظة فقط ولا يُحدَّث تلقائيًا.');
   }
   if (storage.lastError) warnings.push(storage.lastError);
+  if (mergedDuplicateMatches > 0) {
+    warnings.push(
+      `تكرار موحَّد: ${mergedDuplicateMatches} سجلًا كان نسخة ثانية لمباريات موجودة، عُرضت المباراة مرة واحدة ولم يُحذف أي سجل (راجع عمود «تكرار» في صفحة المباريات).`
+    );
+  }
+  if (unresolvedDuplicateGroups.length > 0) {
+    warnings.push(
+      `تكرار يحتاج مراجعة: ${unresolvedDuplicateGroups.length} مجموعة فيها نفس المباراة أكثر من مرة ولم تُعالج تلقائيًا (فريقان متماثلان أو سجل مجمَّد أو سجل إداري).`
+    );
+  }
 
   return {
     generatedAt: new Date().toISOString(),
     storage,
     counts: {
-      matches: db.matches.length,
-      liveMatches: db.matches.filter((match) => match.status === 'live').length,
-      todayMatches: db.matches.filter((match) => match.cairoDate === todayCairo).length,
+      /** السجلات التي تُعرض للزائر: مباراة واحدة لكل تكرار مُثبت. */
+      matches: standaloneMatchCount,
+      liveMatches: standaloneMatches.filter((match) => match.status === 'live').length,
+      todayMatches: standaloneMatches.filter((match) => match.cairoDate === todayCairo).length,
+      /** سجلات محفوظة أُثبت أنها نسخة ثانية لنفس المباراة (لم تُحذف، ولا تُعرض). */
+      mergedDuplicateMatches: mergedDuplicateMatches,
+      /** ما زال بلا معالجة: نفس المباراة في أكثر من سجل ولم يُعلَّم بعد (يحتاج مراجعة). */
+      unresolvedDuplicateGroups: unresolvedDuplicateGroups.length,
       manualMatches: document.matches.length,
       overriddenMatches: overridden,
       teams: new Set(db.matches.flatMap((match) => [match.homeTeam.id, match.awayTeam.id])).size + document.teams.length,
@@ -323,6 +352,10 @@ export interface AdminMatchRow {
   origin: 'source' | 'manual';
   landingPath: string | null;
   staleHours: number | null;
+  /** معرّف السجل الأساسي عندما يكون هذا السجل تكرارًا مُثبتًا لمباراة واحدة. */
+  duplicateOfId: string | null;
+  /** شرح عربي لدليل الدمج حتى يراجع المدير السبب قبل أي قرار. */
+  duplicateReasonAr: string | null;
 }
 
 export interface AdminMatchQuery {
@@ -384,6 +417,8 @@ export function queryAdminMatches(query: AdminMatchQuery = {}): { rows: AdminMat
       origin: manualIds.has(match.id) ? 'manual' : 'source',
       landingPath: gatewayPathByMatchId[match.id] ?? (manualIds.has(match.id) ? `/matches/${match.id}` : null),
       staleHours: hoursSince(match.lastUpdatedAt),
+      duplicateOfId: match.duplicateOfId ?? null,
+      duplicateReasonAr: describeDuplicateAr(match),
     };
   });
 

@@ -1049,6 +1049,94 @@ export function translateTeamNameAr(nameEn: string): string {
   return TEAM_ARABIC_NAMES[norm] || nameEn;
 }
 
+/**
+ * اسم فريق بديل صريح عندما يرسل المصدر قيمة تقنية لا تمثّل ناديًا.
+ * لا نخترع اسمًا: نُعلن أن المصدر لم يُعلن الاسم.
+ */
+export const UNKNOWN_TEAM_NAME_AR = 'فريق غير معروف (لم يُعلن الاسم من المصدر)';
+
+/**
+ * هل هذه القيمة اسم فريق حقيقي أم معرّف تقني أرسله المصدر في خانة الاسم؟
+ *
+ * المثال المُثبت من الإنتاج: `Team dj2ryoh2w90q1zp` ظهر كاسم فريق على صفحة الجدول في
+ * مباراة «Myanmar Universitet ضد Team dj2ryoh2w90q1zp». لا يُعرض مثل هذا النص كاسم نادٍ.
+ * الشرط صارم عن قصد: كلمة `team` متبوعة بمعرّف يحتوي أرقامًا وطوله 8+، أو قيمة نائبة
+ * صريحة (TBD / N-A / unknown)، أو تطابق الاسم مع معرّف الفريق نفسه — ولا يُصنَّف أي اسم
+ * نادٍ حقيقي (مثل «Sportvereniging Notch») كقيمة تقنية.
+ */
+export function isPlaceholderTeamName(value: string | null | undefined, teamId?: string | null): boolean {
+  const raw = (value || '').trim();
+  if (!raw) return true;
+  const normalized = raw.toLowerCase();
+  if (teamId && normalized === teamId.trim().toLowerCase()) return true;
+  if (/^(tbd|tba|n\/?a|unknown|undefined|null|none|—+|-+)$/.test(normalized)) return true;
+  if (/^team[\s_-]+(?=[a-z0-9_]*\d)[a-z0-9_]{8,}$/.test(normalized)) return true;
+  if (/^(home|away)[\s_-]+team[\s_-]?\d*$/.test(normalized)) return true;
+  return false;
+}
+
+export type TeamNameStatus = 'verified' | 'translated' | 'source' | 'placeholder';
+
+/**
+ * اسم الفريق للعرض + حالة الاسم معًا (لا فصلهما في أي مسار كتابة):
+ *  ① كتالوج الأندية الموثّق (عربي/إنجليزي) → `verified`.
+ *  ② قاموس ترجمات معتمد → `translated`.
+ *  ③ بلا ترجمة موثّقة → اسم المصدر نفسه بلا تغيير → `source`.
+ *  ④ قيمة تقنية → عبارة واضحة → `placeholder` (وتُسجَّل للمراجعة في الفحص).
+ */
+export function resolveTeamNameFromSource(
+  sourceName: string,
+  teamId?: string | null
+): { nameAr: string; nameStatus: TeamNameStatus } {
+  if (isPlaceholderTeamName(sourceName, teamId)) {
+    return { nameAr: UNKNOWN_TEAM_NAME_AR, nameStatus: 'placeholder' };
+  }
+  const eq = resolveEgyptianTeam(sourceName);
+  if (eq) return { nameAr: eq.nameAr, nameStatus: 'verified' };
+  const mapped = TEAM_ARABIC_NAMES[sourceName.trim().toLowerCase()];
+  if (mapped) return { nameAr: mapped, nameStatus: 'translated' };
+  return { nameAr: sourceName, nameStatus: 'source' };
+}
+
+export interface TeamDisplayIdentity {
+  /** الاسم المعروض فعلًا للزائر. */
+  displayName: string;
+  /** هل الاسم المعروض بالعربية؟ (يُستخدم لضبط اتجاه النص RTL/LTR في البطاقة). */
+  isArabicName: boolean;
+  /** هل المصدر أرسل قيمة تقنية بدل اسم نادٍ؟ */
+  isPlaceholder: boolean;
+  /** الاسم الأجنبي المرجعي (يُعرض كسطر ثانوي عندما يختلف عن العربي المعروض). */
+  secondaryName: string | null;
+}
+
+/**
+ * هوية العرض لاسم فريق من سجل مخزَّن (بما فيه سجلات قديمة تحمل قيمة تقنية):
+ * تُصلح العرض **دون** تغيير معرّفات الفرق ولا روابطها ولا أي بيانات في المخزن.
+ */
+export function resolveTeamDisplayIdentity(team: {
+  id?: string;
+  nameAr?: string | null;
+  nameEn?: string | null;
+}): TeamDisplayIdentity {
+  const nameAr = (team.nameAr || '').trim();
+  const nameEn = (team.nameEn || '').trim();
+  const placeholder = isPlaceholderTeamName(nameEn || nameAr, team.id) || isPlaceholderTeamName(nameAr, team.id);
+  if (placeholder) {
+    return { displayName: UNKNOWN_TEAM_NAME_AR, isArabicName: true, isPlaceholder: true, secondaryName: null };
+  }
+  const displayName = nameAr || nameEn || UNKNOWN_TEAM_NAME_AR;
+  const isArabicName = /[\u0600-\u06FF]/.test(displayName);
+  /**
+   * الاسم المرجعي: اسم المصدر اللاتيني حين يختلف عن المعروض. لا يُعرض دائمًا — المكوّن يُظهره
+   * فقط في البطاقة التي تختلط فيها اللغتان (فريق عربي مقابل فريق لاتيني)، فلا تتضخّم البطاقات
+   * العربية الموثّقة بسطر ثانٍ بلا داعٍ.
+   */
+  const referenceName = nameEn && !/[\u0600-\u06FF]/.test(nameEn) ? nameEn : '';
+  const secondaryName =
+    referenceName && referenceName.toLowerCase() !== displayName.toLowerCase() ? referenceName : null;
+  return { displayName, isArabicName, isPlaceholder: false, secondaryName };
+}
+
 export function resolveCompetitionByMeta(params: {
   nameEn?: string;
   sportscoreSlug?: string;
@@ -1109,12 +1197,26 @@ export function resolveCompetitionByMeta(params: {
   };
 }
 
-function translateGlobalCompetitionAr(
+/**
+ * الاسم العربي للبطولات العالمية التي لا يوجد لها سجل في الكتالوج الرسمي.
+ *
+ * تعمل هذه الدالة على **أسماء المصادر كما وردت فعلًا**، لا على أسماء مثالية: فاسم البطولة
+ * الواحدة يصل من SportScore باسم «United States Major League Soccer» ومن TheSportsDB باسم
+ * «American Major League Soccer». كانت الحالة الأولى فقط تُترجم، فظهر نفس الدوري باسمين
+ * مختلفين (أحدهما إنجليزي) وبهويتين مختلفتين في التصفية والدمج.
+ */
+export function translateGlobalCompetitionAr(
   nameEn: string,
   countryEn?: string
 ): { nameAr: string; countryAr: string; region: CompetitionRegion; priority: number } {
   const n = nameEn.toLowerCase();
-  if (n.includes('united states mls') || n === 'mls') {
+  if (
+    n.includes('united states mls') ||
+    n === 'mls' ||
+    n.includes('major league soccer') ||
+    n.includes('american major league') ||
+    n.includes('united states major league')
+  ) {
     return { nameAr: 'الدوري الأمريكي للمحترفين', countryAr: 'الولايات المتحدة', region: 'americas', priority: 55 };
   }
   if (n.includes('liga mx') || n.includes('mexico liga mx')) {

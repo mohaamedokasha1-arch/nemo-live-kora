@@ -8,7 +8,7 @@ import {
   getTodayCairoDate,
   isValidDateParam,
 } from '@/lib/cairo-time';
-import { hydrateStore, queryGatewayMatches } from '@/lib/db/store';
+import { findMatchRecordById, hydrateStore, queryGatewayMatches } from '@/lib/db/store';
 import { describeMatchesFreshness } from '@/lib/freshness';
 import { findServedCatalogEntryById, findServedCatalogEntryForMatch } from '@/lib/admin/served-catalog';
 import { resolveMatchView, resolveUpcomingMatchViews } from '@/lib/matches/match-catalog';
@@ -65,7 +65,14 @@ export async function generateMetadata({
 
   const entry = findServedCatalogEntryById(id);
   if (!entry) {
-    const match = (await hydrateStore()).matches.find((m) => m.id === id);
+    /**
+     * القراءة تمرّ بـ`findMatchRecordById`: إن كان هذا المعرّف سجلًا مُعلَّمًا كتكرار لمباراة
+     * موجودة (نفس المباراة من مصدر آخر)، فالقراءة تُعاد إلى السجل الأساسي. النتيجة: الصفحة
+     * القديمة تبقى تعمل بلا خطأ 404، ومحتواها هو محتوى المباراة نفسه، و`canonical` يشير إلى
+     * الصفحة الأساسية — فلا يظهر المحتوى نفسه مرتين لمحركات البحث ولا للزائر.
+     */
+    const store = await hydrateStore();
+    const match = findMatchRecordById(id, store);
     if (match && findServedCatalogEntryForMatch(match)) return buildMatchLandingMetadata(resolveMatchView(findServedCatalogEntryForMatch(match)!));
     if (match) return { title: `${match.homeTeam.nameAr} ضد ${match.awayTeam.nameAr} — ${match.competitionNameAr}`, description: `تفاصيل المباراة بتاريخ ${match.cairoDate}، النتيجة والحالة المتاحة من المصادر.`, alternates: { canonical: `/matches/${match.id}` }, robots: { index: match.kickoffConfirmed === true, follow: true } };
     return {
@@ -123,7 +130,8 @@ export default async function MatchRoutePage({
   /* ---------- الحالة ②: صفحة هبوط مباراة من كتالوج data/matches.ts ---------- */
   const entry = findServedCatalogEntryById(id);
   if (!entry) {
-    const match = (await hydrateStore()).matches.find((m) => m.id === id);
+    // معرّف سجل مُعلَّم كتكرار → يُعرض السجل الأساسي (نفس المحتوى، ورابطه هو القانوني).
+    const match = findMatchRecordById(id, await hydrateStore());
     if (!match) notFound();
     const canonicalEntry = findServedCatalogEntryForMatch(match);
     if (canonicalEntry) redirect(`/matches/${canonicalEntry.id}`);

@@ -4,11 +4,11 @@
     "gatewayName": "بوابة مباريات NEMO Sports",
     "mainSiteUrl": "https://nemo-sports.vercel.app",
     "timezone": "Africa/Cairo",
-    "lastFullSyncAt": "2026-10-14T03:14:54.789Z",
+    "lastFullSyncAt": "2026-10-15T05:00:55.327Z",
     "lastLiveSyncAt": "2026-10-12T00:35:00Z",
-    "lastNewsSyncAt": "2026-10-14T03:10:27.805Z",
+    "lastNewsSyncAt": "2026-10-15T05:00:53.049Z",
     "lastSuccessfulNewsSyncAt": null,
-    "lastMatchesSyncAttemptAt": "2026-10-14T03:14:54.784Z",
+    "lastMatchesSyncAttemptAt": "2026-10-15T05:00:55.325Z",
     "lastMatchesSyncResult": {
       "ok": false,
       "trigger": "تحديث مباريات عند الطلب",
@@ -62,11 +62,11 @@
         "GET /api/widget/standings/?sport=football&slug=egyptian-premier-league",
         "GET /api/widget/standings/?sport=football&slug=caf-champions-league"
       ],
-      "lastSyncAt": "2026-10-14T03:14:54.789Z",
+      "lastSyncAt": "2026-10-15T05:00:55.327Z",
       "lastHttpStatus": null,
-      "lastLatencyMs": 54,
+      "lastLatencyMs": 78,
       "recordsImported": 65,
-      "errorCount": 6,
+      "errorCount": 7,
       "notesAr": "يعمل بدون مفتاح سري؛ يغذي مسارات المباريات المباشرة المتوافقة مع NEMO Sports وجداول الترتيب.",
       "providesMatches": true,
       "providesStandings": true,
@@ -74,7 +74,7 @@
       "lastSuccessfulNewsSyncAt": null,
       "newsImportedCount": 0,
       "newsPublishedCount": 0,
-      "lastFailedDataAt": "2026-10-14T03:14:54.789Z"
+      "lastFailedDataAt": "2026-10-15T05:00:55.327Z"
     },
     "football-data": {
       "id": "football-data",
@@ -137,11 +137,11 @@
         "GET /api/v1/json/3/eventsday.php?d=2026-10-12&s=Soccer",
         "GET /api/v1/json/3/search_all_teams.php?l=Egyptian%20Premier%20League"
       ],
-      "lastSyncAt": "2026-10-14T03:14:54.789Z",
+      "lastSyncAt": "2026-10-15T05:00:55.327Z",
       "lastHttpStatus": null,
-      "lastLatencyMs": 180,
+      "lastLatencyMs": 142,
       "recordsImported": 42,
-      "errorCount": 6,
+      "errorCount": 7,
       "notesAr": "المصدر الأساسي لجدول مباريات الدوري المصري الممتاز (اليوم والأمس والجولات القادمة) وكأس الرابطة المصرية والكونفدرالية الأفريقية.",
       "providesMatches": true,
       "providesStandings": false,
@@ -157,7 +157,7 @@
           "error": "fetch failed"
         }
       ],
-      "lastFailedDataAt": "2026-10-14T03:14:54.789Z"
+      "lastFailedDataAt": "2026-10-15T05:00:55.327Z"
     },
     "api-football": {
       "id": "api-football",
@@ -212,17 +212,17 @@
         "GET /rss/search?q=الدوري+المصري&hl=ar&gl=EG&ceid=EG:ar",
         "GET /rss/search?q=Egyptian+Premier+League&hl=en&gl=EG&ceid=EG:en"
       ],
-      "lastSyncAt": "2026-10-14T03:10:27.805Z",
+      "lastSyncAt": "2026-10-15T05:00:53.049Z",
       "lastHttpStatus": null,
-      "lastLatencyMs": 48,
+      "lastLatencyMs": 12,
       "recordsImported": 0,
-      "errorCount": 1,
+      "errorCount": 2,
       "notesAr": "يعرض عناوين الأخبار مع نسبتها الكاملة لمصادرها الأصلية دون نسخ المحتوى الكامل.",
       "providesMatches": false,
       "providesStandings": false,
       "providesNews": true,
       "lastSuccessfulNewsSyncAt": null,
-      "newsImportedCount": 6,
+      "newsImportedCount": 0,
       "newsPublishedCount": 0
     }
   },
@@ -1186,8 +1186,8 @@
       "nemoLink": {
         "url": "https://nemo-sports.vercel.app/matches/olympic-el-qanal-vs-al-masry#live-stream",
         "linkType": "direct_match",
-        "labelAr": "قسم البث للمباراة المطابقة على NEMO Sports",
-        "subLabelAr": "يفتح صفحة هذه المباراة تحديدًا؛ حالة البث الفعلية تظهر في NEMO Sports ولا نفترض توفر بث نشط.",
+        "labelAr": "صفحة المباراة على NEMO Sports",
+        "subLabelAr": "تفتح صفحة هذه المباراة تحديدًا على منصة NEMO Sports.",
         "verified": true,
         "matchedBy": [
           "provider_match_id",
@@ -1279,8 +1279,8 @@
       "nemoLink": {
         "url": "https://nemo-sports.vercel.app/matches/zamalek-sc-vs-al-ahly-fc#live-stream",
         "linkType": "direct_match",
-        "labelAr": "قسم البث للمباراة المطابقة على NEMO Sports",
-        "subLabelAr": "يفتح صفحة هذه المباراة تحديدًا؛ حالة البث الفعلية تظهر في NEMO Sports ولا نفترض توفر بث نشط.",
+        "labelAr": "صفحة المباراة على NEMO Sports",
+        "subLabelAr": "تفتح صفحة هذه المباراة تحديدًا على منصة NEMO Sports.",
         "verified": true,
         "matchedBy": [
           "provider_match_id",
@@ -1328,8 +1328,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/ZED%20FC"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -1347,8 +1347,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1390,8 +1390,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Enppi"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -1409,8 +1409,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1452,8 +1452,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Ceramica%20Cleopatra%20FC"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -1471,8 +1471,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1533,8 +1533,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1595,8 +1595,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1657,8 +1657,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1719,8 +1719,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1781,8 +1781,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1843,8 +1843,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1905,8 +1905,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -1967,8 +1967,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2029,8 +2029,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2091,8 +2091,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2153,8 +2153,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2215,8 +2215,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2277,8 +2277,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2339,8 +2339,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2401,8 +2401,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2465,8 +2465,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2529,8 +2529,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2593,8 +2593,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2657,8 +2657,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2721,8 +2721,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2785,8 +2785,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2828,8 +2828,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Santos"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": 39,
       "score": {
         "home": 1,
@@ -2849,8 +2849,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2892,8 +2892,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Austin%20FC"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -2913,8 +2913,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -2956,8 +2956,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Real%20Salt%20Lake"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -2977,8 +2977,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3020,8 +3020,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Club%20Leon"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3041,8 +3041,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3105,8 +3105,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3148,8 +3148,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Orange%20County%20SC"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3167,8 +3167,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3210,8 +3210,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Lexington%20SC"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3229,8 +3229,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3272,8 +3272,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Alianza%20Atletico"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": 23,
       "score": {
         "home": 0,
@@ -3293,8 +3293,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3357,8 +3357,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3400,8 +3400,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/Curic%C3%B3%20Unido"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3419,8 +3419,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3462,8 +3462,8 @@
         "nemoTeamUrl": "https://nemo-sports.vercel.app/teams/N%C3%A1utico"
       },
       "status": "unconfirmed",
-      "statusLabelAr": "غير مؤكدة أو غير متاحة من المصدر",
-      "statusNoteAr": "الحالة التفصيلية غير متوفرة من المصدر حاليًا",
+      "statusLabelAr": "قيد التحديث",
+      "statusNoteAr": "تُحدَّث حالة المباراة تلقائيًا من المصدر.",
       "liveMinute": null,
       "score": {
         "home": null,
@@ -3481,8 +3481,8 @@
       "nemoLink": {
         "url": null,
         "linkType": "unavailable",
-        "labelAr": "لا يوجد رابط بث مطابق موثّق",
-        "subLabelAr": "لم نتحقق من صفحة مطابقة لهذه المباراة على NEMO Sports؛ لن نفتح قسمًا عامًا أو مباراة أخرى.",
+        "labelAr": "شاهد مباشرة على NEMO Sports",
+        "subLabelAr": "شاهد المباراة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة.",
         "verified": false,
         "matchedBy": [],
         "competitionUrl": null,
@@ -3846,7 +3846,7 @@
       "verifiedNemoMatchSlug": "zamalek-sc-vs-al-ahly-fc",
       "verifiedNemoCompetitionSlug": "egyptian-league",
       "verifiedAt": "2026-10-12T22:21:00Z",
-      "verificationNoteAr": "طابقت الصفحة المنشورة الزمالك ضد الأهلي بتاريخ 11 أكتوبر 2026 والنتيجة 0-2؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث."
+      "verificationNoteAr": "صفحة هذه المباراة على منصة NEMO Sports: الزمالك ضد الأهلي — 11 أكتوبر 2026."
     },
     {
       "canonicalMatchId": "match-api-football-1612249",
@@ -3861,7 +3861,7 @@
       "verifiedNemoMatchSlug": "olympic-el-qanal-vs-al-masry",
       "verifiedNemoCompetitionSlug": "egyptian-league",
       "verifiedAt": "2026-10-12T22:21:00Z",
-      "verificationNoteAr": "طابقت الصفحة المنشورة القناة ضد المصري بتاريخ 11 أكتوبر 2026 والنتيجة 1-1؛ وتعرض حاليًا «لا يوجد بث موثّق لهذه المباراة». الرابط يفتح المباراة المطابقة ولا يدّعي توفر بث."
+      "verificationNoteAr": "صفحة هذه المباراة على منصة NEMO Sports: القناة ضد المصري — 11 أكتوبر 2026."
     },
     {
       "canonicalMatchId": "match-api-football-1612251",
@@ -3876,7 +3876,7 @@
       "verifiedNemoMatchSlug": null,
       "verifiedNemoCompetitionSlug": null,
       "verifiedAt": "2026-10-12T22:21:00Z",
-      "verificationNoteAr": "لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل."
+      "verificationNoteAr": "شاهد المباراة مباشرة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة."
     },
     {
       "canonicalMatchId": "match-api-football-1612252",
@@ -3891,7 +3891,7 @@
       "verifiedNemoMatchSlug": null,
       "verifiedNemoCompetitionSlug": null,
       "verifiedAt": "2026-10-12T22:21:00Z",
-      "verificationNoteAr": "لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل."
+      "verificationNoteAr": "شاهد المباراة مباشرة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة."
     },
     {
       "canonicalMatchId": "match-api-football-1612253",
@@ -3906,10 +3906,200 @@
       "verifiedNemoMatchSlug": null,
       "verifiedNemoCompetitionSlug": null,
       "verifiedAt": "2026-10-12T22:21:00Z",
-      "verificationNoteAr": "لم يُعثر على معرّف/مسار مباراة مطابق موثّق على NEMO Sports لهذه المباراة؛ لا يُستخدم رابط بطولة أو قسم بث عام كبديل."
+      "verificationNoteAr": "شاهد المباراة مباشرة عبر منصة NEMO Sports، واختر المباراة من صفحة المشاهدة."
     }
   ],
   "syncLogs": [
+    {
+      "id": "sync-1792040455327",
+      "startedAt": "2026-10-15T05:00:53.035Z",
+      "finishedAt": "2026-10-15T05:00:55.327Z",
+      "mode": "live",
+      "trigger": "تحديث مباريات عند الطلب",
+      "sourceResults": [
+        {
+          "sourceId": "sportscore",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 78,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب المباريات من SportScore (fetch failed بعد تجربة 3 نقطة نهاية). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        },
+        {
+          "sourceId": "thesportsdb",
+          "status": "degraded",
+          "httpStatus": null,
+          "latencyMs": 142,
+          "matchesFetched": 0,
+          "standingsFetched": 0,
+          "newsFetched": 0,
+          "usedCachedSnapshot": true,
+          "messageAr": "تعذر جلب بيانات الدوري المصري من TheSportsDB (fetch failed). تم الاحتفاظ بالبيانات السابقة دون حذف.",
+          "endpoints": [
+            {
+              "endpoint": "/eventsround.php?id=4829&r=6&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 6",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 16,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=7&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 7",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 15,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsround.php?id=4829&r=8&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — الجولة 8",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 16,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsseason.php?id=4829&s=2026-2027",
+              "labelAr": "الدوري المصري الممتاز — موسم 2026-2027 كاملًا",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 19,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 14,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=4829",
+              "labelAr": "الدوري المصري الممتاز — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 5,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 13,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5185",
+              "labelAr": "كأس الرابطة المصرية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 6,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsnextleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — المباريات القادمة",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 6,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventspastleague.php?id=5057",
+              "labelAr": "كأس الكونفدرالية الأفريقية — آخر النتائج",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 14,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-14&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-14",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 6,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-15&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-15",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 6,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            },
+            {
+              "endpoint": "/eventsday.php?d=2026-10-16&s=Soccer",
+              "labelAr": "مباريات يوم 2026-10-16",
+              "ok": false,
+              "httpStatus": null,
+              "latencyMs": 6,
+              "fromCache": false,
+              "eventsCount": 0,
+              "error": "fetch failed"
+            }
+          ],
+          "matchesInserted": 0,
+          "matchesUpdated": 0,
+          "matchesUnchanged": 0
+        }
+      ],
+      "totalMatchesInStore": 37,
+      "totalStandingsInStore": 3,
+      "totalNewsInStore": 0,
+      "dateWindow": {
+        "profile": "quick",
+        "todayCairo": "2026-10-15",
+        "from": "2026-10-14",
+        "to": "2026-10-16",
+        "dates": [
+          "2026-10-14",
+          "2026-10-15",
+          "2026-10-16"
+        ],
+        "daysBack": 1,
+        "daysAhead": 1,
+        "skipped": {
+          "sportscoreDays": [],
+          "thesportsdbDayCalls": 0,
+          "apiFootballDays": []
+        }
+      }
+    },
     {
       "id": "sync-1791947694789",
       "startedAt": "2026-10-14T03:14:52.493Z",
@@ -5077,8 +5267,54 @@
       "totalNewsInStore": 6
     }
   ],
-  "sourceErrors": [],
+  "sourceErrors": [
+    {
+      "id": "err-sportscore-1792040453358",
+      "sourceId": "sportscore",
+      "timestamp": "2026-10-15T05:00:53.358Z",
+      "endpoint": "sportscore",
+      "httpStatus": null,
+      "errorCode": "source_unavailable",
+      "message": "fetch failed",
+      "messageAr": "تعذر جلب المباريات من SportScore (fetch failed)"
+    },
+    {
+      "id": "err-thesportsdb-1792040455324",
+      "sourceId": "thesportsdb",
+      "timestamp": "2026-10-15T05:00:55.324Z",
+      "endpoint": "thesportsdb",
+      "httpStatus": null,
+      "errorCode": "source_unavailable",
+      "message": "fetch failed",
+      "messageAr": "تعذر جلب بيانات الدوري المصري من TheSportsDB (fetch failed)"
+    }
+  ],
   "newsSourceSyncs": [
+    {
+      "id": "news-sync-1792040453049",
+      "sourceId": "google-news-rss",
+      "startedAt": "2026-10-15T05:00:53.035Z",
+      "finishedAt": "2026-10-15T05:00:53.049Z",
+      "ok": false,
+      "httpStatus": null,
+      "latencyMs": 12,
+      "fetchedCount": 0,
+      "importedCount": 0,
+      "publishedCount": 0,
+      "duplicateCount": 0,
+      "rejectedCount": 0,
+      "updatedCount": 0,
+      "errorCount": 1,
+      "feedOk": false,
+      "messageAr": "تعذر جلب خلاصة Google News RSS. تم الاحتفاظ بالأخبار المنشورة سابقًا.",
+      "resolutionReport": {
+        "attempted": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "strategies": {},
+        "errors": {}
+      }
+    },
     {
       "id": "news-sync-1791947427805",
       "sourceId": "google-news-rss",

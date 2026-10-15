@@ -1,6 +1,28 @@
 import React from 'react';
 import Image from 'next/image';
 import { CompetitionStandingTable } from '@/lib/types';
+import { resolveTeamDisplayIdentity } from '@/lib/catalog';
+
+/**
+ * اسم النادي المعروض داخل صف الجدول + هل يصحّ ربطه بصفحة النادي على NEMO Sports؟
+ *
+ * مصدر الترتيب نفسه قد يرسل قيمة تقنية في خانة الاسم (نفس عيب «Team dj2ryoh2w90q1zp»
+ * المُثبت في جدول المباريات). القيمة التقنية تُعرض بعبارة واضحة، و**لا** يُبنى منها رابط
+ * نادٍ على منصة NEMO Sports لأن `…/teams/Team%20dj2ryoh2w90q1zp` ليس صفحة موجودة.
+ * أما الأسماء الحقيقية فتبقى كما هي بنفس الرابط تمامًا — لا تغيير في أي وجهة قائمة.
+ */
+function rowTeamDisplay(row: CompetitionStandingTable['rows'][number]) {
+  const identity = resolveTeamDisplayIdentity({
+    id: row.teamId,
+    nameAr: row.teamNameAr,
+    nameEn: row.teamNameEn,
+  });
+  return {
+    displayName: identity.displayName,
+    isArabicName: identity.isArabicName,
+    href: identity.isPlaceholder ? null : row.nemoTeamUrl || null,
+  };
+}
 
 export default function StandingsSection({
   standings,
@@ -66,7 +88,9 @@ export default function StandingsSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {egyptTable.rows.map((row) => (
+                  {egyptTable.rows.map((row) => {
+                    const team = rowTeamDisplay(row);
+                    return (
                     <tr key={row.teamId}>
                       <td className="pos-cell">{row.position}</td>
                       <td className="team-cell">
@@ -74,7 +98,7 @@ export default function StandingsSection({
                           {row.teamLogo && (
                             <Image
                               src={row.teamLogo}
-                              alt={row.teamNameAr}
+                              alt={team.displayName}
                               width={24}
                               height={24}
                               unoptimized
@@ -82,17 +106,19 @@ export default function StandingsSection({
                               loading="lazy"
                             />
                           )}
-                          {row.nemoTeamUrl ? (
+                          {team.href ? (
                             <a
-                              href={row.nemoTeamUrl}
+                              href={team.href}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="standings-team-link"
+                              dir="auto"
+                              lang={team.isArabicName ? 'ar' : 'en'}
                             >
-                              {row.teamNameAr}
+                              {team.displayName}
                             </a>
                           ) : (
-                            <span>{row.teamNameAr}</span>
+                            <span dir="auto" lang={team.isArabicName ? 'ar' : 'en'}>{team.displayName}</span>
                           )}
                         </div>
                       </td>
@@ -106,7 +132,8 @@ export default function StandingsSection({
                       <td dir="ltr">{row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}</td>
                       <td className="pts-cell">{row.points}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -148,21 +175,25 @@ export default function StandingsSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {cafTable.rows.map((row) => (
+                    {cafTable.rows.map((row) => {
+                      const team = rowTeamDisplay(row);
+                      return (
                       <tr key={row.teamId}>
                         <td className="pos-cell">{row.position}</td>
                         <td className="team-cell">
-                          {row.nemoTeamUrl ? (
+                          {team.href ? (
                             <a
-                              href={row.nemoTeamUrl}
+                              href={team.href}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="standings-team-link"
+                              dir="auto"
+                              lang={team.isArabicName ? 'ar' : 'en'}
                             >
-                              {row.teamNameAr}
+                              {team.displayName}
                             </a>
                           ) : (
-                            <span>{row.teamNameAr}</span>
+                            <span dir="auto" lang={team.isArabicName ? 'ar' : 'en'}>{team.displayName}</span>
                           )}
                         </td>
                         <td>{row.played}</td>
@@ -171,7 +202,8 @@ export default function StandingsSection({
                         </td>
                         <td className="pts-cell">{row.points}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -210,17 +242,22 @@ export default function StandingsSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {splTable.rows.map((row) => (
+                    {splTable.rows.map((row) => {
+                      const team = rowTeamDisplay(row);
+                      return (
                       <tr key={row.teamId}>
                         <td className="pos-cell">{row.position}</td>
-                        <td className="team-cell">{row.teamNameAr}</td>
+                        <td className="team-cell" dir="auto" lang={team.isArabicName ? 'ar' : 'en'}>
+                          {team.displayName}
+                        </td>
                         <td>{row.played}</td>
                         <td dir="ltr">
                           {row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}
                         </td>
                         <td className="pts-cell">{row.points}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

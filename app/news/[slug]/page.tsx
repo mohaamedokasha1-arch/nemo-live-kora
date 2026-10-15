@@ -67,7 +67,10 @@ export default async function NewsArticlePage({
         .map((paragraph) => paragraph.trim())
         .filter(Boolean)
     : [];
-  const relatedMatches = db.matches.filter((match) => item.relatedMatchIds.includes(match.id));
+  // الأخبار تشير إلى السجل الأساسي فقط: لا يُنشأ رابط لسجل أُثبت أنه تكرار.
+  const relatedMatches = db.matches.filter(
+    (match) => !match.duplicateOfId && item.relatedMatchIds.includes(match.id)
+  );
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',

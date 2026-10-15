@@ -8,8 +8,8 @@ import {
   NEMO_SPORTS_BASE_URL,
   resolveCompetitionByMeta,
   resolveEgyptianTeam,
+  resolveTeamNameFromSource,
   resolveVerifiedTeamLogo,
-  translateTeamNameAr,
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
 import { getStableMatchId } from '../match-identity';
@@ -228,6 +228,13 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
     comp.isEgyptianPriority || homeEq?.isEgyptian || awayEq?.isEgyptian
   );
 
+  const homeName = homeEq
+    ? { nameAr: homeEq.nameAr, nameStatus: 'verified' as const }
+    : resolveTeamNameFromSource(raw.strHomeTeam, homeId);
+  const awayName = awayEq
+    ? { nameAr: awayEq.nameAr, nameStatus: 'verified' as const }
+    : resolveTeamNameFromSource(raw.strAwayTeam, awayId);
+
   const nemoLink = resolveNemoSportsLink({
     canonicalMatchId: canonicalId,
     thesportsdbEventId: raw.idEvent,
@@ -257,8 +264,9 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
     cairoTime,
     homeTeam: {
       id: homeId,
-      nameAr: homeEq?.nameAr || translateTeamNameAr(raw.strHomeTeam),
+      nameAr: homeName.nameAr,
       nameEn: homeEq?.nameEn || raw.strHomeTeam,
+      nameStatus: homeName.nameStatus,
       logoUrl: resolveVerifiedTeamLogo(raw.strHomeTeam, raw.strHomeTeamBadge),
       isEgyptian: Boolean(homeEq?.isEgyptian),
       nemoTeamUrl:
@@ -267,8 +275,9 @@ export function mapTheSportsDBEventToRecord(raw: TheSportsDBRawEvent): MatchReco
     },
     awayTeam: {
       id: awayId,
-      nameAr: awayEq?.nameAr || translateTeamNameAr(raw.strAwayTeam),
+      nameAr: awayName.nameAr,
       nameEn: awayEq?.nameEn || raw.strAwayTeam,
+      nameStatus: awayName.nameStatus,
       logoUrl: resolveVerifiedTeamLogo(raw.strAwayTeam, raw.strAwayTeamBadge),
       isEgyptian: Boolean(awayEq?.isEgyptian),
       nemoTeamUrl:

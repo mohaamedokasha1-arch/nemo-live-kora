@@ -166,6 +166,21 @@ export default async function AdminMatchesPage({
                     <td>{row.scoreLabel}</td>
                     <td>
                       {row.origin === 'manual' ? <Badge tone="warn">إدخال يدوي</Badge> : row.sourceLabelAr}
+                      {/*
+                        * السجل المُعلَّم كتكرار يبقى في اللوحة كامل البيانات حتى يراجعه المدير،
+                        * لكنه لا يُعرض للزائر ولا يُعدّ في الجدول (والمصدر الأساسي في السجل الأساسي).
+                      */}
+                      {row.duplicateOfId ? (
+                        <div className="kl-admin-identity" title={row.duplicateReasonAr ?? ''}>
+                          <Badge tone="info">نسخة ثانية لنفس المباراة</Badge>
+                          <div>
+                            السجل الأساسي:{' '}
+                            <a href={`/matches/${encodeURIComponent(row.duplicateOfId)}`} target="_blank" rel="noreferrer">
+                              {row.duplicateOfId}
+                            </a>
+                          </div>
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       {formatDateAr(row.lastUpdatedAt)}

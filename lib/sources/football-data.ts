@@ -7,7 +7,7 @@ import {
 import {
   resolveCompetitionByMeta,
   resolveEgyptianTeam,
-  translateTeamNameAr,
+  resolveTeamNameFromSource,
 } from '../catalog';
 import { resolveNemoSportsLink } from '../nemo-resolver';
 import { getStableMatchId } from '../match-identity';
@@ -199,14 +199,14 @@ export async function fetchFootballDataSync(dateFrom?: string, dateTo?: string):
           cairoTime,
           homeTeam: {
             id: homeId,
-            nameAr: homeEq?.nameAr || translateTeamNameAr(m.homeTeam.name),
+            nameAr: homeEq?.nameAr || resolveTeamNameFromSource(m.homeTeam.name, homeId).nameAr,
             nameEn: m.homeTeam.name,
             logoUrl: m.homeTeam.crest || homeEq?.logoUrl || null,
             isEgyptian: Boolean(homeEq),
           },
           awayTeam: {
             id: awayId,
-            nameAr: awayEq?.nameAr || translateTeamNameAr(m.awayTeam.name),
+            nameAr: awayEq?.nameAr || resolveTeamNameFromSource(m.awayTeam.name, awayId).nameAr,
             nameEn: m.awayTeam.name,
             logoUrl: m.awayTeam.crest || awayEq?.logoUrl || null,
             isEgyptian: Boolean(awayEq),
