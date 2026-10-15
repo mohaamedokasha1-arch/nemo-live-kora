@@ -14,6 +14,7 @@ import AdsterraSocialBar from '@/components/AdsterraSocialBar';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import GoogleAnalyticsPageViews from '@/components/GoogleAnalyticsPageViews';
 import { ADSTERRA_HOSTS } from '@/lib/ads/adsterra';
+import { resolveAdsenseHeadClient } from '@/lib/ads/config';
 import { GA_HOSTS, isGoogleAnalyticsActive, resolveGaMeasurementId } from '@/lib/analytics/google-analytics';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
@@ -28,9 +29,9 @@ const SITE_DESCRIPTION =
  * السكربت يُحمَّل افتراضيًا بالمعرّف الصريح المعتمد حتى لا تُنسى صفحة ولا يحتاج
  * فحص «تحقق» في AdSense إلى أي إعداد بيئة مسبق، ويمكن لمتغيّر البيئة
  * `NEXT_PUBLIC_ADSENSE_CLIENT` تجاوزه بمعرّف آخر دون تعديل الكود.
+ * المصدر الواحد: `resolveAdsenseHeadClient()` في `lib/ads/config.ts`.
  */
-const ADSENSE_CLIENT =
-  process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || 'ca-pub-5770911159315916';
+const ADSENSE_CLIENT = resolveAdsenseHeadClient();
 
 /**
  * metadataBase تثبّت النطاق الرسمي لكل الروابط المطلقة (canonical/openGraph/sitemap).

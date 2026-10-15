@@ -16,6 +16,14 @@
 > `375a8323…`) · `app/apple-icon.png` (180×180 مُشتقّة من الأيقونة الأصلية). وقد حُذف
 > الأصل النقطي القديم نهائيًا (2.5MB، لم يكن شعار الموقع المرجعي). التفاصيل والإثباتات في
 > [docs/LOGO-REPLACEMENT-2026-10-14.md](docs/LOGO-REPLACEMENT-2026-10-14.md).
+> **تغيير 2026-10-15 (الأحدث — إثبات الملكية):** أُضيف **كود Google AdSense**
+> (`adsbygoogle.js?client=ca-pub-5770911159315916` مع `crossorigin="anonymous"` و`async`)
+> داخل `<head>` في التخطيط الجذري ⇒ في كل صفحات الموقع، بجانبه ميتا
+> `google-adsense-account` لتوثيق الحساب — يظهر في HTML المُرسل قبل أي جافاسكربت
+> فورًا عند الضغط على زر «تحقق» في AdSense. يعمل افتراضيًا بلا أي إعداد بيئة،
+> والمصدر الواحد `lib/ads/config.ts`، والتدقيق بعد النشر:
+> `npm run audit:adsense`. التفاصيل والإثباتات في
+> [docs/GOOGLE-ADSENSE-2026-10-15.md](docs/GOOGLE-ADSENSE-2026-10-15.md).
 > **تغيير 2026-10-15 (الحالي — القياس):** أُضيف كود **Google Analytics 4 (gtag.js)** داخل `<head>`
 > في **كل صفحات الموقع** (التخطيط العام وحده ⇒ لا صفحة تُنسى ولا نسخة مختلفة من الكود)، مع
 > `dns-prefetch` لنطاقَي Google، ومع قياس **صفحات التنقّل الداخلي** (لأن Next.js يبدّل الصفحات
@@ -175,6 +183,7 @@
 │   ├── nemo-resolver.ts
 │   └── types.ts
 ├── scripts/
+│   ├── audit-adsense.ts           # تدقيق كود AdSense في الرأس على الموقع المنشور (npm run audit:adsense)
 │   ├── audit-analytics.ts          # تدقيق وسوم Google Analytics على الموقع المنشور (npm run audit:analytics)
 │   ├── check-store.ts              # فحص قراءة فقط لجاهزية التخزين الدائم (npm run store:check)
 │   └── run-sync.ts
@@ -234,6 +243,15 @@
   (قراءة فقط، يفحص كل الصفحات ويُرجع رمز خروج `1` عند أي نقص — النتيجة محفوظة في
   `docs/evidence/analytics-2026-10-15.json`: 9/9 صفحة مطابقة).
   والتفاصيل في [`docs/GOOGLE-ANALYTICS-2026-10-15.md`](docs/GOOGLE-ANALYTICS-2026-10-15.md).
+- **الإعلانات (Google AdSense — إثبات الملكية):** كود `adsbygoogle.js` بمعايرة
+  `ca-pub-5770911159315916` مع `crossorigin="anonymous"` و`async` داخل `<head>` من
+  التخطيط الجذري ⇒ في كل الصفحات، وميتا `google-adsense-account` بجانبه. يعمل
+  افتراضيًا **بلا أي إعداد بيئة** (المصدر الواحد `lib/ads/config.ts`، وتجاوزه بـ
+  `NEXT_PUBLIC_ADSENSE_CLIENT`)، ويظهر في HTML المُرسل قبل أي جافاسكربت — وهو ما
+  تقرأه أداة التحقق من Google فورًا عند الضغط على زر «تحقق». محموس بـ 5 اختبارات
+  في `tests/adsense-verification.test.ts`، وبعد كل نشر يُتحقّق بأمر واحد
+  `npm run audit:adsense` (قراءة فقط، رمز خروج `1` عند أي نقص).
+  والتفاصيل والإثباتات في [`docs/GOOGLE-ADSENSE-2026-10-15.md`](docs/GOOGLE-ADSENSE-2026-10-15.md).
 
 📘 التفاصيل الكاملة، وجدول الحقول، وخطوات التحقق قبل النشر في
 [`docs/MATCH-ENGINE-AND-SEO.md`](docs/MATCH-ENGINE-AND-SEO.md).
@@ -319,8 +337,9 @@ npm run dev
 ```bash
 npm run verify        # lint + typecheck + test + build + npm audit --omit=dev
 npm run security      # بوابة الأمان دون شبكة (ثغرات معروفة، أسرار، حقن HTML)
-npm test              # 315 اختبارًا
+npm test              # 320 اختبارًا
 npm run audit:analytics   # تدقيق كود Google Analytics على الموقع المنشور (قراءة فقط، رمز خروج 1 عند أي نقص)
+npm run audit:adsense     # تدقيق كود AdSense (إثبات الملكية) على الموقع المنشور (قراءة فقط، رمز خروج 1 عند أي نقص)
 npm run build
 npm run store:check
 node --import tsx scripts/audit-connectivity.ts --out=docs/evidence/connectivity.json
