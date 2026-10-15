@@ -27,6 +27,5 @@ curl -s -A 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' -o /tmp/m ht
 echo "### BROWSER"
 mkdir -p /tmp/pp && (cd /tmp/pp && npm init -y >/dev/null && npm i puppeteer-core@23 --no-audit --no-fund >/dev/null 2>&1)
 cp .github/probe/shots.mjs /tmp/pp/ && (cd /tmp/pp && TOM=$TOM CHROME=$(which google-chrome || which chromium) node shots.mjs 2>&1 | head -120)
-for n in m-home m-tomorrow d-matches-tab m-detail; do convert /tmp/$n.png -resize 380x -quality 38 /tmp/$n.jpg 2>/dev/null; done
 ls -la /tmp/*.jpg
 echo "### SERVER LOG (errors)"; grep -iE "error|warn|unhandled" /tmp/server.log | head -20; tail -5 /tmp/server.log

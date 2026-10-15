@@ -20,15 +20,16 @@ async function visit(name, url, viewport, ua, action) {
     overflowX: document.documentElement.scrollWidth > window.innerWidth + 2,
     firstCards: Array.from(document.querySelectorAll('.kl-match-card')).slice(0, 4).map((c) => c.textContent.replace(/\s+/g, ' ').trim().slice(0, 140)),
   }));
-  await page.screenshot({ path: `/tmp/${name}.png`, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(viewport.height * 2, 1700) } });
+  const shotH = viewport.width > 800 ? 900 : 1500;
+  await page.screenshot({ path: `/tmp/${name}.jpg`, type: 'jpeg', quality: viewport.width > 800 ? 22 : 30, clip: { x: 0, y: 0, width: viewport.width, height: shotH } });
   report.push({ name, url, viewport: `${viewport.width}x${viewport.height}`, ...info, consoleErrors: errors.slice(0, 6), failedLocalRequests: failed.slice(0, 6) });
   await page.close();
 }
 const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 await visit('m-home', 'http://127.0.0.1:3000/', { width: 390, height: 844, isMobile: true, deviceScaleFactor: 1 }, iphone);
 await visit('m-tomorrow', `http://127.0.0.1:3000/matches/${TOM}`, { width: 390, height: 844, isMobile: true, deviceScaleFactor: 1 }, iphone);
-await visit('d-home', 'http://127.0.0.1:3000/', { width: 1366, height: 900 });
-await visit('d-matches-tab', 'http://127.0.0.1:3000/matches', { width: 1366, height: 900 }, null, async (page) => {
+await visit('d-home', 'http://127.0.0.1:3000/', { width: 1280, height: 900 });
+await visit('d-matches-tab', 'http://127.0.0.1:3000/matches', { width: 1280, height: 900 }, null, async (page) => {
   const buttons = await page.$$('button');
   for (const b of buttons) { const t = await b.evaluate((n) => n.textContent); if (t && t.includes('غدًا')) { await b.click(); break; } }
   await new Promise((r) => setTimeout(r, 800));

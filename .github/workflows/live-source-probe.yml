@@ -14,11 +14,17 @@ jobs:
       - run: npm ci --no-audit --no-fund > /dev/null 2>&1
       - name: probes
         run: bash .github/probe/raw.sh > /tmp/raw.txt 2>&1 || true
-      - run: |
-          for n in m-home m-tomorrow d-matches-tab m-detail; do echo "@@IMG $n"; base64 -w0 /tmp/$n.jpg 2>/dev/null; echo; done > /tmp/img.txt
-          wc -c /tmp/raw.txt /tmp/img.txt
-      - run: bash .github/probe/emit.sh /tmp/raw.txt 0
-      - run: bash .github/probe/emit.sh /tmp/img.txt 0
-      - run: bash .github/probe/emit.sh /tmp/img.txt 10
-      - run: bash .github/probe/emit.sh /tmp/img.txt 20
-      - run: bash .github/probe/emit.sh /tmp/img.txt 30
+      - if: always()
+        run: |
+          for n in m-home d-matches-tab m-detail; do echo "@@IMG $n"; base64 -w0 /tmp/$n.jpg 2>/dev/null || true; echo; done > /tmp/img.txt
+          wc -c /tmp/raw.txt /tmp/img.txt || true
+      - if: always()
+        run: bash .github/probe/emit.sh /tmp/raw.txt 0
+      - if: always()
+        run: bash .github/probe/emit.sh /tmp/img.txt 0
+      - if: always()
+        run: bash .github/probe/emit.sh /tmp/img.txt 10
+      - if: always()
+        run: bash .github/probe/emit.sh /tmp/img.txt 20
+      - if: always()
+        run: bash .github/probe/emit.sh /tmp/img.txt 30
