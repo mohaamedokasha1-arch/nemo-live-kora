@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  /**
+   * نطاقات المعاينة البعيدة (بيئات التطوير السحابية مثل *.e2b.app) تُحمّل الصفحة عبر
+   * بروكسي، فتحتاج موارد dev (HMR) إذنًا صريحًا — وإلا ظهر تحذير «Blocked cross-origin
+   * request» وتتوقف إعادة التحميل الحي. هذا الإذن للتطوير فقط ولا يُطبَّق على الإنتاج.
+   */
+  allowedDevOrigins: ['*.e2b.app', '*.vercel.app'],
   images: {
     unoptimized: true,
     remotePatterns: [

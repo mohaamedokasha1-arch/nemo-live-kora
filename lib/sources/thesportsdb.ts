@@ -18,7 +18,15 @@ import { fetchWithProtection } from './http-client';
 
 import { SOURCE_ENDPOINTS, THESPORTSDB_LEAGUES, thesportsdbKeyCandidates } from '../config/env';
 
-const THESPORTSDB_BASE_URL = SOURCE_ENDPOINTS.thesportsdbBase;
+/**
+ * نقطة نهاية TheSportsDB — **تُقرأ حيّة في كل نداء** لا مرة واحدة عند الاستيراد:
+ * ثابت على مستوى الوحدة يجمّد القيمة وقت التحميل، فيتجاهل أي إعادة توجيه لاحقة
+ * (اختبارات، بروكسي، تغيير بيئة وقت التشغيل). النمط نفسه المستخدم في sportscore
+ * (`sportscoreSiteOrigin()`) وموثَّق في `lib/config/env.ts`.
+ */
+function thesportsdbBase(): string {
+  return SOURCE_ENDPOINTS.thesportsdbBase;
+}
 
 /**
  * Free-tier keys. TheSportsDB documents `123` as its current free key; `3` is the historical
@@ -69,7 +77,7 @@ export async function resolveTheSportsDBApiKey(options: {
   const candidates = thesportsdbKeyCandidates();
   const probes: TheSportsDBKeyProbe[] = [];
   for (const key of candidates) {
-    const url = `${THESPORTSDB_BASE_URL}/${key}/lookupleague.php?id=${THESPORTSDB_LEAGUES.egyptianPremierLeague}`;
+    const url = `${thesportsdbBase()}/${key}/lookupleague.php?id=${THESPORTSDB_LEAGUES.egyptianPremierLeague}`;
     const res = await fetchWithProtection<{ leagues?: unknown[] }>(url, {
       timeoutMs: options.timeoutMs ?? 6000,
       retries: 1,
@@ -364,7 +372,7 @@ export function buildTheSportsDBEndpoints(
    */
   maxDayCalls = 3
 ): Array<{ url: string; labelAr: string; kind: 'round' | 'season' | 'league' | 'day' }> {
-  const base = `${THESPORTSDB_BASE_URL}/${apiKey}`;
+  const base = `${thesportsdbBase()}/${apiKey}`;
   const leagueId = THESPORTSDB_LEAGUES.egyptianPremierLeague;
   const season = rounds?.season;
   const roundUrls = (rounds?.rounds || []).map((r) => ({
@@ -453,7 +461,7 @@ export async function fetchTheSportsDBMatches(
   let skippedEndpoints = 0;
 
   for (const endpoint of endpoints) {
-    const endpointPath = endpoint.url.replace(`${THESPORTSDB_BASE_URL}/${THESPORTSDB_API_KEY}`, '');
+    const endpointPath = endpoint.url.replace(`${thesportsdbBase()}/${THESPORTSDB_API_KEY}`, '');
     if (Date.now() - startedAt >= budgetMs) {
       skippedEndpoints += 1;
       lastError = lastError || 'تجاوز الوقت المخصص لهذه المزامنة';
@@ -526,4 +534,38 @@ export async function fetchTheSportsDBMatches(
     apiKeyProbes: keyResolution.probes,
     error: anyOk ? undefined : lastError || 'Failed to reach TheSportsDB endpoints',
   };
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  استعادة مباراة واحدة بمعرّفها الخارجي (استهداف مباشر — بلا مزامنة كاملة)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * تُستخدم عندما يطلب الزائر `/matches/match-thesportsdb-<id>` ولم يكن السجل بعد في
+ * مخزن هذه النسخة (Serverless باردة، أو سجل خارج نافذة المزامنة): نداء واحد
+ * `lookupevent.php?id=` يعيد المباراة كاملة (الحالة، النتيجة، الأحداث) فتُخزَّن
+ * وتُعرض فورًا — بدل صفحة 404 ل مباراة موجودة فعلًا لدى المزوّد.
+ */
+export async function fetchTheSportsDBEventById(
+  eventId: string,
+  options: { timeoutMs?: number } = {}
+): Promise<MatchRecord | null> {
+  const trimmed = (eventId || '').trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  try {
+    // نفس مفتاح المزامنة نفسه (مجاني/مدفوع) — وإن رُفض يسقط الكود إلى المفاتيح المجانية.
+    const keyResolution = await resolveTheSportsDBApiKey({ timeoutMs: options.timeoutMs ?? 5000 });
+    const url = `${thesportsdbBase()}/${keyResolution.key}/lookupevent.php?id=${encodeURIComponent(trimmed)}`;
+    const res = await fetchWithProtection<TheSportsDBEventsEnvelope>(url, {
+      timeoutMs: options.timeoutMs ?? 6000,
+      retries: 0,
+      cacheTtlMs: 5 * 60_000,
+    });
+    if (!res.ok || !res.data) return null;
+    const raw = Array.isArray(res.data.events) ? res.data.events[0] : null;
+    if (!raw || theSportsDBSkipReason(raw)) return null;
+    return mapTheSportsDBEventToRecord(raw);
+  } catch {
+    // استعادة المعرّف مساعدة اختيارية: أي فشل يعني فقط عودة الصفحة لسلوكها الاحتياطي.
+    return null;
+  }
 }

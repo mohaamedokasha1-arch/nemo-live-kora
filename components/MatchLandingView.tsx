@@ -174,6 +174,38 @@ export default function MatchLandingView({
         </dl>
       </section>
 
+      {/*
+        أحداث اللقاء (الأهداف، البطاقات، التبديلات): تُعرض فقط عندما يرسلها المصدر
+        فعلًا ضمن سجل المباراة — لا تُختلق ولا تُستنتج من النتيجة. غياب القسم يعني
+        عدم توفّر البيانات من المصدر لهذه المباراة، وهو معلومة صحيحة لا نُخفيها ولا
+        نزيّفها.
+      */}
+      {view.sourceMatch?.incidents && view.sourceMatch.incidents.length > 0 ? (
+        <section className="kl-match-details" aria-label="أحداث المباراة">
+          <h2 className="kl-section-subtitle">أحداث المباراة</h2>
+          <ul className="kl-keyword-list">
+            {view.sourceMatch.incidents.map((event, index) => (
+              <li key={`${event.minute}-${event.type}-${index}`}>
+                <span dir="ltr">{event.minute}′</span> —{' '}
+                <span dir="auto">{event.player}</span> —{' '}
+                {event.type === 'goal'
+                  ? 'هدف'
+                  : event.type === 'penalty_goal'
+                  ? 'هدف من ركلة جزاء'
+                  : event.type === 'yellow_card'
+                  ? 'بطاقة صفراء'
+                  : event.type === 'red_card'
+                  ? 'بطاقة حمراء'
+                  : 'تبديل'}
+                {' — '}
+                {event.side === 'home' ? entry.homeTeam.nameAr : entry.awayTeam.nameAr}
+                {event.detail ? ` — ${event.detail}` : ''}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section className="kl-match-how" aria-label="كيف تشاهد المباراة">
         <h2 className="kl-section-subtitle">كيف تشاهد المباراة؟</h2>
         <ol className="kl-steps">
