@@ -1,9 +1,18 @@
 import React from 'react';
+import { buildStaticPageMetadata } from '@/lib/seo/metadata';
+
 import { getTodayCairoDate, shiftDateString } from '@/lib/cairo-time';
 import { queryGatewayMatches } from '@/lib/db/store';
 import { ensureFreshMatches } from '@/lib/sync/engine';
 import { landingPathsForMatches } from '@/lib/admin/served-catalog';
 import MatchesScheduleTabs from '@/components/matches/MatchesScheduleTabs';
+
+export const metadata = buildStaticPageMetadata({
+  title: 'جدول المباريات | NEMO Live Kora',
+  description: 'شاهد جدول المباريات الكامل لجميع البطولات العربية والعالمية',
+  path: '/matches',
+});
+
 
 /**
  * «جدول المباريات» — تبويبا اليوم والغد من المخزن الحقيقي (نفس نظام الصفحة الرئيسية وصفحات

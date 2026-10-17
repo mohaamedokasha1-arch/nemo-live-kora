@@ -20,7 +20,7 @@ import {
 import { resolveMatchView } from '../lib/matches/match-catalog';
 import { buildMatchLandingMetadata } from '../lib/seo/metadata';
 import { createMatchScheduleStructuredData, serializeJsonLd } from '../lib/seo/match-structured-data';
-import { getArchiveNews, getLatestNews, getPublishedNews } from '../lib/news/query';
+import { getArchiveNews, getNewsListingItems, getPublishedNews } from '../lib/news/query';
 import { isIndexableNewsArticle } from '../lib/news/validate';
 import { GATEWAY_SITE_URL } from '../lib/site-url';
 
@@ -47,7 +47,11 @@ test('sitemap contains only canonical, useful dates, match landing pages and ind
   for (const entry of entries) {
     assert.ok(entry.url.startsWith(`${GATEWAY_SITE_URL}/`), entry.url);
     assert.equal(new URL(entry.url).search, '', entry.url);
-    assert.ok(entry.lastModified instanceof Date, entry.url);
+    if (['/about', '/contact', '/privacy-policy', '/terms'].includes(new URL(entry.url).pathname)) {
+      assert.equal(entry.lastModified, undefined, 'Unknown modification times must be omitted');
+    } else {
+      assert.ok(entry.lastModified instanceof Date, entry.url);
+    }
   }
   assert.equal(entries.some((entry) => entry.url === `${GATEWAY_SITE_URL}/matches/${today}`), false);
 
@@ -150,7 +154,7 @@ test('date and news metadata use the same indexability rules as their rendered c
   assert.equal(homeMetadata.alternates?.canonical, '/');
 
   const db = getGatewayDatabase();
-  const currentNews = getLatestNews(db.news, 24);
+  const currentNews = getNewsListingItems(db.news, 24);
   const archiveNews = getArchiveNews(db.news);
   const newsMetadata = await generateNewsMetadata();
   const archiveMetadata = await generateArchiveMetadata();
