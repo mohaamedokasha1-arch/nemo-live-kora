@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "revision": 1,
+  "updatedAt": "2026-10-17T05:49:31.846Z",
+  "updatedBy": "admin",
+  "matches": [],
+  "overrides": [],
+  "news": [],
+  "competitionOverrides": {},
+  "teams": [],
+  "settings": {
+    "matchesFreshnessMinutes": 10,
+    "newsFreshnessMinutes": 15,
+    "staleSourceWarningHours": 36,
+    "ogImagePath": "/og-cover.jpg",
+    "siteDescriptionAr": "بوابة مباريات NEMO Sports: مواعيد ونتائج المباريات بتوقيت القاهرة، مع صفحة تفصيلية لكل مباراة ومشاهدة مباشرة.",
+    "sitemapIncludeNews": true,
+    "banner": {
+      "enabled": false,
+      "textAr": "مع نيمو لايف كورة انت مش هتفوتك مباراة ",
+      "tone": "info"
+    },
+    "contactEmail": null,
+    "confirmSeo": false
+  },
+  "sourceControls": {},
+  "audit": [
+    {
+      "id": "audit-mvbz8gna-1m63wj",
+      "at": "2026-10-17T05:49:31.846Z",
+      "actor": "admin",
+      "role": "owner",
+      "action": "settings.save",
+      "target": "site-settings",
+      "summaryAr": "تحديث إعدادات الموقع",
+      "ok": true,
+      "details": {
+        "seoImpact": "none"
+      }
+    }
+  ]
+}
