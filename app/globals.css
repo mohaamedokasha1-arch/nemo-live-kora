@@ -573,6 +573,32 @@ a {
   font-weight: 800;
 }
 
+/* ── الاقتران المرجعي للنتيجة (components/MatchScoreView.tsx) ──
+   كل رقم عنصر مستقل بمفتاح فريقه (data-side/data-team-id)، والترتيب المنطقي ثابت
+   [الأول، الفاصل، الثاني]. لا اتجاه مفروض على الحاوية: تتبع اتجاه الصفحة كما تتبعه
+   أعمدة الفريقين، فيبقى كل رقم ملاصقًا لفريقه في RTL وLTR معًا. عند اقترانها بجلد
+   قائم (kl-score-badge) لا تُغيّر مظهره إطلاقًا — اللاحق بنفس الأولوية يحترم الأول. */
+.kl-score-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
+.kl-score-pair.kl-score-badge {
+  gap: 9px;
+  align-items: center;
+}
+
+/* في صفحة البث تُستخدم أحيانًا فوق صنف العمود kl-live-score — الأرقام دائمًا صف واحد. */
+.kl-score-pair.kl-live-score {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
 /* Status Pin (لم تبدأ بعد / جارية الآن / انتهت المباراة) */
 .kl-status-pin {
   display: inline-flex;

@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import MatchScoreView from '@/components/MatchScoreView';
+import type { MatchStatusCode } from '@/lib/types';
 import { getCompetitionRows, queryAdminMatches } from '@/lib/admin/service';
 import { roleHasPermission } from '@/lib/auth/admin-session';
 import { formatDateAr } from '../_lib/format';
@@ -163,7 +165,16 @@ export default async function AdminMatchesPage({
                         <Badge tone="info">{row.statusLabelAr}</Badge>
                       )}
                     </td>
-                    <td>{row.scoreLabel}</td>
+                    {/* النتيجة عبر المكوّن المرجعي: رقم الأول ثم رقم الثاني بنفس ترتيب عمود «المباراة». */}
+                    <td>
+                      <MatchScoreView
+                        score={{ home: row.scoreHome, away: row.scoreAway }}
+                        status={row.status as MatchStatusCode}
+                        homeTeam={{ nameAr: row.homeNameAr }}
+                        awayTeam={{ nameAr: row.awayNameAr }}
+                        containerTitle={`${row.homeNameAr} ${row.scoreHome ?? '—'} : ${row.scoreAway ?? '—'} ${row.awayNameAr}`}
+                      />
+                    </td>
                     <td>
                       {row.origin === 'manual' ? <Badge tone="warn">إدخال يدوي</Badge> : row.sourceLabelAr}
                       {/*

@@ -7,6 +7,7 @@ import { resolveWatchDestinationForView } from '@/lib/nemo-watch';
 import AdSlot from './AdSlot';
 import { shouldRenderAdSlot } from '@/lib/ads/config';
 import StreamCta from './StreamCta';
+import MatchScoreView from './MatchScoreView';
 import TeamCrest from './TeamCrest';
 import WatchStreamBlock from './WatchStreamBlock';
 
@@ -31,11 +32,6 @@ export default function MatchLandingView({
   const keywords = [...new Set([...(entry.keywords || []), ...(entry.seo?.keywords || [])])];
   // وجهة المشاهدة الموحّدة لهذه المباراة — تُحسب مرة واحدة وتُستخدم في كل أزرار الصفحة.
   const destination = resolveWatchDestinationForView(view);
-
-  const score =
-    view.score && Number.isFinite(view.score.home) && Number.isFinite(view.score.away)
-      ? `${view.score.home} - ${view.score.away}`
-      : null;
 
   return (
     <article className="kl-match-page" itemScope itemType="https://schema.org/SportsEvent">
@@ -93,7 +89,22 @@ export default function MatchLandingView({
           </div>
 
           <div className="kl-match-center">
-            {score ? <span className="kl-score-badge">{score}</span> : null}
+            {/*
+             * النتيجة من المكوّن المرجعي — لا سردًا نصيًا واحدًا:
+             * السرد «home - away» كان يُعاد ترتيبه داخل نص RTL فتقع نتيجة الأول بجوار
+             * اسم الثاني (اختلاف عن البطاقات كان يُقرأ «انعكاسًا»). هنا كل رقم في عنصر
+             * مستقل بهوية فريقه، وترتيبه المنطقي [الأول، الثاني] كترتيب عمودَي الفريقين.
+             * الربط بأسماء سجل المصدر نفسه (لا بأسماء الكتالوج) لأن أرقام `view.score`
+             * تُنسب دائمًا إلى اتجاه السجل الذي حملها.
+             */}
+            <MatchScoreView
+              score={view.score}
+              status={view.status}
+              homeTeam={view.sourceMatch?.homeTeam ?? entry.homeTeam}
+              awayTeam={view.sourceMatch?.awayTeam ?? entry.awayTeam}
+              className="kl-score-badge"
+              separator="-"
+            />
             <span className="kl-match-time">{view.kickoffTimeAr}</span>
             <span className="kl-match-datetime">{view.cairoDateLabelAr}</span>
           </div>
