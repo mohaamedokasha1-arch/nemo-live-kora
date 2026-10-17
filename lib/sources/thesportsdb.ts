@@ -527,3 +527,37 @@ export async function fetchTheSportsDBMatches(
     error: anyOk ? undefined : lastError || 'Failed to reach TheSportsDB endpoints',
   };
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  استعادة مباراة واحدة بمعرّفها الخارجي (استهداف مباشر — بلا مزامنة كاملة)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * تُستخدم عندما يطلب الزائر `/matches/match-thesportsdb-<id>` ولم يكن السجل بعد في
+ * مخزن هذه النسخة (Serverless باردة، أو سجل خارج نافذة المزامنة): نداء واحد
+ * `lookupevent.php?id=` يعيد المباراة كاملة (الحالة، النتيجة، الأحداث) فتُخزَّن
+ * وتُعرض فورًا — بدل صفحة 404 ل مباراة موجودة فعلًا لدى المزوّد.
+ */
+export async function fetchTheSportsDBEventById(
+  eventId: string,
+  options: { timeoutMs?: number } = {}
+): Promise<MatchRecord | null> {
+  const trimmed = (eventId || '').trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  try {
+    // نفس مفتاح المزامنة نفسه (مجاني/مدفوع) — وإن رُفض يسقط الكود إلى المفاتيح المجانية.
+    const keyResolution = await resolveTheSportsDBApiKey({ timeoutMs: options.timeoutMs ?? 5000 });
+    const url = `${THESPORTSDB_BASE_URL}/${keyResolution.key}/lookupevent.php?id=${encodeURIComponent(trimmed)}`;
+    const res = await fetchWithProtection<TheSportsDBEventsEnvelope>(url, {
+      timeoutMs: options.timeoutMs ?? 6000,
+      retries: 0,
+      cacheTtlMs: 5 * 60_000,
+    });
+    if (!res.ok || !res.data) return null;
+    const raw = Array.isArray(res.data.events) ? res.data.events[0] : null;
+    if (!raw || theSportsDBSkipReason(raw)) return null;
+    return mapTheSportsDBEventToRecord(raw);
+  } catch {
+    // استعادة المعرّف مساعدة اختيارية: أي فشل يعني فقط عودة الصفحة لسلوكها الاحتياطي.
+    return null;
+  }
+}

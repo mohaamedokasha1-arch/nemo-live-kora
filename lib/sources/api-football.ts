@@ -419,3 +419,38 @@ export async function fetchApiFootballStandings(
     rows,
   };
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  استعادة مباراة واحدة بمعرّف الـ fixture (استهداف مباشر — بلا مزامنة كاملة)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * تُستخدم عندما يطلب الزائر `/matches/match-api-football-<id>` ولم يكن السجل بعد في
+ * مخزن هذه النسخة: نداء `GET /fixtures?id=` واحد يعيد المباراة (الحالة والنتيجة
+ * والملعب) فتُخزَّن وتُعرض فورًا — بدل صفحة 404 ل مباراة موجودة لدى المزوّد.
+ */
+export async function fetchApiFootballFixtureById(
+  fixtureId: string,
+  options: { timeoutMs?: number } = {}
+): Promise<MatchRecord | null> {
+  const trimmed = (fixtureId || '').trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  if (!apiFootballKey()) return null;
+  try {
+    const res = await fetchWithProtection<ApiFootballEnvelope<ApiFootballFixtureItem[]>>(
+      `${API_FOOTBALL_BASE_URL}/fixtures?id=${encodeURIComponent(trimmed)}`,
+      {
+        timeoutMs: options.timeoutMs ?? 8000,
+        retries: 0,
+        cacheTtlMs: 5 * 60_000,
+        headers: apiFootballAuthHeaders(),
+      }
+    );
+    if (!res.ok || !res.data) return null;
+    const item = Array.isArray(res.data.response) ? res.data.response[0] : null;
+    if (!item) return null;
+    return mapApiFootballFixtureItem(item);
+  } catch {
+    // استعادة المعرّف مساعدة اختيارية: أي فشل يعني فقط عودة الصفحة لسلوكها الاحتياطي.
+    return null;
+  }
+}
