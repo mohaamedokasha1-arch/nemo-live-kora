@@ -24,6 +24,7 @@
     "admin:password": "node --import tsx scripts/admin-password.ts",
     "audit:connectivity": "node --import tsx scripts/audit-connectivity.ts",
     "audit:analytics": "node --import tsx scripts/audit-analytics.ts",
+    "audit:score-pairing": "node --import tsx scripts/audit-score-pairing.ts",
     "audit:adsense": "node --import tsx scripts/audit-adsense.ts"
   },
   "dependencies": {

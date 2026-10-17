@@ -288,10 +288,18 @@ export default function MatchForm({
           <input value={form.awayLogoUrl} onChange={(event) => set('awayLogoUrl', event.target.value)} dir="ltr" />
         </Field>
 
-        <Field label="النتيجة — الفريق الأول" hint="اتركه فارغًا إن لم تبدأ">
+        {/*
+         * تسميتا النتيجة تُعرضان باسم الفريق المكتوب فعلًا: حقل «الأول» يُخزَّن في
+         * score.home وحده وحقل «الثاني» في score.away وحده — العرض كله يقرأ نفس
+         * المفاتيح، فلا ينعكس رقم بين فريقين لا في الحفظ ولا في العرض.
+         */}
+        <Field
+          label={`النتيجة — الفريق الأول${form.homeNameAr.trim() ? ` (${form.homeNameAr.trim()})` : ''}`}
+          hint="اتركه فارغًا إن لم تبدأ"
+        >
           <input value={form.scoreHome} onChange={(event) => set('scoreHome', event.target.value)} inputMode="numeric" />
         </Field>
-        <Field label="النتيجة — الفريق الثاني">
+        <Field label={`النتيجة — الفريق الثاني${form.awayNameAr.trim() ? ` (${form.awayNameAr.trim()})` : ''}`}>
           <input value={form.scoreAway} onChange={(event) => set('scoreAway', event.target.value)} inputMode="numeric" />
         </Field>
         <Field label="نتيجة الشوط الأول — الأول">

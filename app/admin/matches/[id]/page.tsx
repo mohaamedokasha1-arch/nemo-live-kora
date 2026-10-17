@@ -103,7 +103,14 @@ export default async function AdminMatchPage({ params }: { params: Promise<{ id:
             { label: 'الموعد (UTC)', value: <span className="kl-admin-mono">{row.kickoffUtc}</span> },
             { label: 'تاريخ القاهرة', value: `${row.cairoDate} — ${row.cairoTime}` },
             { label: 'الحالة المعروضة', value: row.statusLabelAr },
-            { label: 'النتيجة المعروضة', value: row.scoreLabel },
+            {
+              // القيمة تُعرض مرفقة باسم كل فريق حتى لا تُقرأ الأرقام بالترتيب المعكوس داخل نص RTL.
+              label: 'النتيجة المعروضة',
+              value:
+                row.scoreHome === null || row.scoreAway === null
+                  ? row.scoreLabel
+                  : `${row.homeNameAr} ${row.scoreHome} : ${row.scoreAway} ${row.awayNameAr}`,
+            },
             { label: 'آخر تحديث', value: formatDateAr(row.lastUpdatedAt) },
             { label: 'المصدر الأساسي', value: row.primarySource },
             {
@@ -151,6 +158,8 @@ export default async function AdminMatchPage({ params }: { params: Promise<{ id:
         }
         sourceIds={sourceIds}
         policySummaryAr={CONFLICT_POLICY_SUMMARY_AR.join(' · ')}
+        homeTeamNameAr={row.homeNameAr}
+        awayTeamNameAr={row.awayNameAr}
       />
     </>
   );

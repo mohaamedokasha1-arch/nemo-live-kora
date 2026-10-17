@@ -7,6 +7,7 @@ import { resolveWatchDestinationForView } from '@/lib/nemo-watch';
 import AdSlot from './AdSlot';
 import { shouldRenderAdSlot } from '@/lib/ads/config';
 import TeamCrest from './TeamCrest';
+import MatchScoreView from './MatchScoreView';
 import WatchStreamBlock from './WatchStreamBlock';
 
 /**
@@ -22,10 +23,6 @@ export default function LiveBroadcastView({ view }: { view: ResolvedMatchView })
   const sourceLabel = view.sourceMatch
     ? getMatchSourceLabelAr(view.sourceMatch.primarySource)
     : 'بيانات رسمية من مصادر رياضية معتمدة';
-  const score =
-    view.score && Number.isFinite(view.score.home) && Number.isFinite(view.score.away)
-      ? `${view.score.home} - ${view.score.away}`
-      : null;
   /**
    * وجهة المشاهدة الموحّدة لهذه المباراة.
    *
@@ -86,7 +83,17 @@ export default function LiveBroadcastView({ view }: { view: ResolvedMatchView })
             />
             <span>{entry.homeTeam.nameAr}</span>
           </div>
-          <span className="kl-live-score">{score ?? 'VS'}</span>
+          {/* النتيجة من المكوّن المرجعي نفسه المستخدم في البطاقات وصفحة الهبوط:
+              كل رقم مربوط بعمود فريقه هيكليًا (data-side + data-team-id)، بلا قلب بصري. */}
+          <MatchScoreView
+            score={view.score}
+            status={view.status}
+            homeTeam={view.sourceMatch?.homeTeam ?? entry.homeTeam}
+            awayTeam={view.sourceMatch?.awayTeam ?? entry.awayTeam}
+            className="kl-live-score"
+            separator="-"
+            noScoreText="VS"
+          />
           <div className="kl-live-team">
             <TeamCrest
               nameAr={entry.awayTeam.nameAr}

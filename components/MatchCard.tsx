@@ -2,10 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { formatScoreDisplay, toCairoTimeArabic } from '@/lib/cairo-time';
+import { toCairoTimeArabic } from '@/lib/cairo-time';
 import { getMatchSourceLabelAr, resolveTeamDisplayIdentity } from '@/lib/catalog';
 import { buildMatchLandingPath, findCatalogEntryForMatch } from '@/lib/matches/match-links';
 import { MatchRecord } from '@/lib/types';
+import MatchScoreView from './MatchScoreView';
 import TeamCrest from './TeamCrest';
 
 export const UNVERIFIED_MATCH_LINK_LABEL_AR = 'شاهد مباشرة على NEMO Sports';
@@ -24,7 +25,6 @@ export default function MatchCard({
   match: MatchRecord;
   landingPath?: string | null;
 }) {
-  const scoreDisplay = formatScoreDisplay(match.score, match.status);
   /**
    * أسماء الفريقين كما تُعرض فعلًا: الاسم العربي الموثّق إن وُجد، وإلا اسم المصدر نفسه،
    * وإن أرسل المصدر قيمة تقنية (`Team dj2ryoh2w90q1zp`) فعبارة واضحة بدل عرضها كاسم نادٍ.
@@ -159,13 +159,21 @@ export default function MatchCard({
             <span className="kl-match-time">الموعد غير مؤكد</span>
           )}
 
-          {scoreDisplay.hasScore ? (
-            <div className="kl-score-badge" dir="ltr">
-              <span>{scoreDisplay.homeDisplay}</span>
-              <span className="kl-score-sep">:</span>
-              <span>{scoreDisplay.awayDisplay}</span>
-            </div>
-          ) : null}
+          {/*
+           * النتيجة عبر المكوّن المرجعي الوحيد: الترتيب المنطقي [الأول][الثاني] في DOM،
+           * وكل رقم يحمل هوية صاحبه في `data-side`/`data-team-id`. لا `dir="ltr"` مفروض
+           * هنا بعد اليوم — كان فرضه يجعل رقم الفريق الأول يقع ملاصقًا لعمود الفريق الثاني
+           * (لأن أعمدة الفريقين تُرتَّب باتجاه الصفحة RTL)، وهو مصدر «انعكاس النتائج»
+           * الذي بلّغ عنه المشغّل. المكوّن يرث اتجاه أبائه فيبقى كل رقم في جانب فريقه.
+           */}
+          <MatchScoreView
+            score={match.score}
+            status={match.status}
+            homeTeam={match.homeTeam}
+            awayTeam={match.awayTeam}
+            className="kl-score-badge"
+            containerTitle={`${homeName.displayName} ${match.score.home ?? '—'} : ${match.score.away ?? '—'} ${awayName.displayName}`}
+          />
 
           <span className={statusPinClass}>
             {match.status === 'live' && <span className="kl-live-dot" aria-hidden="true" />}

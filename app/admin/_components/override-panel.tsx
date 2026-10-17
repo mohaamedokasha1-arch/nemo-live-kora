@@ -22,6 +22,8 @@ export default function OverridePanel({
   disabledReasonAr,
   sourceIds,
   policySummaryAr,
+  homeTeamNameAr,
+  awayTeamNameAr,
 }: {
   matchId: string;
   lockedFields: string[];
@@ -31,6 +33,10 @@ export default function OverridePanel({
   disabledReasonAr?: string;
   sourceIds: string[];
   policySummaryAr: string;
+  /** اسم الفريق الأول كما في السجل — يُعرض في تسمية حقل النتيجة لقطع أي لبس. */
+  homeTeamNameAr?: string;
+  /** اسم الفريق الثاني كما في السجل. */
+  awayTeamNameAr?: string;
 }) {
   const router = useRouter();
   const { busy, result, run } = useAdminAction();
@@ -158,14 +164,14 @@ export default function OverridePanel({
             inputMode="numeric"
           />
         </Field>
-        <Field label="نتيجة الأول">
+        <Field label={`نتيجة الفريق الأول${homeTeamNameAr ? ` (${homeTeamNameAr})` : ''}`} hint="تُثبَّت على المفاتيح score.home/score.away كما هي — بلا أي إعادة ترتيب">
           <input
             value={manualValues.scoreHome}
             onChange={(event) => setManualValues((c) => ({ ...c, scoreHome: event.target.value }))}
             inputMode="numeric"
           />
         </Field>
-        <Field label="نتيجة الثاني">
+        <Field label={`نتيجة الفريق الثاني${awayTeamNameAr ? ` (${awayTeamNameAr})` : ''}`}>
           <input
             value={manualValues.scoreAway}
             onChange={(event) => setManualValues((c) => ({ ...c, scoreAway: event.target.value }))}

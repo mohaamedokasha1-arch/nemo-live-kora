@@ -1,5 +1,6 @@
 import React from 'react';
 import TeamCrest from './TeamCrest';
+import MatchScoreView from './MatchScoreView';
 import Link from 'next/link';
 import type { MatchRecord } from '@/lib/types';
 import { formatArabicFullDate, formatArabicTimestamp, toCairoTimeArabic } from '@/lib/cairo-time';
@@ -62,7 +63,12 @@ export default function SourceMatchDetails({ record }: { record: MatchRecord }) 
     <h1><span dir="auto">{homeName.displayName}</span> ضد <span dir="auto">{awayName.displayName}</span></h1>
     <p>{competitionLine}</p>
     <p>{formatArabicFullDate(match.cairoDate)} — {match.kickoffConfirmed ? `${toCairoTimeArabic(match.utcKickoff)} بتوقيت القاهرة` : 'وقت الانطلاق غير مؤكد'}</p>
-    <p>{match.statusLabelAr}{match.score.home !== null && match.score.away !== null ? ` — ${match.score.home} : ${match.score.away}` : ''}</p>
+    {/* الحالة ثم النتيجة من المكوّن المرجعي: كان السطر سردًا نصيًا «home : away» يُعاد
+        ترتيبه داخل فقرة RTL فتنعكس الأرقام بالنسبة لفريقي العنوان في الأعلى. */}
+    <p style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+      <span>{match.statusLabelAr}</span>
+      <MatchScoreView score={match.score} status={match.status} homeTeam={match.homeTeam} awayTeam={match.awayTeam} separator=":" />
+    </p>
     {match.statusNoteAr && <p>{match.statusNoteAr}</p>}
     {/*
       * الملعب: لا يُخترع ولا يُستنتج. إن لم يُرسله المصدر نُعلن ذلك صراحةً بدل إسكات السطر،

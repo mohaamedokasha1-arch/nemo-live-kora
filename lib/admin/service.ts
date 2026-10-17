@@ -341,7 +341,12 @@ export interface AdminMatchRow {
   awayNameAr: string;
   status: string;
   statusLabelAr: string;
+  /** ملخّص نصي «home - away» للترتيب/التصدير — العرض المرئي يُبنى من الحقول أدناه. */
   scoreLabel: string;
+  /** نتيجة الفريق الأول بالمفتاح — مرتبطة حتمًا بـ`homeNameAr` (لا بالاسم ولا بالموضع). */
+  scoreHome: number | null;
+  /** نتيجة الفريق الثاني بالمفتاح — مرتبطة حتمًا بـ`awayNameAr`. */
+  scoreAway: number | null;
   primarySource: string;
   sourceLabelAr: string;
   lastUpdatedAt: string;
@@ -407,6 +412,8 @@ export function queryAdminMatches(query: AdminMatchQuery = {}): { rows: AdminMat
       status: match.status,
       statusLabelAr: match.statusLabelAr,
       scoreLabel: scoreLabelFor(match),
+      scoreHome: match.score.home,
+      scoreAway: match.score.away,
       primarySource: match.primarySource,
       sourceLabelAr: manualIds.has(match.id) ? 'إدخال يدوي من اللوحة' : match.primarySource,
       lastUpdatedAt: match.lastUpdatedAt,

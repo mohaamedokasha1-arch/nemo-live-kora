@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { formatArabicFullDate, isValidDateParam } from '@/lib/cairo-time';
+import { buildMatchScoreView } from '@/lib/matches/score-view';
 import { findCatalogEntriesByCairoDate, resolveMatchView } from '@/lib/matches/match-catalog';
 import { findServedCatalogEntryById } from '@/lib/admin/served-catalog';
 import {
@@ -210,10 +211,17 @@ function MatchCard({ matchId }: { matchId: string }) {
   const round = entry.competition.roundLabelAr ? ` — ${entry.competition.roundLabelAr}` : '';
   const competitionText = `${entry.competition.nameAr}${round}`;
 
-  const scoreText =
-    view.score && Number.isFinite(view.score.home) && Number.isFinite(view.score.away)
-      ? `${view.score.home} - ${view.score.away}`
-      : 'ضد';
+  /**
+   * النتيجة في البطاقة: رقمان في عنصرين مرتبطين بعموديهما (ترتيب DOM = [الأول، الثاني]
+   * داخل صف row-reverse مثل صف الفريقين، فيقع رقم الأول ملاصقًا لعمود الأول يمينًا).
+   * لا يُبنى السرد «home - away» كسلسلة واحدة — خارج البطاقة كان ترتيبها يُقرأ معكوسًا.
+   */
+  const scoreView = buildMatchScoreView({
+    score: view.score,
+    status: view.status,
+    homeTeam: entry.homeTeam,
+    awayTeam: entry.awayTeam,
+  });
 
   return (
     <div style={shellStyle}>
@@ -257,9 +265,19 @@ function MatchCard({ matchId }: { matchId: string }) {
             padding: '14px 0',
           }}
         >
-          <OgText align="center" gap={8} maxLength={12}>
-            {scoreText}
-          </OgText>
+          {scoreView.hasScore ? (
+            // نفس ترتيب صف الفريقين: العنصر الأول في DOM = الفريق الأول، وصفحة البطاقة
+            // تُرتّب أبناءها row-reverse فيظهر رقم الأول ملاصقًا لعمود الأول (يمينًا).
+            <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 10 }}>
+              <span>{scoreView.sides[0].display}</span>
+              <span style={{ opacity: 0.75 }}>-</span>
+              <span>{scoreView.sides[1].display}</span>
+            </div>
+          ) : (
+            <OgText align="center" gap={8} maxLength={12}>
+              {'ضد'}
+            </OgText>
+          )}
         </div>
         <TeamName text={entry.awayTeam.nameAr} />
       </div>
