@@ -23,7 +23,15 @@ import { fetchWithProtection } from './http-client';
 
 import { API_FOOTBALL_LEAGUES, SOURCE_ENDPOINTS, apiFootballKey } from '../config/env';
 
-const API_FOOTBALL_BASE_URL = SOURCE_ENDPOINTS.apiFootballBase;
+/**
+ * نقطة نهاية API-Football — **تُقرأ حيّة في كل نداء** لا مرة واحدة عند الاستيراد:
+ * ثابت على مستوى الوحدة يجمّد القيمة وقت التحميل، فيتجاهل أي إعادة توجيه لاحقة
+ * (اختبارات، بروكسي، تغيير بيئة وقت التشغيل). النمط نفسه المستخدم في sportscore
+ * (`sportscoreSiteOrigin()`) وموثَّق في `lib/config/env.ts`.
+ */
+function apiFootballBase(): string {
+  return SOURCE_ENDPOINTS.apiFootballBase;
+}
 
 /**
  * API-Football v3 accepts two transports:
@@ -223,7 +231,7 @@ export async function fetchApiFootballSync(cairoDate: string, options: {
   if (!hasApiKey) {
     // Still probe /status if network is available to confirm endpoint reachability
     const statusProbe = await fetchWithProtection<ApiFootballEnvelope<unknown>>(
-      `${API_FOOTBALL_BASE_URL}/status`,
+      `${apiFootballBase()}/status`,
       {
         timeoutMs: 5000,
         retries: 0,
@@ -251,7 +259,7 @@ export async function fetchApiFootballSync(cairoDate: string, options: {
     };
   }
 
-  const url = `${API_FOOTBALL_BASE_URL}/fixtures?date=${encodeURIComponent(
+  const url = `${apiFootballBase()}/fixtures?date=${encodeURIComponent(
     cairoDate
   )}&timezone=Africa/Cairo`;
   const res = await fetchWithProtection<ApiFootballEnvelope<ApiFootballFixtureItem[]>>(url, {
@@ -334,7 +342,7 @@ export async function fetchApiFootballLeagueFixtures(
   const params = new URLSearchParams({ league: String(leagueId), season: String(season) });
   if (options.round) params.set('round', options.round);
   const res = await fetchWithProtection<ApiFootballEnvelope<ApiFootballFixtureItem[]>>(
-    `${API_FOOTBALL_BASE_URL}/fixtures?${params.toString()}`,
+    `${apiFootballBase()}/fixtures?${params.toString()}`,
     {
       timeoutMs: options.timeoutMs ?? 10_000,
       retries: 1,
@@ -373,7 +381,7 @@ export async function fetchApiFootballStandings(
   if (!key) return null;
   const res = await fetchWithProtection<
     ApiFootballEnvelope<Array<{ league: { id: number; name: string; logo?: string | null; season: number; standings: ApiFootballStandingsRow[][] } }>>
-  >(`${API_FOOTBALL_BASE_URL}/standings?league=${leagueId}&season=${season}`, {
+  >(`${apiFootballBase()}/standings?league=${leagueId}&season=${season}`, {
     timeoutMs: 9000,
     retries: 1,
     cacheTtlMs: 10 * 60_000,
@@ -437,7 +445,7 @@ export async function fetchApiFootballFixtureById(
   if (!apiFootballKey()) return null;
   try {
     const res = await fetchWithProtection<ApiFootballEnvelope<ApiFootballFixtureItem[]>>(
-      `${API_FOOTBALL_BASE_URL}/fixtures?id=${encodeURIComponent(trimmed)}`,
+      `${apiFootballBase()}/fixtures?id=${encodeURIComponent(trimmed)}`,
       {
         timeoutMs: options.timeoutMs ?? 8000,
         retries: 0,

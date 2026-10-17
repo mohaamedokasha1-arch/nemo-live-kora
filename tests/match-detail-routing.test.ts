@@ -317,6 +317,40 @@ test('11) fallback غير التوفّر يشرح الحالة ويعيد الز
   assert.doesNotMatch(html, /نتيجة/);
 });
 
+test('11-ب) أحداث اللقاء تُعرض في صفحة الهبوط عند توفّرها من المصدر فقط', async () => {
+  const { resolveMatchView } = await import('../lib/matches/match-catalog');
+  const { MATCH_CATALOG } = await import('../data/matches');
+  const { default: MatchLandingView } = await import('../components/MatchLandingView');
+
+  const view = resolveMatchView(MATCH_CATALOG[0]);
+
+  // ① بلا أحداث من المصدر: لا قسم أحداث مُخترع.
+  const withoutEvents = renderToStaticMarkup(MatchLandingView({ view }));
+  assert.doesNotMatch(withoutEvents, /أحداث المباراة/);
+
+  // ② بأحداث مُرسلة من المصدر: تُعرض كما هي (دقيقة + لاعب + نوع + الفريق).
+  const withSourceEvents = renderToStaticMarkup(
+    MatchLandingView({
+      view: {
+        ...view,
+        sourceMatch: {
+          ...(view.sourceMatch ?? {}),
+          id: 'match-api-football-1612263',
+          primarySource: 'thesportsdb',
+          incidents: [
+            { minute: 23, type: 'goal', side: 'home', player: 'لاعب الاختبار', detail: 'تسديدة' },
+            { minute: 45, type: 'yellow_card', side: 'away', player: 'لاعب آخر' },
+          ],
+        } as never,
+      },
+    })
+  );
+  assert.match(withSourceEvents, /أحداث المباراة/);
+  assert.match(withSourceEvents, /لاعب الاختبار/);
+  assert.match(withSourceEvents, /هدف/);
+  assert.match(withSourceEvents, /بطاقة صفراء/);
+});
+
 /* ────────────────────────────────────────────────────────────────────────────
  *  5) المسار التوافقي القديم /match/[id]
  * ──────────────────────────────────────────────────────────────────────────── */
