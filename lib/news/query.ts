@@ -25,6 +25,16 @@ export function getLatestNews(
     .slice(0, limit);
 }
 
+/** Same selection for the visible news listing, its metadata and sitemap eligibility. */
+export function getNewsListingItems(
+  news: NewsItemRecord[],
+  limit = 24,
+  now: Date = new Date()
+): NewsItemRecord[] {
+  const latest = getLatestNews(news, limit, now);
+  return latest.length ? latest : getPublishedNews(news, now).slice(0, limit);
+}
+
 export function getArchiveNews(
   news: NewsItemRecord[],
   now: Date = new Date()

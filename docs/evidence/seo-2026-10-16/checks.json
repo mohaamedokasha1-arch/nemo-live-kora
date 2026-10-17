@@ -1,0 +1,16 @@
+{
+  "xmlValid": true,
+  "sitemapEntries": 11,
+  "sitemapRoutes200Canonical": true,
+  "unchangedHeadingAndLinkProbes": 109,
+  "comparedProbes": 109,
+  "tests": {
+    "pass": 335,
+    "fail": 0
+  },
+  "build": "pass with 3 filesystem tracing warnings",
+  "typecheck": "pass",
+  "lint": "pass",
+  "productionDependencyVulnerabilities": 0,
+  "screenshots": "blocked: libnspr4.so missing"
+}

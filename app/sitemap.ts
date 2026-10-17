@@ -7,7 +7,7 @@ import {
 } from '@/lib/cairo-time';
 import { getActiveMatches, getGatewayDatabase, hydrateStore, queryGatewayMatches } from '@/lib/db/store';
 import { getCatalogSitemapItems } from '@/lib/matches/match-catalog';
-import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
+import { getArchiveNews, getNewsListingItems, getPublishedNews } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { GATEWAY_SITE_URL } from '@/lib/site-url';
 import { getSiteSettings, loadManualDocument } from '@/lib/admin/manual-store';
@@ -45,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const endDate = shiftDateString(todayCairo, 7);
   const db = getGatewayDatabase();
   const { availableDates } = queryGatewayMatches({});
-  const latestNews = includeNewsInSitemap ? getLatestNews(db.news, 24) : [];
+  const latestNews = includeNewsInSitemap ? getNewsListingItems(db.news, 24) : [];
   const archiveNews = includeNewsInSitemap ? getArchiveNews(db.news) : [];
   const indexableNews = includeNewsInSitemap
     ? getPublishedNews(db.news).filter(isIndexableNewsArticle)
@@ -68,25 +68,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${GATEWAY_SITE_URL}/about`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.4,
     },
     {
       url: `${GATEWAY_SITE_URL}/contact`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.4,
     },
     {
       url: `${GATEWAY_SITE_URL}/privacy-policy`,
-      lastModified: now,
       changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
       url: `${GATEWAY_SITE_URL}/terms`,
-      lastModified: now,
       changeFrequency: 'yearly',
       priority: 0.3,
     },

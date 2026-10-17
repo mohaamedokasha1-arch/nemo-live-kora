@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatArabicTimestamp, getTodayCairoDate } from '@/lib/cairo-time';
 import { getGatewayDatabase, hydrateStore } from '@/lib/db/store';
-import { getArchiveNews, getLatestNews, getPublishedNews } from '@/lib/news/query';
+import { getArchiveNews, getNewsListingItems } from '@/lib/news/query';
 import { isIndexableNewsArticle } from '@/lib/news/validate';
 import { ensureFreshNews } from '@/lib/sync/engine';
 import NewsSection from '@/components/NewsSection';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const db = await hydrateStore();
-  const hasIndexableCurrentNews = getLatestNews(db.news, 24).some(isIndexableNewsArticle);
+  const hasIndexableCurrentNews = getNewsListingItems(db.news, 24).some(isIndexableNewsArticle);
   return {
     title: 'الأخبار الرياضية',
     description:
@@ -26,8 +26,7 @@ export default async function NewsIndexPage() {
   await hydrateStore();
   await ensureFreshNews();
   const db = getGatewayDatabase();
-  const latest = getLatestNews(db.news, 24);
-  const displayed = latest.length ? latest : getPublishedNews(db.news).slice(0, 24);
+  const displayed = getNewsListingItems(db.news, 24);
   const archiveCount = getArchiveNews(db.news).length;
   const lastOk = db.meta.lastSuccessfulNewsSyncAt;
 
