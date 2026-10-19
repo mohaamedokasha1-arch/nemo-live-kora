@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isDenied, requireAdminPermission } from '@/lib/auth/admin-session';
 import { loadManualDocument } from '@/lib/admin/manual-store';
+import { matchLandingUrl, notifyGoogleIndexingAfterResponse } from '@/lib/seo/google-indexing';
 import {
   buildManualMatchFromForm,
   createManualMatch,
@@ -87,6 +88,12 @@ export async function POST(request: NextRequest) {
   }
 
   const outcome = await createManualMatch(body, auth.identity);
+  // إشعار Google Indexing بصفحة المباراة الجديدة في الخلفية فور نجاح الحفظ.
+  if (outcome.ok && outcome.data) {
+    notifyGoogleIndexingAfterResponse([matchLandingUrl(outcome.data.id)], {
+      contextAr: 'admin/matches — إنشاء',
+    });
+  }
   return NextResponse.json(
     {
       ok: outcome.ok,

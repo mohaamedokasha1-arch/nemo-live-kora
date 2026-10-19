@@ -4,8 +4,20 @@ import { isDenied, requireAdminPermission } from '@/lib/auth/admin-session';
 import { loadManualDocument } from '@/lib/admin/manual-store';
 import { getSourceRows } from '@/lib/admin/service';
 import { runGatewaySync, runNewsSync } from '@/lib/sync/engine';
-import { verifyStorageRoundTrip } from '@/lib/db/store';
-import type { SourceId } from '@/lib/types';
+import {
+  getActiveMatches,
+  getGatewayDatabase,
+  hydrateStore,
+  verifyStorageRoundTrip,
+} from '@/lib/db/store';
+import {
+  collectChangedMatchIds,
+  collectChangedPublishedNewsSlugs,
+  matchLandingUrl,
+  newsArticleUrl,
+  notifyGoogleIndexingAfterResponse,
+} from '@/lib/seo/google-indexing';
+import type { MatchRecord, NewsItemRecord, SourceId } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -63,9 +75,24 @@ export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   const roundTripBefore = await verifyStorageRoundTrip();
 
+  /**
+   * لقطة «قبل» لكشف ما تغيّر فعلًا أثناء هذه الجولة لإشعار Google Indexing في الخلفية.
+   * null يعني «هذه الجولة لا تمسّ هذا النوع أصلًا» فتُتخطّى مقارنته — مقارنة لقطة
+   * فارغة كانت ستُبلِّغ كل محتوى المخزن كأنه جديد وتُسرفد حصة الإشعارات بلا فائدة.
+   */
+  const dbBefore = await hydrateStore();
+  const matchesBefore: MatchRecord[] | null = job === 'news' ? null : getActiveMatches(dbBefore);
+  const newsBefore: NewsItemRecord[] | null = job === 'matches' ? null : [...dbBefore.news];
+
   if (job === 'news') {
     const record = await runNewsSync('تشغيل يدوي من لوحة الإدارة');
     revalidatePublicPaths(['/news', '/']);
+
+    const newsUrls = collectChangedPublishedNewsSlugs(newsBefore ?? [], getGatewayDatabase().news).map(newsArticleUrl);
+    if (newsUrls.length > 0) {
+      notifyGoogleIndexingAfterResponse(newsUrls, { contextAr: 'admin/sync (news)' });
+    }
+
     return NextResponse.json(
       {
         ok: record.ok,
@@ -93,6 +120,19 @@ export async function POST(request: NextRequest) {
   });
 
   revalidatePublicPaths(['/', '/news', '/sitemap.xml']);
+
+  const dbAfter = getGatewayDatabase();
+  const indexingUrls = [
+    ...(matchesBefore
+      ? collectChangedMatchIds(matchesBefore, getActiveMatches(dbAfter)).map(matchLandingUrl)
+      : []),
+    ...(newsBefore
+      ? collectChangedPublishedNewsSlugs(newsBefore, dbAfter.news).map(newsArticleUrl)
+      : []),
+  ];
+  if (indexingUrls.length > 0) {
+    notifyGoogleIndexingAfterResponse(indexingUrls, { contextAr: `admin/sync (${job})` });
+  }
 
   const totalFetched = log.sourceResults.reduce(
     (sum, result) => sum + result.matchesFetched + result.newsFetched,

@@ -446,7 +446,12 @@ export interface MatchUpsertStats {
   unchanged: number;
 }
 
-function matchContentFingerprint(match: MatchRecord): string {
+/**
+ * بصمة المحتوى التي تفرّق بين «تحدّث فعلًا» و«لم يتغيّر» (تستبعد نبضة التحديث
+ * lastUpdatedAt). مُصدَّرة حتى يقارن بها إشعار Google Indexing (lib/seo/google-indexing.ts)
+ * بنفس منطق المخزن تمامًا فلا تُستهلك حصة الإشعارات بروابط لم يتبدّل محتواها.
+ */
+export function matchContentFingerprint(match: MatchRecord): string {
   return JSON.stringify({ ...match, lastUpdatedAt: null });
 }
 
