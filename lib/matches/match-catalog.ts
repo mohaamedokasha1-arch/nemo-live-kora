@@ -212,11 +212,16 @@ export interface CatalogSitemapItem {
 
 /**
  * مدخلات خريطة الموقع لكل مباراة مُفعّلة (مع توقيت آخر تحديث حقيقي).
- * الرابط يُضاف تلقائيًا بمجرد إضافة المباراة إلى `data/matches.ts`.
+ * الرابط يُضاف تلقائيًا بمجرد إضافة المباراة إلى `data/matches.ts` أو لوحة الإدارة.
+ *
+ * الفلتر هنا **نفس بوابة** `robots.index` في `buildMatchLandingMetadata` حرفيًا
+ * (`isIndexableCatalogEntry`): ما لا يُراد فهرسته أو تعجز صفحته عن إنتاج محتوى صحيح
+ * لا يُعلن في الخريطة — فلا تعارض أبدًا بين إشارة الخريطة وإشارة الصفحة.
  */
 export function getCatalogSitemapItems(now: Date = new Date()): CatalogSitemapItem[] {
   return resolveAllMatchViews(now)
     .filter((view) => view.entry.seo?.excludeFromSitemap !== true)
+    .filter((view) => isIndexableCatalogEntry(view.entry))
     .map((view) => {
       const kickoffMs = new Date(view.kickoffUtc).getTime();
       const hoursToKickoff = (kickoffMs - now.getTime()) / 3_600_000;
@@ -382,7 +387,57 @@ export function validateMatchCatalog(entries: MatchCatalogEntry[] = getServedCat
   return errors;
 }
 
-/** هل المباراة مؤهلة للفهرسة (تحتوي كل الحقول الإلزامية للبيانات المنظمة)؟ */
+/**
+ * هل صفحة هذه المباراة مؤهلة فعليًا للفهرسة؟
+ *
+ * ⚠️ هذه البوابة **ليست** التدقيق الصارم `validateMatchCatalogEntry` الذي يفرض أعلى
+ * معايير الجودة على كتالوج `data/matches.ts` (ويظل مطلوبًا في اختبارات المشروع).
+ * هنا سؤال واحد فقط: هل تُنتج هذه الصفحة عند فتحها محتوى صحيحًا وبيانات منظمة سليمة،
+ * أم أن إعلانها للفهرسة خطأ؟
+ *
+ * أسباب رفض الفهرسة — وهذه وحدها:
+ *  ① طلب صريح بعدم الفهرسة (`seo.noindex` = حقل «قابل للفهرسة» في لوحة الإدارة).
+ *  ② معرّف غير صالح = لا رابط ثابت وفريد للمباراة.
+ *  ③ تواريخ غير صالحة أو متناقضة: `kickoffUtc`/`cairoDate`/المدة (startDate وendDate
+ *     في البيانات المنظمة) و`updatedAt` (lastmod في خريطة الموقع — تاريخ غير صالح
+ *     هنا يُفسد XML كله).
+ *  ④ البيانات الأساسية للمحتوى والحقول الإلزامية في SportsEvent ناقصة: اسمًا الفريقين،
+ *     اسم البطولة، اسم الملعب، حالة البث.
+ *
+ * الحقول المحسّنة (keywords، `venue.countryCode`، روابط الفرق ومصادر الربط...) يبقى
+ * اكتمالها مطلوبًا في التدقيق الصارم، لكن نقصها **لا يمنع فهرسة صفحة مباراة حقيقية**:
+ * بناء البيانات المنظمة (`lib/seo/sports-event.ts`) يعاملها أصلًا كحقول اختيارية،
+ * وإلا حوّل هذا البوابة — كما كان قبل 2026-10-19 — كل مباراة يدخلها المدير من
+ * اللوحة إلى `noindex` غير مقصود رغم إعلانها في خريطة الموقع.
+ */
 export function isIndexableCatalogEntry(entry: MatchCatalogEntry): boolean {
-  return validateMatchCatalogEntry(entry).length === 0;
+  return indexabilityBlockers(entry).length === 0;
+}
+
+/** أسباب رفض الفهرسة فقط (فراغ = الصفحة مؤهلة). تُستخدم لتوثيق السبب عند الحاجة. */
+function indexabilityBlockers(entry: MatchCatalogEntry): string[] {
+  const blockers: string[] = [];
+  if (entry.seo?.noindex === true) blockers.push('noindex مطلوب صراحة لهذه الصفحة.');
+  if (!entry.id || !ID_PATTERN.test(entry.id) || entry.id.length > 120) {
+    blockers.push('المعرّف غير صالح = لا رابط ثابت.');
+  }
+  if (!isValidIso(entry.kickoffUtc)) {
+    blockers.push('kickoffUtc غير صالح (startDate في البيانات المنظمة).');
+  } else if (!isValidDateParam(entry.cairoDate) || toCairoDateString(entry.kickoffUtc) !== entry.cairoDate) {
+    blockers.push('cairoDate غير صالح أو لا يطابق kickoffUtc.');
+  }
+  if (!Number.isFinite(entry.durationMinutes) || entry.durationMinutes <= 0) {
+    blockers.push('durationMinutes غير صالحة (endDate في البيانات المنظمة).');
+  }
+  for (const [side, team] of [
+    ['homeTeam', entry.homeTeam],
+    ['awayTeam', entry.awayTeam],
+  ] as const) {
+    if (!team?.nameAr?.trim() || !team?.nameEn?.trim()) blockers.push(`${side} بلا اسم عربي/إنجليزي.`);
+  }
+  if (!entry.competition?.nameAr?.trim()) blockers.push('competition.nameAr مفقود (organizer).');
+  if (!entry.venue?.name?.trim()) blockers.push('venue.name مفقود (location).');
+  if (!entry.broadcast?.status) blockers.push('broadcast.status مفقود.');
+  if (!isValidIso(entry.updatedAt)) blockers.push('updatedAt غير صالح (lastmod في خريطة الموقع).');
+  return blockers;
 }

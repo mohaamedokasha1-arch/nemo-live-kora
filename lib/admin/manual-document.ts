@@ -729,6 +729,12 @@ export function buildCatalogEntryFromManual(record: ManualMatchRecord): MatchCat
       `موعد مباراة ${record.awayTeam.nameAr} اليوم`,
       `${record.homeTeam.nameEn} vs ${record.awayTeam.nameEn}`,
     ],
+    seo: {
+      // حقل «قابل للفهرسة» من لوحة الإدارة — معناه الموثّق في ManualMatchRecord.indexable:
+      // «هل تُفهرس صفحتها وتدخل خريطة الموقع؟ (افتراضيًا نعم)». كان يُحفظ ثم يُتجاهل
+      // قبل 2026-10-19، فتُفهرس الصفحة العكس: noindex دائم + إعلان في الخريطة.
+      noindex: record.indexable === false,
+    },
     schema: {
       homeScore: score.home,
       awayScore: score.away,

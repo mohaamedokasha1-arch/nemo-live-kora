@@ -63,7 +63,9 @@ export function buildMatchLandingMetadata(view: ResolvedMatchView): Metadata {
       description,
       images: [image],
     },
-    // شبكة أمان: أي سجل ناقص الحقول لا يُفهرس بدلًا من إنتاج بيانات منظمة ناقصة.
+    // شبكة أمان: صفحة بلا محتوى صحيح أو بطلب noindex صريح (`seo.noindex`) لا
+    // تُفهرس — ونفس هذه البوابة حرفيًا تُصفّي خريطة الموقع (`getCatalogSitemapItems`)
+    // فلا تعارض أبدًا بين إشارة الصفحة وإشارة الخريطة.
     robots: { index: isIndexableCatalogEntry(entry), follow: true },
   };
 }
