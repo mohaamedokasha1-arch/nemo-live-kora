@@ -2,10 +2,16 @@ import { NextResponse } from 'next/server';
 import {
   describeStorageWarnings,
   flushDurableStore,
+  getActiveMatches,
   getDurableStoreStatus,
   getGatewayDatabase,
   hydrateGatewayDatabase,
 } from '@/lib/db/store';
+import {
+  collectChangedMatchIds,
+  matchLandingUrl,
+  notifyGoogleIndexingAfterResponse,
+} from '@/lib/seo/google-indexing';
 import { ensureFreshMatches } from '@/lib/sync/engine';
 
 export const dynamic = 'force-dynamic';
@@ -26,12 +32,22 @@ async function updateMatches() {
   try {
     // Adopt the newest stored snapshot first so this instance never syncs from a stale bundle.
     await hydrateGatewayDatabase();
+    /** لقطة «قبل» لكشف المباريات التي تغيّر محتواها فعلًا لإشعار Google بعد الجولة. */
+    const matchesBefore = getActiveMatches(getGatewayDatabase());
 
     const log = await ensureFreshMatches(0, 'API /api/cron/update-matches (live)');
     const result = getGatewayDatabase().meta.lastMatchesSyncResult;
     const persistence = await flushDurableStore({ force: true });
     const syncOk = Boolean(result?.ok);
     const status = syncOk && persistence.ok ? 'ok' : 'degraded';
+
+    // إشعار Google في الخلفية بصفحات المباريات التي تغيّرت فعلًا في هذه الجولة.
+    const changedMatchUrls = collectChangedMatchIds(matchesBefore, getActiveMatches(getGatewayDatabase())).map(
+      matchLandingUrl
+    );
+    if (changedMatchUrls.length > 0) {
+      notifyGoogleIndexingAfterResponse(changedMatchUrls, { contextAr: 'cron/update-matches' });
+    }
 
     console.info(
       '[cron:update-matches]',

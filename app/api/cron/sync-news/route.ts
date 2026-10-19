@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronAuth } from '@/lib/auth/cron-auth';
 import { describeStorageWarnings, flushDurableStore, getGatewayDatabase, hydrateStore } from '@/lib/db/store';
+import {
+  collectChangedPublishedNewsSlugs,
+  newsArticleUrl,
+  notifyGoogleIndexingAfterResponse,
+} from '@/lib/seo/google-indexing';
 import { runNewsSync } from '@/lib/sync/engine';
+import type { NewsItemRecord } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -14,6 +20,8 @@ async function handle(request: NextRequest) {
   try {
     const dbBefore = await hydrateStore();
     const publishedBefore = dbBefore.news.filter((item) => item.publishStatus === 'published').length;
+    /** لقطة الأخبار قبل الجولة — يقاس عليها ما صار قابلًا للفهرسة فعلًا لإشعار Google. */
+    const newsBefore: NewsItemRecord[] = [...dbBefore.news];
     // نافذة هذه الجولة تُقاس من بدئها، لا من بداية سجل Google: سجل الخلاصات المباشرة
     // يُسجَّل أولًا وينتهي قبل أن يبدأ جريان Google أصلًا.
     const runStartedAt = new Date().toISOString();
@@ -31,6 +39,13 @@ async function handle(request: NextRequest) {
     const publishedDelta = Math.max(0, publishedAfter - publishedBefore);
     const newsFlowOk = syncOk || publishedDelta > 0;
     const thisRunRecords = dbAfter.newsSourceSyncs.filter((record) => record.finishedAt >= runStartedAt);
+
+    // إشعار Google في الخلفية بكل خبر صار قابلًا للفهرسة في هذه الجولة (جديد أو متغيّر المحتوى).
+    const changedNewsUrls = collectChangedPublishedNewsSlugs(newsBefore, dbAfter.news).map(newsArticleUrl);
+    if (changedNewsUrls.length > 0) {
+      notifyGoogleIndexingAfterResponse(changedNewsUrls, { contextAr: 'cron/sync-news' });
+    }
+
     return NextResponse.json(
       {
         ok: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cairoDatePagePaths, revalidatePublicPaths } from '@/lib/admin/revalidate';
 import { isDenied, requireAdminPermission } from '@/lib/auth/admin-session';
 import { loadManualDocument } from '@/lib/admin/manual-store';
+import { matchLandingUrl, notifyGoogleIndexingAfterResponse } from '@/lib/seo/google-indexing';
 import {
   deleteManualMatch,
   detectDuplicateMatch,
@@ -61,6 +62,10 @@ export async function PATCH(request: NextRequest, context: Context) {
       '/sitemap.xml',
       ...cairoDatePagePaths(),
     ]);
+    // إشعار Google بالتعديل في الخلفية حتى يزحف إلى النسخة الجديدة فورًا.
+    notifyGoogleIndexingAfterResponse([matchLandingUrl(outcome.data.id)], {
+      contextAr: 'admin/matches — تعديل',
+    });
   }
   return NextResponse.json(
     { ok: outcome.ok, messageAr: outcome.messageAr, data: outcome.data, warningsAr: outcome.warningsAr },
@@ -80,6 +85,11 @@ export async function DELETE(request: NextRequest, context: Context) {
   const outcome = await deleteManualMatch(decoded, confirmation, auth.identity);
   if (outcome.ok) {
     revalidatePublicPaths([`/matches/${decoded}`, `/live/${decoded}`, '/', '/sitemap.xml', ...cairoDatePagePaths()]);
+    // إسقاط صفحة المباراة المحذوفة من فهرس Google (URL_DELETED) بدل بقائها رابطًا ميتًا مفهرسًا.
+    notifyGoogleIndexingAfterResponse([matchLandingUrl(decoded)], {
+      type: 'URL_DELETED',
+      contextAr: 'admin/matches — حذف',
+    });
   }
   return NextResponse.json(
     { ok: outcome.ok, messageAr: outcome.messageAr, data: outcome.data, warningsAr: outcome.warningsAr },

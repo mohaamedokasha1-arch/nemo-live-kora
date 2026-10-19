@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRequest } from '@/lib/auth/cron-auth';
-import { describeStorageWarnings, flushDurableStore } from '@/lib/db/store';
+import {
+  describeStorageWarnings,
+  flushDurableStore,
+  getGatewayDatabase,
+  hydrateStore,
+} from '@/lib/db/store';
+import {
+  collectChangedPublishedNewsSlugs,
+  newsArticleUrl,
+  notifyGoogleIndexingAfterResponse,
+} from '@/lib/seo/google-indexing';
 import { runNewsSync } from '@/lib/sync/engine';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +22,16 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
 
   try {
+    /** لقطة «قبل» لكشف ما صار قابلًا للفهرسة في هذه الجولة لإشعار Google Indexing. */
+    const newsBefore = [...(await hydrateStore()).news];
     const sync = await runNewsSync('لوحة الإدارة — مزامنة اختبارية');
     const persistence = await flushDurableStore({ force: true });
+
+    const newsUrls = collectChangedPublishedNewsSlugs(newsBefore, getGatewayDatabase().news).map(newsArticleUrl);
+    if (newsUrls.length > 0) {
+      notifyGoogleIndexingAfterResponse(newsUrls, { contextAr: 'admin/news/sync' });
+    }
+
     const syncOk = Boolean(sync.ok);
     return NextResponse.json(
       {

@@ -3,6 +3,7 @@ import { revalidatePublicPaths } from '@/lib/admin/revalidate';
 import { isDenied, requireAdminPermission } from '@/lib/auth/admin-session';
 import { loadManualDocument } from '@/lib/admin/manual-store';
 import { saveManualNews, queryAdminNews, type NewsFormInput } from '@/lib/admin/service';
+import { newsArticleUrl, notifyGoogleIndexingAfterResponse } from '@/lib/seo/google-indexing';
 import { SOURCE_CAPABILITIES } from '@/lib/news/capabilities';
 import { getNewsAdminStats } from '@/lib/news/query';
 import { hydrateStore } from '@/lib/db/store';
@@ -71,6 +72,10 @@ export async function POST(request: NextRequest) {
   const outcome = await saveManualNews(body, auth.identity);
   if (outcome.ok && outcome.data) {
     revalidatePublicPaths(['/news', '/news/archive', `/news/${outcome.data.slug}`, '/', '/sitemap.xml']);
+    // إشعار Google Indexing بصفحة الخبر الجديدة في الخلفية فور نجاح الحفظ.
+    notifyGoogleIndexingAfterResponse([newsArticleUrl(outcome.data.slug)], {
+      contextAr: 'admin/news — إنشاء',
+    });
   }
   return NextResponse.json(
     {
