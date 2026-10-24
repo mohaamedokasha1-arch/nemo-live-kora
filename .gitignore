@@ -3,8 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
-# Next.js build output
+# Next.js and OpenNext build output
 .next/
+.open-next/
+.wrangler/
 out/
 build/
 dist/
@@ -17,6 +19,7 @@ dist/
 .vercel/
 
 # Environment variables & secrets (NEVER commit real keys)
+.dev.vars
 .env
 .env.local
 .env.development.local

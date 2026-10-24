@@ -25,7 +25,11 @@
     "audit:connectivity": "node --import tsx scripts/audit-connectivity.ts",
     "audit:analytics": "node --import tsx scripts/audit-analytics.ts",
     "audit:score-pairing": "node --import tsx scripts/audit-score-pairing.ts",
-    "audit:adsense": "node --import tsx scripts/audit-adsense.ts"
+    "audit:adsense": "node --import tsx scripts/audit-adsense.ts",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf:upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",
@@ -42,7 +46,8 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "wrangler": "^4.152.0"
   },
   "overrides": {
     "braces": "3.0.3",
