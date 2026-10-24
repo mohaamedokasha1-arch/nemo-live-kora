@@ -1,3 +1,4 @@
+import { runtimeEnvironment } from '../config/runtime-env';
 import crypto from 'crypto';
 
 /**
@@ -37,7 +38,7 @@ export function fromBase64url(value: string): Buffer {
  * المشترك حتى لا يعمل النظام بسر افتراضي مكتوب في الكود:
  * بلا أي سر مضبوط لا تُنشأ جلسات أصلًا.
  */
-export function sessionSigningKey(env: NodeJS.ProcessEnv = process.env): Buffer | null {
+export function sessionSigningKey(env: NodeJS.ProcessEnv = runtimeEnvironment()): Buffer | null {
   const explicit = (env.NEMO_ADMIN_SESSION_SECRET || '').trim();
   if (explicit.length >= 16) return crypto.createHash('sha256').update(`nemo-session::${explicit}`).digest();
   const shared = [(env.CRON_SECRET || '').trim(), (env.NEMO_INGEST_TOKEN || '').trim()].filter(Boolean);
@@ -69,7 +70,7 @@ export function timingSafeStringEqual(a: string, b: string): boolean {
  */
 export function readSignedSessionCookie(
   raw: string | undefined | null,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = runtimeEnvironment()
 ): SessionPayload | null {
   const value = (raw || '').trim();
   const parts = value.split('.');

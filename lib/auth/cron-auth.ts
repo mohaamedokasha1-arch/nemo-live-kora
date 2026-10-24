@@ -1,11 +1,13 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { readSignedSessionCookie } from './admin-session-cookie';
+import { runtimeEnvironment } from '../config/runtime-env';
 
 export const ADMIN_COOKIE = 'nemo_admin_session';
 
 function configuredSecrets(): string[] {
-  return [process.env.CRON_SECRET, process.env.NEMO_INGEST_TOKEN]
+  const env = runtimeEnvironment();
+  return [env.CRON_SECRET, env.NEMO_INGEST_TOKEN]
     .map((value) => (value || '').trim())
     .filter(Boolean);
 }

@@ -10,6 +10,7 @@ import {
   signSessionPayload,
 } from './admin-session-cookie';
 import type { AdminRole } from '../admin/manual-document';
+import { runtimeEnvironment } from '../config/runtime-env';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
@@ -103,7 +104,7 @@ function looksPlaceholder(value: string): boolean {
  * ولا توجد بيانات دخول مكتوبة في المستودع إطلاقًا — تعذُّر التهيئة يعني أن اللوحة
  * تُعلن ذلك وترفض الدخول بدل إنشاء حساب افتراضي ضعيف.
  */
-export function listAdminUsers(env: NodeJS.ProcessEnv = process.env): AdminUser[] {
+export function listAdminUsers(env: NodeJS.ProcessEnv = runtimeEnvironment()): AdminUser[] {
   const users: AdminUser[] = [];
 
   const json = (env.NEMO_ADMIN_USERS || '').trim();
@@ -148,16 +149,16 @@ export function listAdminUsers(env: NodeJS.ProcessEnv = process.env): AdminUser[
   return users;
 }
 
-export function hasPasswordAdmin(env: NodeJS.ProcessEnv = process.env): boolean {
+export function hasPasswordAdmin(env: NodeJS.ProcessEnv = runtimeEnvironment()): boolean {
   return listAdminUsers(env).length > 0;
 }
 
 /** هل يمكن الدخول بأي طريقة؟ (كلمة مرور مُجزَّأة، أو الرمز المشترك القديم). */
-export function isAdminLoginAvailable(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isAdminLoginAvailable(env: NodeJS.ProcessEnv = runtimeEnvironment()): boolean {
   return hasPasswordAdmin(env) || hasConfiguredAdminSecret();
 }
 
-export function findAdminUser(username: string, env: NodeJS.ProcessEnv = process.env): AdminUser | null {
+export function findAdminUser(username: string, env: NodeJS.ProcessEnv = runtimeEnvironment()): AdminUser | null {
   const normalized = username.trim().toLowerCase();
   return listAdminUsers(env).find((user) => user.username.toLowerCase() === normalized) ?? null;
 }
@@ -169,7 +170,7 @@ export function findAdminUser(username: string, env: NodeJS.ProcessEnv = process
 
 export function createAdminSession(
   identity: Omit<AdminIdentity, 'expiresAt'>,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = runtimeEnvironment()
 ): { ok: boolean; cookie: string | null; expiresAt: string | null; messageAr: string } {
   const key = sessionSigningKey(env);
   if (!key) {
@@ -200,7 +201,7 @@ export function createAdminSession(
 /** يتحقق من كوكي الجلسة ويعيد الهوية أو null (التوقيع + الانتهاء + الدور). */
 export function readAdminSession(
   cookieValue: string | undefined | null,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = runtimeEnvironment()
 ): AdminIdentity | null {
   const raw = (cookieValue || '').trim();
   if (!raw) return null;
