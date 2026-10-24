@@ -11,6 +11,8 @@
  * `describeSourceConfiguration()` for anything that may be rendered or logged.
  */
 
+import { runtimeEnv } from './runtime-env';
+
 export type ConfiguredKeyState = 'configured' | 'missing' | 'placeholder';
 
 /** Values users paste into dashboards that mean "not set yet". */
@@ -32,7 +34,7 @@ const PLACEHOLDER_VALUES = new Set([
 
 /** Reads a raw env value, trimming whitespace and one layer of accidental quotes. */
 export function readEnv(name: string): string {
-  const raw = process.env[name];
+  const raw = runtimeEnv(name);
   if (raw === undefined) return '';
   let value = raw.trim();
   if (
